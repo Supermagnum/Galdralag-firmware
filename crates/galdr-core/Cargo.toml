@@ -1,0 +1,43 @@
+[package]
+name = "galdr-core"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Galdr shared types, HAL traits, and security boundaries (Baochip-1x / Xous)"
+
+[features]
+default = []
+test-hal = []
+profile-openpgp = []
+profile-extended = ["profile-openpgp"]
+profile-pqc = []
+profile-hardened = []
+
+[dependencies]
+rand_core.workspace = true
+subtle.workspace = true
+zeroize.workspace = true
+
+[dev-dependencies]
+proptest.workspace = true
+static_assertions.workspace = true
+hex.workspace = true
+hkdf.workspace = true
+sha1.workspace = true
+sha2.workspace = true
+sha3.workspace = true
+hmac.workspace = true
+pbkdf2.workspace = true
+aes-gcm.workspace = true
+chacha20poly1305.workspace = true
+blake2.workspace = true
+blake3.workspace = true
+ed25519-dalek.workspace = true
+x25519-dalek.workspace = true
+p256.workspace = true
+p384.workspace = true
+vsss-rs.workspace = true
+rand.workspace = true
+
+[lints]
+workspace = true
