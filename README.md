@@ -12,7 +12,7 @@ Portions of this repository (including documentation, tests, and tooling) may ha
 
 ## Table of contents
 
-- [Galdra tool specification (docs/GALDRA-TOOL.md)](docs/GALDRA-TOOL.md)
+- [Galdra tool usage and specifications](docs/GALDRA-TOOL.md)
 - [AI disclaimer](#ai-disclaimer)
 - [Test results](#test-results)
 - [About the name](#about-the-name)
