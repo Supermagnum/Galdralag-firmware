@@ -15,6 +15,7 @@ Portions of this repository (including documentation, tests, and tooling) may ha
 - [Galdra tool usage and specifications](docs/GALDRA-TOOL.md)
 - [AI disclaimer](#ai-disclaimer)
 - [Test results](#test-results)
+- [Testing on a virtual machine](#testing-on-a-virtual-machine)
 - [About the name](#about-the-name)
 - [Project overview](#project-overview)
 - [Introduction to cryptographic keys (OpenPGP and GnuPG)](#introduction-to-cryptographic-keys-openpgp-and-gnupg)
@@ -423,6 +424,12 @@ To run the same pipeline **without** cargo-fuzz (shorter CI or local runs), use:
 ```
 cargo run -p xtask -- test-all --no-fuzz
 ```
+
+## Testing on a virtual machine
+
+Testers should prefer a virtual Linux machine when exercising builds, host tools, USB workflows, or anything that could affect system state. Automated tests and machine-checked suites reduce risk, but they do not prove absence of bugs; unexpected behaviour during manual testing or debugging can still damage data, confuse device state, or stress the host.
+
+Running in a virtual machine keeps that experimentation off your primary installation: snapshots and disposable images make it straightforward to reset, compare runs, and investigate failures without risking the machine you rely on day to day. This is the recommended way to test and debug safely.
 
 ## Post-quantum status
 
