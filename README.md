@@ -12,11 +12,11 @@ Portions of this repository (including documentation, tests, and tooling) may ha
 
 ## Table of contents
 
+- [About the name](#about-the-name)
 - [Galdra tool usage and specifications](docs/GALDRA-TOOL.md)
 - [AI disclaimer](#ai-disclaimer)
 - [Test results](#test-results)
 - [Testing on a virtual machine](#testing-on-a-virtual-machine)
-- [About the name](#about-the-name)
 - [Project overview](#project-overview)
 - [Introduction to cryptographic keys (OpenPGP and GnuPG)](#introduction-to-cryptographic-keys-openpgp-and-gnupg)
   - [What are OpenPGP and GnuPG keys?](#what-are-openpgp-and-gnupg-keys)
