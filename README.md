@@ -1,5 +1,11 @@
 # Galdr firmware (Galdralag)
 
+> **Status:** Implementation in progress. No production-ready release exists.
+> Cryptographic primitives are drawn exclusively from audited workspace
+> dependencies. Post-quantum algorithms are feature-gated and marked
+> **PENDING INDEPENDENT AUDIT** — do not use in production until that
+> status changes. See [Post-quantum status](#post-quantum-status) below.
+
 ## About the name
 
 **Galdr** is the actual practice of spoken or norse sung magic: incantations used to bind, protect, or reveal. In the sagas it names the act of casting the spell itself, not only the words.
@@ -86,6 +92,122 @@ Hardware goals, boot model, crypto profiles, and host-visible USB behavior are a
 
 Architecture notes for this repository: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
+## Implemented cryptographic capabilities
+
+| Algorithm | Standard | Provided by | Tests |
+|-----------|----------|-------------|-------|
+| BrainpoolP256r1 ECDH/ECDSA | RFC 5639, BSI TR-03111 | in-tree `vault/src/brainpool.rs`, `vault/src/ecdsa_brainpool.rs` | Unit · RFC 5639 (domain) in unit tests · Wycheproof **MISSING** (no vector set in repo) · dudect **MISSING** |
+| BrainpoolP384r1 ECDH/ECDSA | RFC 5639, BSI TR-03111 | in-tree `vault/src/brainpool384.rs` | Unit · Wycheproof · BSI cross-check JSON · RFC vectors via integration tests · dudect **MISSING** (stub only) |
+| BrainpoolP512r1 ECDH/ECDSA | RFC 5639, BSI TR-03111 | in-tree `vault/src/brainpool512.rs` | Unit · Wycheproof · BSI cross-check JSON · RFC vectors via integration tests · dudect **MISSING** (stub only) |
+| ChaCha20-Poly1305 AEAD | RFC 8439 | `chacha20poly1305` workspace dep | Unit · Wycheproof · RFC 8439 (unit + integration) · dudect **MISSING** |
+| Shamir Secret Sharing (K-of-N) | Shamir 1979, vsss-rs | `vsss-rs` workspace dep | Unit · KAT vectors · dudect **MISSING** |
+| Twofish-256 AEAD | Schneier et al. 1998 | **not present in this workspace** | **MISSING** |
+| Serpent-256 AEAD | Anderson/Biham/Knudsen 1998 | `serpent` workspace dep | Unit · Spec vectors in `vault/tests/serpent_vectors.json` · dudect **MISSING** |
+| RSA-2048/3072/4096 OAEP, PSS | PKCS#1 v2.2, RFC 8017 | `rsa` workspace dep | Unit · Wycheproof · dudect **MISSING** |
+| AES-256-GCM | FIPS 197, NIST SP 800-38D | `aes-gcm` workspace dep (galdr-core dev-tests) | **MISSING** in vault crate automated vectors |
+| HKDF (SHA-256/SHA-512) | RFC 5869 | `hkdf` workspace dep | Unit (galdr-core + vault) · Wycheproof in vault where applicable · RFC 5869 integration vectors · dudect **MISSING** |
+| HMAC (SHA-256/SHA-512) | RFC 2104 | `hmac` workspace dep | Unit (galdr-core) · Wycheproof in vault where applicable · RFC 2104 integration vectors · dudect **MISSING** |
+| PBKDF2 | RFC 8018 | `pbkdf2` workspace dep | Unit (galdr-core) · RFC 8018 integration vectors · dudect **MISSING** |
+| Ed25519 sign/verify | RFC 8032 | `ed25519-dalek` workspace dep | Unit (galdr-core) · Wycheproof **MISSING** in vault · RFC 8032 integration vectors · dudect **MISSING** |
+| X25519 ECDH | RFC 7748 | `x25519-dalek` workspace dep | Unit (galdr-core) · Wycheproof **MISSING** in vault · RFC 7748 integration vectors · dudect **MISSING** |
+| SHA-2 (224/256/384/512) | FIPS 180-4 | `sha2` workspace dep | Unit (galdr-core + NIST CAVP integration subset) · dudect **MISSING** |
+| SHA-3 family | FIPS 202 | `sha3` workspace dep | Unit (galdr-core + NIST CAVP integration subset) · dudect **MISSING** |
+| BLAKE2b/BLAKE2s | RFC 7693 | `blake2` workspace dep | Unit (galdr-core + RFC integration) · dudect **MISSING** |
+| BLAKE3 | BLAKE3 spec | `blake3` workspace dep | Unit (galdr-core + KAT integration) · dudect **MISSING** |
+| PIN policy (stateful) | — | in-tree `pin-policy` | Unit · Lifecycle integration tests · dudect **MISSING** |
+| PSRAM block device (optional) | — | **not present in this workspace** | **MISSING** |
+
+## Test results
+
+Full test vector coverage, known-answer test results, Wycheproof run
+summaries, RFC vector pass/fail tables, BSI vector results, and dudect
+t-statistic records are maintained in:
+
+**[docs/TEST_RESULTS.md](docs/TEST_RESULTS.md)**
+
+Run the full suite at any time:
+
+```
+cargo run -p xtask -- test-all
+```
+
+To run the same pipeline **without** cargo-fuzz (shorter CI or local runs), use:
+
+```
+cargo run -p xtask -- test-all --no-fuzz
+```
+
+## Post-quantum status
+
+The following post-quantum algorithms are **NOT YET IMPLEMENTED**.
+They will be implemented only after an independently audited Rust crate
+becomes available for each scheme. The algorithms themselves are standardised
+by NIST; the gap is in the Rust implementation audit status.
+
+| Algorithm | Standard | Awaiting |
+|-----------|----------|---------|
+| ML-KEM | FIPS 203 | Independent audit of a suitable `no_std` Rust crate |
+| ML-DSA | FIPS 204 | Independent audit of a suitable `no_std` Rust crate |
+| SLH-DSA | FIPS 205 | Independent audit of a suitable `no_std` Rust crate |
+| FN-DSA (FALCON) | FIPS 206 (draft) | Standard finalisation + independent audit |
+| HQC | Draft ~2027 | Standard finalisation + independent audit |
+
+**XMSS and LMS** (SP 800-208) are implemented behind the `pq-signatures`
+feature flag but carry unaudited warnings. See `docs/PQ_SIGNATURES.md` for
+the full audit status and usage policy.
+
+**BIKE and NTRU** are not implemented and will not be implemented.
+BIKE was eliminated from NIST standardisation in March 2025 in favour of HQC.
+NTRU encryption was eliminated in July 2022. Neither has a path to a NIST
+standard.
+
+When an independent audit of a production-quality `no_std` Rust crate for
+any of the above schemes becomes available, open a tracking issue referencing
+this section to begin the implementation session.
+
+## Zeroisation — hardware caveat
+
+The `ZeroiseController` HAL trait and its production implementation wipe
+key material from RRAM and SRAM using TRNG-sourced multi-pass overwrite,
+mirroring the boot0 zeroisation path. **This path has been tested in
+simulation using the `test-hal` fake only. It has not been verified on
+physical Baochip-1x hardware.** Zeroisation correctness on real silicon
+requires:
+
+1. JTAG-assisted memory inspection after a triggered zeroise event to
+   confirm all sensitive regions read as zeroed or overwritten.
+2. Power-cycle resilience testing: interrupted zeroise must resume on
+   next boot within boot0.
+3. Side-channel confirmation that zeroised regions do not retain data
+   remnants readable by physical attack.
+
+Until hardware verification is complete, the zeroisation implementation
+should be considered **software-correct but hardware-unverified**. Track
+hardware verification status in `docs/HARDWARE_VERIFICATION.md`.
+
+## PIN policy
+
+- **Minimum PIN length: 5 alphanumeric characters.** This is enforced at
+  the parser boundary before `pin-policy` is called. Shorter inputs are
+  rejected without incrementing the attempt counter.
+- **PIN attempt threshold (default: 3).** The hardware-backed counter allows
+  **three** failed attempts before lockout and zeroisation, matching common
+  smartcard and hardware-token practice (e.g. Nitrokey, YubiKey PIV, ISO 7816
+  style limits). The ceiling is **configurable at provisioning only**, in the
+  range **3–10**, and is stored in the vault policy region **next to the PIN
+  verifier hash** (see `vault::VaultPinPolicyRecord`). This gives integrators
+  room for operational error rates without weakening the default for typical
+  deployments.
+- The attempt counter is incremented and flushed to RRAM **before** the
+  constant-time comparison. This ordering is an unconditional security
+  invariant.
+- At the attempt threshold, full zeroisation is triggered.
+- The hardware one-way counter in the always-on domain provides a secondary
+  tamper-evident record of all attempt events.
+- Challenge/response authentication for the USB informed-host path uses
+  `HMAC-SHA256(HostChallengeKey, nonce || passphrase)`. The raw passphrase
+  is never transmitted over USB.
+
 ## Workspace layout
 
 | Crate | Role |
@@ -95,9 +217,8 @@ Architecture notes for this repository: [docs/ARCHITECTURE.md](docs/ARCHITECTURE
 | `pin-policy` | PIN state machine; **counter increment before** `subtle::ConstantTimeEq` PIN check; threshold zeroisation |
 | `usb-personality` | Mass-storage vs authenticated-unlock personalities; no secret leakage to uninformed hosts (scaffold) |
 | `host-tools` | Host manifest hashing / update verification stubs (`std`) |
-| `xtask` | Embedded `cargo build` / `check` / `test-host` orchestration |
-
-
+| `security-tests` | Dudect / timing-analysis stubs and future host security hooks |
+| `xtask` | Embedded `cargo build` / `check` / `test-host` / `test-all` / crypto and fuzz helpers |
 
 ## Commands
 
@@ -107,9 +228,23 @@ cargo test --workspace --exclude xtask
 cargo run -p xtask -- check-fw
 cargo run -p xtask -- build-fw
 cargo run -p xtask -- test-host
+cargo run -p xtask -- test-crypto
+cargo run -p xtask -- wycheproof
+cargo run -p xtask -- test-all
 ```
 
+Developer-focused crypto, fuzzing, and vector notes: [GALDRALAG_DEV_REFERENCE.md](GALDRALAG_DEV_REFERENCE.md).
+
 Enable `galdr-core` feature **`test-hal`** only in tests or host tools (see crate `dev-dependencies`). Do not enable it in production firmware images.
+
+## AI disclaimer
+
+Portions of this repository (including documentation, tests, and tooling) may have been drafted or
+refined with assistance from automated coding or language models. **Such output is not a
+substitute for human review, security analysis, or independent cryptographic audit.** Maintainers
+and contributors remain responsible for correctness, safety, and compliance with project
+requirements. Treat AI-assisted changes like any other patch: review, test, and verify before
+relying on them in production.
 
 ## License
 
