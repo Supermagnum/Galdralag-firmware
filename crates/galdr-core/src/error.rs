@@ -11,6 +11,8 @@ pub enum GaldrError {
     Integrity,
     /// Device has zeroised; further PIN or unlock attempts are rejected.
     DeviceZeroised,
+    /// HKDF or similar key derivation failed (for example output length exceeds RFC 5869 limits).
+    KeyDerivation,
 }
 
 /// Low-level hardware / driver failures (MMIO, ECC, secure element).

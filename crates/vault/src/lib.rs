@@ -62,7 +62,7 @@ mod wycheproof_aes_gcm;
 mod wycheproof_ecdsa_brainpool256;
 
 pub use galdr_core::GaldrError;
-pub use kdf_policy::{derive_subkey_sha512_stub, KeyPurpose};
+pub use kdf_policy::{derive_subkey_sha512, KeyPurpose};
 pub use key_material::{EphemeralEcdhSecretMaterial, VaultKey256};
 pub use service::{VaultRequest, VaultService};
 pub use session::VaultSessionState;

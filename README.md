@@ -527,7 +527,7 @@ Use this map to jump straight to **modules and files** when reviewing behaviour.
 
 **Runtime (policy labels and intended derivation purposes):**
 
-- [`crates/vault/src/kdf_policy.rs`](crates/vault/src/kdf_policy.rs) — `KeyPurpose` and RFC 5869-style `info` strings for each vault use (storage, USB session, PIN verifier, Shamir recovery, Serpent/Twofish/RSA wrap, etc.); `derive_subkey_sha512_stub` is the placeholder for production HKDF-SHA512 expand (returns `NotImplemented` until wired to real IKM/salt).
+- [`crates/vault/src/kdf_policy.rs`](crates/vault/src/kdf_policy.rs) — `KeyPurpose` and RFC 5869-style `info` strings for each vault use (storage, USB session, PIN verifier, Shamir recovery, Serpent/Twofish/RSA wrap, etc.); `derive_subkey_sha512` runs HKDF-SHA512 extract/expand with caller-supplied IKM and salt.
 - [`crates/vault/src/twofish_cipher.rs`](crates/vault/src/twofish_cipher.rs) — HKDF-SHA256 expand for Twofish + HMAC keys from a `KeyPurpose`.
 
 **Tests and vectors:**
