@@ -1,9 +1,9 @@
-//! Shared error types for cross-service IPC and HAL operations.
+//! Shared error types for cross-service IPC, HAL, and high-level vault operations.
 
-/// Top-level errors returned by stub service APIs until wired to Xous servers.
+/// Outcomes for operations that cross crate boundaries (IPC, policy, crypto helpers).
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum GaldrError {
-    /// Placeholder for unimplemented vault, USB, or policy paths.
+    /// Feature or code path not implemented yet (scaffold until wired to services such as Xous).
     NotImplemented,
     /// Caller lacked capability or policy denied the operation.
     Denied,
@@ -11,15 +11,19 @@ pub enum GaldrError {
     Integrity,
     /// Device has zeroised; further PIN or unlock attempts are rejected.
     DeviceZeroised,
-    /// HKDF or similar key derivation failed (for example output length exceeds RFC 5869 limits).
+    /// Key derivation failed: HKDF-Expand rejected the requested output length or PRF setup failed.
     KeyDerivation,
 }
 
-/// Low-level hardware / driver failures (MMIO, ECC, secure element).
+/// Hardware or bus-level failures below IPC policy errors.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum HalError {
+    /// Bus fault or transfer error.
     Bus,
+    /// Uncorrectable ECC or similar memory integrity failure.
     EccUncorrectable,
+    /// Operation timed out.
     Timeout,
+    /// Driver or secure element denied the request.
     Denied,
 }

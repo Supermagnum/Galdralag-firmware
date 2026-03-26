@@ -55,11 +55,20 @@ impl KeyPurpose {
     }
 }
 
-/// HKDF-SHA512 (RFC 5869): extract with `salt` and `ikm`, then expand into `out` with
-/// `purpose.info()` as the only `info` parameter.
+/// HKDF-SHA512 per RFC 5869: HKDF-Extract(`salt`, `ikm`) then HKDF-Expand(PRK, `purpose.info()`, L).
 ///
-/// Returns [`GaldrError::KeyDerivation`] if HKDF expand fails (for example requested output
-/// length exceeds the maximum allowed for SHA-512).
+/// Domain separation is entirely in [`KeyPurpose::info`]; callers supply only IKM and salt.
+///
+/// # Arguments
+///
+/// * `ikm` — input keying material for Extract (often a pseudorandom key or shared secret).
+/// * `salt` — optional salt; use `&[]` when no salt is used (still passed as `Some` internally).
+/// * `purpose` — selects the static `info` octets for Expand.
+/// * `out` — output buffer of length L; must not exceed **16320** bytes (255 × SHA-512 digest size).
+///
+/// # Errors
+///
+/// [`GaldrError::KeyDerivation`] when Expand fails (for example `out.len()` above the RFC limit).
 pub fn derive_subkey_sha512(
     ikm: &[u8],
     salt: &[u8],
