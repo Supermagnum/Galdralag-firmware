@@ -49,6 +49,13 @@ doc = false
 bench = false
 
 [[bin]]
+name = "twofish_aead"
+path = "fuzz_targets/twofish_aead.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
 name = "rsa_oaep_decrypt"
 path = "fuzz_targets/rsa_oaep_decrypt.rs"
 test = false

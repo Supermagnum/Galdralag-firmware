@@ -27,6 +27,8 @@ pub enum KeyPurpose {
     ShamirRecovery,
     /// Serpent-256 AEAD key (Encrypt-then-MAC in `serpent_cipher`).
     SerpentStorage,
+    /// Twofish-256 AEAD key (Encrypt-then-MAC in `twofish_cipher`).
+    TwofishStorage,
     /// AEAD key used to wrap RSA private key material before RRAM storage (`rsa_vault`).
     RsaKeyWrap,
 }
@@ -44,6 +46,7 @@ impl KeyPurpose {
             KeyPurpose::KeyAgreement => b"galdr-v1/vault/key-agreement",
             KeyPurpose::ShamirRecovery => b"galdr-v1/vault/shamir-recovery",
             KeyPurpose::SerpentStorage => b"galdralag/serpent/storage/v1",
+            KeyPurpose::TwofishStorage => b"galdralag/twofish/storage/v1",
             KeyPurpose::RsaKeyWrap => b"galdralag/rsa/key-wrap/v1",
         }
     }

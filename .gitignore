@@ -1,3 +1,4 @@
+.tmp-twofish-check/
 /target/
 fuzz/corpus/
 fuzz/artifacts/

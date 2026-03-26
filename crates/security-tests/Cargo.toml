@@ -20,6 +20,10 @@ ed25519-dalek = { workspace = true, optional = true }
 vault = { workspace = true, optional = true }
 galdr-core = { workspace = true, optional = true, features = ["test-hal"] }
 pin-policy = { workspace = true, optional = true }
+pbkdf2 = { workspace = true, optional = true, features = ["hmac"] }
+sha3 = { workspace = true, optional = true }
+blake2 = { workspace = true, optional = true }
+blake3 = { workspace = true, optional = true }
 
 [features]
 default = []
@@ -38,6 +42,10 @@ dudect = [
     "dep:vault",
     "dep:galdr-core",
     "dep:pin-policy",
+    "dep:pbkdf2",
+    "dep:sha3",
+    "dep:blake2",
+    "dep:blake3",
 ]
 
 [[bin]]

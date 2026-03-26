@@ -28,6 +28,7 @@ fn all_key_purposes_have_distinct_hkdf_info() {
         KeyPurpose::KeyAgreement,
         KeyPurpose::ShamirRecovery,
         KeyPurpose::SerpentStorage,
+        KeyPurpose::TwofishStorage,
         KeyPurpose::RsaKeyWrap,
     ];
     for i in 0..purposes.len() {
@@ -50,6 +51,7 @@ proptest! {
             KeyPurpose::KeyAgreement,
             KeyPurpose::ShamirRecovery,
             KeyPurpose::SerpentStorage,
+            KeyPurpose::TwofishStorage,
             KeyPurpose::RsaKeyWrap,
         ] {
             prop_assert!(!p.info().is_empty());
@@ -73,6 +75,16 @@ fn hkdf_sha256_rsa_key_wrap_distinct_from_serpent_storage() {
     let mut b = [0u8; 32];
     let hk = Hkdf::<Sha256>::new(Some(b"salt"), b"ikm");
     hk.expand(KeyPurpose::RsaKeyWrap.info(), &mut a).unwrap();
+    hk.expand(KeyPurpose::SerpentStorage.info(), &mut b).unwrap();
+    assert_ne!(a, b);
+}
+
+#[test]
+fn hkdf_sha256_twofish_distinct_from_serpent_storage() {
+    let mut a = [0u8; 32];
+    let mut b = [0u8; 32];
+    let hk = Hkdf::<Sha256>::new(Some(b"salt"), b"ikm");
+    hk.expand(KeyPurpose::TwofishStorage.info(), &mut a).unwrap();
     hk.expand(KeyPurpose::SerpentStorage.info(), &mut b).unwrap();
     assert_ne!(a, b);
 }

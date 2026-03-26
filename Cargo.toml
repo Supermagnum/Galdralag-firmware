@@ -9,6 +9,10 @@ members = [
     "crates/host-tools",
     "crates/security-tests",
     "xtask",
+    "galdra-core-host",
+    "galdra",
+    "galdrad",
+    "galdra-gtk",
 ]
 
 [workspace.package]
@@ -56,7 +60,39 @@ proptest = "1.5"
 static_assertions = "1.1"
 hex = { version = "0.4", default-features = false, features = ["std"] }
 serpent = { version = "0.6.0-rc.3", default-features = false, features = ["zeroize"] }
+twofish = { version = "0.8.0-rc.1", default-features = false }
 rsa = { version = "0.9.10", default-features = false, features = ["sha2"] }
+
+# Galdra host tool (pinned; run `cargo audit` after changes)
+clap = { version = "4.5.28", features = ["derive"] }
+rusqlite = { version = "0.31.0", features = ["bundled-sqlcipher"] }
+sequoia-openpgp = { version = "1.21.0", default-features = false, features = ["crypto-rust", "allow-experimental-crypto", "compression", "allow-variable-time-crypto"] }
+sequoia-net = { version = "0.28.0", default-features = false }
+rusb = "0.9.4"
+rpassword = "7.3.1"
+serde = { version = "1.0.217", features = ["derive"] }
+toml = "0.8.19"
+uuid = { version = "1.11.0", features = ["v4"] }
+chrono = { version = "0.4.39", features = ["serde"] }
+thiserror = "1.0.69"
+tokio = { version = "1.43.0", features = ["rt-multi-thread", "macros", "sync", "time", "fs", "io-util"] }
+axum = "0.7.9"
+tracing = "0.1.41"
+tracing-subscriber = { version = "0.3.19", features = ["env-filter"] }
+anyhow = "1.0.95"
+utoipa = { version = "5.2.0", features = ["axum_extras"] }
+utoipa-swagger-ui = { version = "8.0.3", features = ["axum"] }
+tower = "0.5.2"
+tower-http = { version = "0.6.2", features = ["trace"] }
+reqwest = { version = "0.12.12", default-features = false, features = ["rustls-tls"] }
+ldap3 = "0.11.5"
+image = "0.25.5"
+rqrr = "0.10.1"
+age = "0.10.0"
+assert_cmd = "2.0.16"
+predicates = "3.1.3"
+gtk = { version = "0.9.5", package = "gtk4" }
+libadwaita = "0.7.1"
 
 [patch.crates-io]
 subtle = { path = "crates/subtle-vendored" }

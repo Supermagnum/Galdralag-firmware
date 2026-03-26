@@ -1,9 +1,14 @@
 //! Host-side dudect-style timing harnesses (Welch t-statistic; threshold |t| <= 4.5; most runs use
 //! 100k timings; Brainpool ECDH uses `DUDECT_SAMPLES_BRAINPOOL_REDUCED` / `DUDECT_SAMPLES_BRAINPOOL_SLOW`).
 
+use crate::timing_blake2::{bench_timing_blake2b, bench_timing_blake2s};
+use crate::timing_blake3::bench_timing_blake3;
+use crate::timing_pbkdf2::bench_timing_pbkdf2;
+use crate::timing_sha2::{bench_timing_sha256, bench_timing_sha512};
+use crate::timing_sha3::{bench_timing_sha3_256, bench_timing_sha3_512};
 use crate::dudect_stats::{
     update_ct_stats, Class, CtRunner, CtSummary, DUDECT_SAMPLES, DUDECT_SAMPLES_BRAINPOOL_REDUCED,
-    DUDECT_SAMPLES_BRAINPOOL_SLOW, DUDECT_THRESHOLD,
+    DUDECT_SAMPLES_BRAINPOOL_SLOW, DUDECT_SAMPLES_PBKDF2, DUDECT_SAMPLES_SHA3, DUDECT_THRESHOLD,
 };
 use hmac::digest::generic_array::typenum::U32;
 use hmac::digest::generic_array::GenericArray;
@@ -23,7 +28,7 @@ fn subtle_ct_eq_bytes_32(a: &[u8], b: &[u8]) {
     for i in (0..a.len()).step_by(32) {
         let ga = GenericArray::<u8, U32>::from_slice(black_box(&a[i..i + 32]));
         let gb = GenericArray::<u8, U32>::from_slice(black_box(&b[i..i + 32]));
-        acc = acc & ga.ct_eq(&gb);
+        acc &= ga.ct_eq(gb);
     }
     black_box(acc);
 }
@@ -34,6 +39,8 @@ fn sample_count_for_harness(name: &str) -> usize {
             DUDECT_SAMPLES_BRAINPOOL_REDUCED
         }
         "timing_brainpool512_scalar_mult" => DUDECT_SAMPLES_BRAINPOOL_SLOW,
+        "timing_pbkdf2" => DUDECT_SAMPLES_PBKDF2,
+        "timing_sha3_256" | "timing_sha3_512" => DUDECT_SAMPLES_SHA3,
         _ => DUDECT_SAMPLES,
     }
 }
@@ -117,7 +124,7 @@ fn bench_timing_chacha_tag_check() -> CtSummary {
             let b = black_box(b);
             let ga = GenericArray::<u8, U16>::from_slice(&a);
             let gb = GenericArray::<u8, U16>::from_slice(&b);
-            black_box(ga.ct_eq(&gb));
+            black_box(ga.ct_eq(gb));
         });
     }
     let (l, r) = runner.left_right();
@@ -155,7 +162,7 @@ fn bench_timing_aes_gcm_tag_check() -> CtSummary {
             let b = black_box(b);
             let ga = GenericArray::<u8, U16>::from_slice(&a);
             let gb = GenericArray::<u8, U16>::from_slice(&b);
-            black_box(ga.ct_eq(&gb));
+            black_box(ga.ct_eq(gb));
         });
     }
     let (l, r) = runner.left_right();
@@ -191,7 +198,7 @@ fn bench_timing_hmac_verify() -> CtSummary {
             let b = black_box(b);
             let ga = GenericArray::<u8, U32>::from_slice(&a);
             let gb = GenericArray::<u8, U32>::from_slice(&b);
-            black_box(ga.ct_eq(&gb));
+            black_box(ga.ct_eq(gb));
         });
     }
     let (l, r) = runner.left_right();
@@ -248,7 +255,7 @@ fn bench_timing_ed25519_verify() -> CtSummary {
             let a1 = GenericArray::<u8, U32>::from_slice(&a[32..]);
             let b0 = GenericArray::<u8, U32>::from_slice(&b[..32]);
             let b1 = GenericArray::<u8, U32>::from_slice(&b[32..]);
-            let _ = a0.ct_eq(&b0) & a1.ct_eq(&b1);
+            let _ = a0.ct_eq(b0) & a1.ct_eq(b1);
         });
     }
     let (l, r) = runner.left_right();
@@ -282,7 +289,7 @@ fn bench_timing_x25519_ecdh() -> CtSummary {
             let b = black_box(b);
             let ga = GenericArray::<u8, U32>::from_slice(&a);
             let gb = GenericArray::<u8, U32>::from_slice(&b);
-            black_box(ga.ct_eq(&gb));
+            black_box(ga.ct_eq(gb));
         });
     }
     let (l, r) = runner.left_right();
@@ -292,9 +299,9 @@ fn bench_timing_x25519_ecdh() -> CtSummary {
 fn bench_brainpool_ecdh_p256() -> CtSummary {
     use galdr_core::fake_hal::FakeTrng;
     use vault::brainpool::BrainpoolScalar;
-    let mut t1 = FakeTrng::from_seed(0xB256_A);
-    let mut t2 = FakeTrng::from_seed(0xB256_B);
-    let mut t3 = FakeTrng::from_seed(0xB256_C);
+    let mut t1 = FakeTrng::from_seed(0x000B_256A);
+    let mut t2 = FakeTrng::from_seed(0x000B_256B);
+    let mut t3 = FakeTrng::from_seed(0x000B_256C);
     let a = BrainpoolScalar::generate(&mut t1).expect("a");
     let b = BrainpoolScalar::generate(&mut t2).expect("b");
     let c = BrainpoolScalar::generate(&mut t3).expect("c");
@@ -322,9 +329,9 @@ fn bench_brainpool_ecdh_p256() -> CtSummary {
 fn bench_brainpool_ecdh_p384() -> CtSummary {
     use galdr_core::fake_hal::FakeTrng;
     use vault::brainpool384::BrainpoolP384Scalar;
-    let mut t1 = FakeTrng::from_seed(0xB384_A);
-    let mut t2 = FakeTrng::from_seed(0xB384_B);
-    let mut t3 = FakeTrng::from_seed(0xB384_C);
+    let mut t1 = FakeTrng::from_seed(0x000B_384A);
+    let mut t2 = FakeTrng::from_seed(0x000B_384B);
+    let mut t3 = FakeTrng::from_seed(0x000B_384C);
     let a = BrainpoolP384Scalar::generate(&mut t1).expect("a");
     let b = BrainpoolP384Scalar::generate(&mut t2).expect("b");
     let c = BrainpoolP384Scalar::generate(&mut t3).expect("c");
@@ -352,9 +359,9 @@ fn bench_brainpool_ecdh_p384() -> CtSummary {
 fn bench_brainpool_ecdh_p512() -> CtSummary {
     use galdr_core::fake_hal::FakeTrng;
     use vault::brainpool512::BrainpoolP512Scalar;
-    let mut t1 = FakeTrng::from_seed(0xB512_A);
-    let mut t2 = FakeTrng::from_seed(0xB512_B);
-    let mut t3 = FakeTrng::from_seed(0xB512_C);
+    let mut t1 = FakeTrng::from_seed(0x000B_512A);
+    let mut t2 = FakeTrng::from_seed(0x000B_512B);
+    let mut t3 = FakeTrng::from_seed(0x000B_512C);
     let a = BrainpoolP512Scalar::generate(&mut t1).expect("a");
     let b = BrainpoolP512Scalar::generate(&mut t2).expect("b");
     let c = BrainpoolP512Scalar::generate(&mut t3).expect("c");
@@ -380,40 +387,70 @@ fn bench_brainpool_ecdh_p512() -> CtSummary {
 }
 
 fn bench_timing_shamir_recover() -> CtSummary {
-    use vault::shamir::{shamir_recover, ShamirShare};
-    let mk = |i: u8, hx: &str| {
-        ShamirShare::try_from_index_value(i, &hex::decode(hx).expect("hex")).expect("share")
-    };
-    let s1 = mk(
-        1,
-        "a6324ddd0b3647733489473d941c599875aa1bd42f53a3ce6f82d37dad39a7d2",
+    use galdr_core::fake_hal::FakeTrng;
+    use rand::RngCore;
+    use vault::shamir::{shamir_recover, shamir_split, ShamirShare};
+
+    // Both classes must use the same share indices (here 1 and 2). Comparing
+    // recovery with indices (1,2) vs (1,3) measures different Lagrange terms and
+    // yields systematic mean shifts unrelated to constant-time recovery.
+    const POOL: usize = 512;
+    let mut pool: Vec<([u8; 32], [u8; 32])> = Vec::with_capacity(POOL);
+    let mut trng = FakeTrng::from_seed(0x504F4F4C55);
+    for _ in 0..POOL {
+        let mut secret = [0u8; 32];
+        trng.fill_bytes(&mut secret);
+        let Ok(shares) = shamir_split(&secret, 2, 2, &mut trng) else {
+            continue;
+        };
+        if shares.len() < 2 {
+            continue;
+        }
+        let Ok(v1) = shares[0].value().try_into() else {
+            continue;
+        };
+        let Ok(v2) = shares[1].value().try_into() else {
+            continue;
+        };
+        pool.push((v1, v2));
+    }
+    assert!(
+        !pool.is_empty(),
+        "shamir bench: failed to build share pool for dudect"
     );
-    let s2 = mk(
-        2,
-        "6457a992255fbdd55b3abd49000b8118d97c05806d956eb4ed2c8ec97241668c",
-    );
-    let s3 = mk(
-        3,
-        "d374f55e3f78ebb77ea2eb658506c991bdc70f4553d7dc6b93bf4ca5ce69d04f",
-    );
-    let shares_ab = [s1, s2];
-    let s1b = mk(
-        1,
-        "a6324ddd0b3647733489473d941c599875aa1bd42f53a3ce6f82d37dad39a7d2",
-    );
-    let shares_ac = [s1b, s3];
+
+    let lv1 = hex::decode("a6324ddd0b3647733489473d941c599875aa1bd42f53a3ce6f82d37dad39a7d2")
+        .expect("left share 1 hex");
+    let lv2 = hex::decode("6457a992255fbdd55b3abd49000b8118d97c05806d956eb4ed2c8ec97241668c")
+        .expect("left share 2 hex");
+    let left_a: [u8; 32] = lv1
+        .as_slice()
+        .try_into()
+        .expect("left share 1 must be 32 bytes");
+    let left_b: [u8; 32] = lv2
+        .as_slice()
+        .try_into()
+        .expect("left share 2 must be 32 bytes");
+
     let mut rng = StdRng::seed_from_u64(0x5348414D);
     let mut runner = CtRunner::default();
-    for _ in 0..DUDECT_SAMPLES {
+    for i in 0..DUDECT_SAMPLES {
         let left = rng.gen_bool(0.5);
         let c = if left { Class::Left } else { Class::Right };
         if left {
-            runner.run_one(c, || {
-                let _ = shamir_recover(&shares_ab, 2);
+            let a = left_a;
+            let b = left_b;
+            runner.run_one(c, move || {
+                let s1 = ShamirShare::try_from_index_value(1, &a).expect("s1");
+                let s2 = ShamirShare::try_from_index_value(2, &b).expect("s2");
+                let _ = shamir_recover(&[s1, s2], 2);
             });
         } else {
-            runner.run_one(c, || {
-                let _ = shamir_recover(&shares_ac, 2);
+            let (a, b) = pool[i % pool.len()];
+            runner.run_one(c, move || {
+                let s1 = ShamirShare::try_from_index_value(1, &a).expect("s1");
+                let s2 = ShamirShare::try_from_index_value(2, &b).expect("s2");
+                let _ = shamir_recover(&[s1, s2], 2);
             });
         }
     }
@@ -452,7 +489,47 @@ fn bench_timing_serpent_tag_check() -> CtSummary {
             let b = black_box(b);
             let ga = GenericArray::<u8, U32>::from_slice(&a);
             let gb = GenericArray::<u8, U32>::from_slice(&b);
-            black_box(ga.ct_eq(&gb));
+            black_box(ga.ct_eq(gb));
+        });
+    }
+    let (l, r) = runner.left_right();
+    update_ct_stats(None, l, r).0
+}
+
+fn bench_timing_twofish_tag_check() -> CtSummary {
+    use hmac::digest::generic_array::typenum::U32;
+    use hmac::digest::generic_array::GenericArray;
+    use vault::twofish_cipher::{
+        twofish_encrypt, TwofishKey, TwofishNonce, TWOFISH_TAG_LEN,
+    };
+    let key = TwofishKey::from_raw_cipher_mac_for_test([0x2Fu8; 32], [0x3Eu8; 32]);
+    let nonce = TwofishNonce::from_counter(0);
+    let aad = b"twofish aad";
+    let pt = b"twofish plaintext for dudect bench";
+    let ct = twofish_encrypt(&key, &nonce, aad, pt).expect("twofish dudect encrypt");
+    let s = ct.as_slice();
+    let tag_good: [u8; TWOFISH_TAG_LEN] = s[s.len() - TWOFISH_TAG_LEN..]
+        .try_into()
+        .expect("twofish tag len");
+    let mut tag_bad = tag_good;
+    tag_bad[TWOFISH_TAG_LEN - 1] ^= 0x01;
+    let mut rng = StdRng::seed_from_u64(0x54574F46);
+    let mut work = Vec::with_capacity(DUDECT_SAMPLES);
+    for _ in 0..DUDECT_SAMPLES {
+        if rng.gen_bool(0.5) {
+            work.push((Class::Left, tag_good, tag_good));
+        } else {
+            work.push((Class::Right, tag_good, tag_bad));
+        }
+    }
+    let mut runner = CtRunner::default();
+    for (c, a, b) in work {
+        runner.run_one(c, move || {
+            let a = black_box(a);
+            let b = black_box(b);
+            let ga = GenericArray::<u8, U32>::from_slice(&a);
+            let gb = GenericArray::<u8, U32>::from_slice(&b);
+            black_box(ga.ct_eq(gb));
         });
     }
     let (l, r) = runner.left_right();
@@ -575,7 +652,8 @@ pub fn run_all() -> i32 {
 
     let mut failed = 0u32;
 
-    let harnesses: [(&str, fn() -> CtSummary); 15] = [
+    type HarnessFn = fn() -> CtSummary;
+    let harnesses: [(&str, HarnessFn); 24] = [
         ("timing_subtle_eq_u256", bench_subtle_eq_u256),
         ("timing_chacha_tag_check", bench_timing_chacha_tag_check),
         ("timing_aes_gcm_tag_check", bench_timing_aes_gcm_tag_check),
@@ -588,9 +666,18 @@ pub fn run_all() -> i32 {
         ("timing_brainpool512_scalar_mult", bench_brainpool_ecdh_p512),
         ("timing_shamir_recover", bench_timing_shamir_recover),
         ("timing_serpent_tag_check", bench_timing_serpent_tag_check),
+        ("timing_twofish_tag_check", bench_timing_twofish_tag_check),
         ("timing_pin_compare", bench_timing_pin_compare),
         ("timing_rsa_oaep_decrypt", bench_timing_rsa_oaep_decrypt),
         ("timing_rsa_pss_verify", bench_timing_rsa_pss_verify),
+        ("timing_pbkdf2", bench_timing_pbkdf2),
+        ("timing_sha256", bench_timing_sha256),
+        ("timing_sha512", bench_timing_sha512),
+        ("timing_sha3_256", bench_timing_sha3_256),
+        ("timing_sha3_512", bench_timing_sha3_512),
+        ("timing_blake2b", bench_timing_blake2b),
+        ("timing_blake2s", bench_timing_blake2s),
+        ("timing_blake3", bench_timing_blake3),
     ];
 
     for (name, f) in harnesses {
@@ -603,10 +690,6 @@ pub fn run_all() -> i32 {
         }
     }
 
-    print_missing(
-        "timing_twofish_tag_check",
-        "no `vault/src/twofish_cipher.rs` in this workspace (Twofish AEAD not implemented)",
-    );
     print_missing(
         "timing_challenge_response",
         "USB vendor challenge/response HMAC path is not wired as a standalone host benchmark in `security-tests`",

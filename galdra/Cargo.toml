@@ -1,0 +1,31 @@
+[package]
+name = "galdra"
+version = "0.1.0"
+edition = "2021"
+license = "GPL-3.0"
+description = "Galdra command-line interface"
+
+[[bin]]
+name = "galdra"
+path = "src/main.rs"
+
+[dependencies]
+galdra-core-host = { path = "../galdra-core-host" }
+sequoia-openpgp = { workspace = true }
+clap = { workspace = true }
+rpassword = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+chrono = { workspace = true }
+tokio = { workspace = true }
+image = { workspace = true }
+rqrr = { workspace = true }
+age = { workspace = true }
+
+[dev-dependencies]
+assert_cmd = { workspace = true }
+predicates = { workspace = true }
+tempfile = "3.14.0"
+
+[lints.rust]
+unsafe_code = "forbid"

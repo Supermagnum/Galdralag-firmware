@@ -35,11 +35,16 @@ rand_core.workspace = true
 rsa.workspace = true
 sha2 = { workspace = true, features = ["oid"] }
 serpent.workspace = true
+twofish.workspace = true
 hmac.workspace = true
 signature.workspace = true
 subtle.workspace = true
 vsss-rs.workspace = true
 zeroize.workspace = true
+
+[[example]]
+name = "gen_twofish_vectors"
+path = "examples/gen_twofish_vectors.rs"
 
 [dev-dependencies]
 galdr-core = { workspace = true, features = ["test-hal"] }

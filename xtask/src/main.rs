@@ -130,6 +130,7 @@ fn fuzz_bin_name(name: &str) -> &str {
         "brainpool384-ecdh" | "brainpool384_ecdh" => "brainpool384_ecdh",
         "brainpool512-ecdh" | "brainpool512_ecdh" => "brainpool512_ecdh",
         "serpent-aead" | "serpent_aead" => "serpent_aead",
+        "twofish-aead" | "twofish_aead" => "twofish_aead",
         "rsa-oaep-decrypt" | "rsa_oaep_decrypt" => "rsa_oaep_decrypt",
         "rsa-pss-verify" | "rsa_pss_verify" => "rsa_pss_verify",
         "rsa-der-import" | "rsa_der_import" => "rsa_der_import",
