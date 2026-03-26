@@ -2,12 +2,14 @@
 
 **Version:** 0.1 (draft)
 **Date:** 2026-03-26
-**Status:** Specification — no implementation exists yet
+**Status:** Specification — host tools (`galdra`, `galdrad`, `galdra-gtk`) are implemented in-tree; behaviour may evolve until 1.0
 
 ---
 
 ## Table of Contents
 
+- [Usage examples (quick start)](#usage-examples-quick-start)
+- [Token keys, publishing, revocation, and deletion](#token-keys-publishing-revocation-and-deletion)
 - [Purpose and scope](#purpose-and-scope)
 - [Target user populations](#target-user-populations)
 - [Architecture overview](#architecture-overview)
@@ -32,6 +34,290 @@
 - [Implementation order](#implementation-order)
 - [Dependencies](#dependencies)
 - [Out of scope](#out-of-scope)
+
+---
+
+## Usage examples (quick start)
+
+These examples use the **current** `galdra` CLI (long options such as `--input` / `--output`). Build the binaries from the repository (see [Build and installation](#build-and-installation)). The default SQLite database path follows the platform data directory unless you pass `--db`; optional config is loaded from the platform config path unless you pass `--config`.
+
+**Discover flags:** `galdra --help` and `galdra <subcommand> --help` (for example `galdra encrypt --help`).
+
+### Device
+
+Check whether a token is visible and basic status:
+
+```bash
+galdra device status
+```
+
+If a token is connected and must be unlocked, use an interactive PIN prompt (never pass the PIN on the command line):
+
+```bash
+galdra device unlock
+galdra device lock
+```
+
+### Contacts
+
+Add a contact **without** importing a key (metadata only). The first argument is a free-text identifier string; use `--callsign`, `--email`, and other fields as needed:
+
+```bash
+galdra contact add W1ABC --name "Example station" --callsign W1ABC --email ops@example.org
+```
+
+Import an OpenPGP public key from a file:
+
+```bash
+galdra contact import --file alice.pub.asc
+```
+
+Fetch a key from a keyserver (uses `[keyservers]` in `config.toml` unless you pass `--server`):
+
+```bash
+galdra contact fetch "alice@example.org" --source keyserver
+```
+
+Fetch via Web Key Directory (WKD) using an email address:
+
+```bash
+galdra contact fetch "alice@example.org" --source wkd
+```
+
+List contacts:
+
+```bash
+galdra contact list
+```
+
+### Groups and multi-recipient encryption (OpenPGP)
+
+Create a group and add members by identifier (contact id, callsign, or email as stored in the database):
+
+```bash
+galdra group create net_control --description "Net control operators"
+galdra group add net_control W1ABC K2XYZ
+```
+
+Copy members from another group:
+
+```bash
+galdra group add emergency_all --from-group net_control
+galdra group add emergency_all --from-group region_east
+```
+
+Encrypt a file to **all current, non-expired** members of a group. The default format is OpenPGP (`--format openpgp`):
+
+```bash
+galdra encrypt --input message.txt --output message.txt.gpg --group net_control
+```
+
+Encrypt to explicit recipients (repeat `--to` for multiple contacts):
+
+```bash
+galdra encrypt --input message.txt --output message.txt.gpg --to W1ABC --to K2XYZ
+```
+
+Abort if any recipient key is missing or expired:
+
+```bash
+galdra encrypt --input message.txt --output message.txt.gpg --group net_control --strict
+```
+
+Decrypt OpenPGP ciphertext. You must pass **`--recipient`** with a contact identifier (id, callsign, or email) so the tool can load the right public certificate material for parsing. Full private-key decryption on the host is not implemented; production use expects a connected token where firmware support exists:
+
+```bash
+galdra decrypt --input message.txt.gpg --output message.txt --recipient W1ABC
+```
+
+### age format (optional)
+
+When you do not need OpenPGP compatibility, use age. Pass one `--age-recipient` per recipient public key:
+
+```bash
+galdra encrypt --format age --input message.txt --output message.txt.age --age-recipient age1example...
+```
+
+Decrypt age ciphertext with an identity file (private key material for age):
+
+```bash
+galdra decrypt --format age --input message.txt.age --output message.txt --age-identity /path/to/age-identity.txt
+```
+
+### Sync and audit
+
+Export and import the **public** contact and group database for offline handoff (no private keys):
+
+```bash
+galdra sync export --output galdra-sync.db
+galdra sync import --input galdra-sync.db --merge
+```
+
+Use `--replace` instead of `--merge` only when you intend to replace the local database (dangerous).
+
+Show recent audit entries and verify the append-only hash chain:
+
+```bash
+galdra audit show --limit 50
+galdra audit verify
+```
+
+### Local daemon `galdrad` (HTTP on localhost)
+
+`galdrad` serves a JSON REST API over **HTTP** on **127.0.0.1:8742** by default. Override the bind address with `--listen` if needed.
+
+```bash
+galdrad
+```
+
+```bash
+curl -s http://127.0.0.1:8742/health
+```
+
+Interactive API documentation is available in the running process at **http://127.0.0.1:8742/swagger-ui/** (OpenAPI JSON at `/api-docs/openapi.json`). Some crypto endpoints may still return stubs until fully wired to the token.
+
+### Desktop GUI `galdra-gtk`
+
+The GTK4 client talks to `galdrad` over HTTP. The base URL defaults to `http://127.0.0.1:8742` and can be set with `--base-url` or the **`GALDRAD_URL`** environment variable:
+
+```bash
+GALDRAD_URL=http://127.0.0.1:8742 galdra-gtk
+```
+
+### What may still be incomplete
+
+Token-specific flows (`galdra key generate`, `galdra sign`, decrypt/sign paths that require firmware support) may return errors until device integration matches your firmware build. Prefer `galdra … --help` and release notes over this document when behaviour diverges.
+
+---
+
+## Token keys, publishing, revocation, and deletion
+
+This section answers: **how you create keys on the token**, **how you delete keys** (contacts, token slots, or the whole device), **how you revoke OpenPGP certificates**, and **how you export and publish public keys** so others can fetch them. It complements [Usage examples (quick start)](#usage-examples-quick-start).
+
+### Mental model
+
+| Material | Where it lives |
+|----------|----------------|
+| **Private keys** | On the Galdralag token only. The host SQLite database never stores private key bytes. |
+| **Your public key** | Produced by exporting from a token slot (`galdra key export`) or by using another tool (for example GnuPG) and optionally importing to the token later. |
+| **Other people’s public keys** | Stored as **contacts** in the local database; retrieved with `galdra contact fetch` / `import`, not by uploading your own key. |
+
+### Create keys on the token
+
+1. Connect the token and unlock if required (`galdra device status`, `galdra device unlock`).
+2. Initialise a blank token if needed (`galdra device provision`; follow prompts and product documentation).
+3. Generate a key pair **in a token slot** (private key never leaves the device):
+
+```bash
+galdra key list
+galdra key generate --type ed25519
+```
+
+Supported `--type` values are documented in `galdra key generate --help` (for example `brainpool256`, `brainpool384`, `brainpool512`, `rsa2048`, `rsa4096`, `ed25519`).
+
+**Current limitation:** `galdra key generate` and `galdra key import` return an error until host-to-device key provisioning is fully integrated for your firmware build. Until then, generate keys with **GnuPG** on the host (`gpg --full-generate-key`) or your organisation’s process, then plan to load material onto the token when import is available, per firmware documentation.
+
+### Export your public key (file or stdout)
+
+Export the **public** half of a key from slot `N` as OpenPGP (default), PEM, or DER. Output goes to **stdout**; redirect to a file for publishing:
+
+```bash
+galdra key export --slot 1 --format pgp > my_pubkey.asc
+galdra key export --slot 1 --format pem > my_pubkey.pem
+```
+
+Omit `--format` to use the default OpenPGP-style export where supported (`pgp`).
+
+**Note:** This requires a connected token and a working `key_export_public` path in the device stack. If the command fails, check firmware and `galdra key list`.
+
+### Publish public keys to keyservers (upload)
+
+**`galdra` can fetch keys from keyservers (HKP) but does not upload keys.** Publishing is intentionally delegated to the OpenPGP ecosystem so policies (email verification, consent) stay with established tools.
+
+Typical workflow after you have `my_pubkey.asc` from the previous section:
+
+1. **Import the certificate into GnuPG** (one-time on the machine you use to publish):
+
+```bash
+gpg --import my_pubkey.asc
+```
+
+2. **Send to a keyserver** (example: default keyserver configured in `gpg`):
+
+```bash
+gpg --send-keys FINGERPRINT
+```
+
+Use the fingerprint shown by `gpg --list-keys` after import. For **keys.openpgp.org**, email verification and upload policies are described on [keys.openpgp.org](https://keys.openpgp.org/about); you can also use their **web upload** with an armoured public key file.
+
+3. **Tell contacts to refresh** or give them your fingerprint so they can run `galdra contact fetch "<your-email>" --source keyserver`.
+
+Servers listed under [Key fetching sources](#key-fetching-sources) are the same class of services; your organisation may require an internal HKP or LDAP instead of the public internet.
+
+### Web Key Directory (WKD) upload
+
+WKD means publishing the key under `https://openpgpkey.<domain>/...` (or the “advanced” layout). **`galdra` does not upload to your web server**; you (or IT) place the key material using your normal web or mail hosting process. After publication, anyone can run:
+
+```bash
+galdra contact fetch "you@yourdomain.example" --source wkd
+```
+
+### Revoke keys (OpenPGP)
+
+**`galdra` has no `key revoke` command.** Revocation is an OpenPGP **certificate** operation. Use **GnuPG** (or another OpenPGP tool), then propagate the updated or revoked certificate the same way you publish keys.
+
+1. Create or apply a **revocation certificate** for the key (for example `gpg --gen-revoke`, or revoke subkeys in your keyring as appropriate).
+2. **Publish** the revocation so relying parties see it: `gpg --send-keys` to a keyserver, or your organisation’s directory, subject to policy.
+3. On each **Galdra** host, **refresh** the contact so the local copy picks up the revoked key: `galdra contact refresh <identifier>`, or remove the contact with `galdra contact delete <identifier> --confirm` if you no longer want it listed.
+
+For **token-resident** keys, revoking the published OpenPGP certificate does **not** erase private material on the token. To remove keys from hardware, use the next subsection (**Delete keys**).
+
+### Delete keys (contacts, token slots, device)
+
+“Delete” means different things depending on what you are removing.
+
+**1. Delete a contact (remove someone else’s public key from this computer only)**  
+This removes the row from the local SQLite database and drops group memberships for that identity. It does **not** delete anything from keyservers, LDAP, or anyone else’s machine.
+
+```bash
+galdra contact delete <identifier> --confirm
+```
+
+`<identifier>` is a contact id, callsign, or email as stored. To stop encrypting to someone without removing their contact row, remove them from groups with `galdra group remove <group> <identifier>` instead.
+
+**2. Delete a private key from one token slot (destroy that slot on the device)**  
+Irreversible: the private key material for that slot is erased on the token. Other slots are unchanged.
+
+```bash
+galdra key delete --slot <n> --confirm
+```
+
+You must pass `--confirm`; the tool may prompt again before proceeding. Requires a connected token.
+
+**3. Wipe the entire token (all slots and device state)**  
+Use when the device is lost, decommissioned, or you are intentionally returning to a blank state. This is stronger than deleting a single slot: **all** key material on the token is erased. You must pass `--confirm` and complete an additional confirmation step (for example typing the device serial when prompted).
+
+```bash
+galdra device zeroise --confirm
+```
+
+Recovery of secrets after zeroisation requires your **Shamir** (or other) backup process if the product provides one; see firmware documentation.
+
+**4. Delete your published key from the internet**  
+`galdra` does **not** remove keys from public keyservers or WKD. Use the keyserver or directory’s own process (many public servers **do not** support deletion; you rely on **revocation** instead — see [Revoke keys (OpenPGP)](#revoke-keys-openpgp) above).
+
+### Summary
+
+| Goal | Primary tool / command |
+|------|-------------------------|
+| Create key on token | `galdra key generate --type …` (when integrated); else GnuPG then future import |
+| Export public key file | `galdra key export --slot N --format pgp > file.asc` |
+| Upload to public keyserver | **Not `galdra`** — `gpg --import` then `gpg --send-keys`, or keys.openpgp.org web UI |
+| Publish via WKD | Host the key on your domain; **`galdra` only fetches** with `contact fetch --source wkd` |
+| Revoke | **GnuPG** (or equivalent); then `galdra contact refresh` or delete contact |
+| Delete contact (local DB only) | `galdra contact delete <identifier> --confirm` |
+| Delete one key on token | `galdra key delete --slot <n> --confirm` |
+| Wipe whole token | `galdra device zeroise --confirm` |
 
 ---
 
@@ -202,18 +488,22 @@ The CLI must:
 
 **Crate type:** `bin`
 **Location:** `host-tools/galdrad/`
-**Protocol:** HTTP/1.1 over a Unix domain socket (Linux/macOS) or named
-pipe (Windows). Local only by default — does not bind to any network
-interface unless explicitly configured.
+**Protocol:** HTTP/1.1 over **TCP** on **127.0.0.1:8742** by default (`--listen`).
+This keeps traffic on the loopback interface unless you explicitly bind to a
+different address. A Unix domain socket or named pipe may be added later as
+an optional transport; the shipping default is localhost HTTP.
 
-The daemon exposes the full `galdra-core-host` API over HTTP (or an
-equivalent local IPC channel) so that **GTK4** GUI clients and third-party
-integrations can call it without depending on the Rust library directly.
-There is **no** browser-based or HTML/JavaScript **web GUI** in scope.
+The daemon exposes the `galdra-core-host` surface over HTTP so that **GTK4**
+GUI clients and third-party integrations can call it without linking the
+Rust library directly. Interactive OpenAPI documentation is served at
+`/swagger-ui` on the same listener. There is **no** browser-based product
+**web GUI** in scope (only machine-local API docs).
 
-Authentication between clients and the daemon is by Unix socket ownership
-(same user only) by default. An optional local bearer token can be
-configured for multi-user workstations.
+Authentication between clients and the daemon is **implicit** for the default
+bind address (only local processes can connect). Binding beyond loopback
+requires an explicit `--listen` choice and appropriate firewall and
+organisational policy. An optional local bearer token may be added for
+multi-user workstations.
 
 The daemon does not persist any additional state beyond what the core
 library already persists. It is stateless with respect to cryptographic
@@ -254,7 +544,7 @@ GET    /audit                     → query audit log
 **Location:** `host-tools/galdra-gtk/` (or equivalent crate name under `host-tools/`)
 **Technology:** **GTK 4** with **Rust** bindings (**gtk4-rs** / **gtk-rs-core**). No HTML, no embedded browser engine, no SPA served over HTTP for the primary UI.
 
-The desktop application is a **native** client over the `galdrad` API (same endpoints as documented for REST over the local socket). It provides:
+The desktop application is a **native** client over the `galdrad` HTTP API (same JSON routes as the CLI-oriented surface). It provides:
 
 - Contact management with search and filter
 - Group management with drag-and-drop membership editing
@@ -744,7 +1034,7 @@ binary.
 
 ## Operational guide: keys and Shamir
 
-This section is a **how-to** for operators. It separates **public keys** (stored in the host database as contacts) from **private keys** (only on the token, never in `galdra`’s SQLite file).
+This section is a **how-to** for operators. It separates **public keys** (stored in the host database as contacts) from **private keys** (only on the token, never in `galdra`’s SQLite file). For **creating token keys, exporting, publishing, revoking, and deleting keys** with concrete commands, see [Token keys, publishing, revocation, and deletion](#token-keys-publishing-revocation-and-deletion) first.
 
 ### Public keys (contacts database)
 
