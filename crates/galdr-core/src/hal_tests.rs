@@ -1,6 +1,6 @@
 //! HAL contract smoke tests (local mocks; do not require `test-hal`).
 
-use crate::hal::{MonotonicCounter, VaultStorage, ZeroiseController};
+use crate::hal::MonotonicCounter;
 use crate::HalError;
 
 struct LocalCounter(u32);

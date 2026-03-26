@@ -7,6 +7,7 @@ description = "RRAM vault layout contracts and HKDF domain separation (Galdr / B
 
 [features]
 default = []
+pq-signatures = []
 profile-openpgp = []
 profile-extended = ["profile-openpgp"]
 profile-pqc = []
@@ -18,17 +19,45 @@ algo-x25519 = []
 algo-shamir = []
 
 [dependencies]
+aead.workspace = true
+bp256.workspace = true
+bp384.workspace = true
+bp512.workspace = true
+elliptic-curve.workspace = true
+chacha20poly1305.workspace = true
+ecdsa.workspace = true
+ff.workspace = true
 galdr-core.workspace = true
+pin-policy.workspace = true
+heapless.workspace = true
+hkdf.workspace = true
+rand_core.workspace = true
+rsa.workspace = true
+sha2 = { workspace = true, features = ["oid"] }
+serpent.workspace = true
+hmac.workspace = true
+signature.workspace = true
+subtle.workspace = true
+vsss-rs.workspace = true
 zeroize.workspace = true
 
 [dev-dependencies]
 galdr-core = { workspace = true, features = ["test-hal"] }
+hex.workspace = true
 hkdf.workspace = true
-sha2.workspace = true
-x25519-dalek.workspace = true
-static_assertions.workspace = true
 proptest.workspace = true
+serde_json.workspace = true
+sha1.workspace = true
+sha2.workspace = true
+static_assertions.workspace = true
+paste = "1"
 subtle.workspace = true
+x25519-dalek.workspace = true
+aes-gcm.workspace = true
+blake3.workspace = true
+sha3.workspace = true
+pbkdf2 = { workspace = true, features = ["hmac"] }
+ed25519-dalek.workspace = true
 
 [lints]
 workspace = true

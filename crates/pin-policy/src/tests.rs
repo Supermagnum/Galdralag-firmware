@@ -1,4 +1,7 @@
-use crate::machine::{pin_compare, PinOutcome, PinPolicyConfig, PinPolicyMachine, ZeroisationTrigger};
+use crate::machine::{
+    pin_compare, PinOutcome, PinPolicyConfig, PinPolicyMachine, PinPolicyProvisionError,
+    ZeroisationTrigger,
+};
 use crate::zeroise_fsm::{ZeroiseBootState, ZeroisePhase};
 use galdr_core::fake_hal::FakeMonotonicCounter;
 use subtle::Choice;
@@ -9,6 +12,27 @@ impl ZeroisationTrigger for FlagZ {
     fn trigger_zeroisation(&mut self) {
         self.0 = true;
     }
+}
+
+#[test]
+fn provisioned_attempt_range() {
+    assert_eq!(
+        PinPolicyConfig::try_with_max_attempts(2),
+        Err(PinPolicyProvisionError::MaxAttemptsOutOfRange)
+    );
+    assert_eq!(
+        PinPolicyConfig::try_with_max_attempts(11),
+        Err(PinPolicyProvisionError::MaxAttemptsOutOfRange)
+    );
+    assert_eq!(
+        PinPolicyConfig::try_with_max_attempts(3).unwrap().max_attempts,
+        3
+    );
+    assert_eq!(
+        PinPolicyConfig::try_with_max_attempts(10).unwrap().max_attempts,
+        10
+    );
+    assert_eq!(PinPolicyConfig::default().max_attempts, 3);
 }
 
 #[test]
@@ -23,7 +47,7 @@ fn pin_compare_uses_constant_time_eq() {
 
 #[test]
 fn increment_before_compare_exhausts_attempts() {
-    let mut z = FlagZ(false);
+    let z = FlagZ(false);
     let mut m = PinPolicyMachine::new(
         PinPolicyConfig { max_attempts: 1 },
         FakeMonotonicCounter::new(0),
@@ -42,7 +66,7 @@ fn increment_before_compare_exhausts_attempts() {
 
 #[test]
 fn verify_skipped_after_threshold() {
-    let mut z = FlagZ(false);
+    let z = FlagZ(false);
     let mut m = PinPolicyMachine::new(
         PinPolicyConfig { max_attempts: 0 },
         FakeMonotonicCounter::new(0),

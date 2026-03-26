@@ -1,0 +1,24 @@
+{
+  "comment": "Shares produced by vault shamir_split (FakeTrng seed 0x51, secret 0x11*32, k=2, n=3). Regenerate: cargo run -p vault --example shamir_vector_dump",
+  "vectors": [
+    {
+      "name": "k2_n3_fake_trng_51",
+      "k": 2,
+      "secret_hex": "1111111111111111111111111111111111111111111111111111111111111111",
+      "shares": [
+        {
+          "index": 1,
+          "value_hex": "a6324ddd0b3647733489473d941c599875aa1bd42f53a3ce6f82d37dad39a7d2"
+        },
+        {
+          "index": 2,
+          "value_hex": "6457a992255fbdd55b3abd49000b8118d97c05806d956eb4ed2c8ec97241668c"
+        },
+        {
+          "index": 3,
+          "value_hex": "d374f55e3f78ebb77ea2eb658506c991bdc70f4553d7dc6b93bf4ca5ce69d04f"
+        }
+      ]
+    }
+  ]
+}

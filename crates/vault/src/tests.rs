@@ -6,13 +6,14 @@ use crate::session::VaultSessionState;
 use crate::GaldrError;
 use hkdf::Hkdf;
 use proptest::prelude::*;
-use sha2::Sha512;
+use sha2::{Sha256, Sha512};
 use static_assertions::{assert_not_impl_all, assert_impl_all};
 use subtle::ConstantTimeEq;
 use zeroize::Zeroize;
 
 assert_not_impl_all!(VaultKey256: Clone, Copy);
 assert_not_impl_all!(EphemeralEcdhSecretMaterial: Clone, Copy);
+assert_not_impl_all!(crate::rsa_keys::RsaPrivateKey: Clone, Copy);
 assert_impl_all!(VaultKey256: Zeroize);
 
 #[test]
@@ -26,6 +27,8 @@ fn all_key_purposes_have_distinct_hkdf_info() {
         KeyPurpose::OpenPgpSigning,
         KeyPurpose::KeyAgreement,
         KeyPurpose::ShamirRecovery,
+        KeyPurpose::SerpentStorage,
+        KeyPurpose::RsaKeyWrap,
     ];
     for i in 0..purposes.len() {
         for j in i + 1..purposes.len() {
@@ -46,6 +49,8 @@ proptest! {
             KeyPurpose::OpenPgpSigning,
             KeyPurpose::KeyAgreement,
             KeyPurpose::ShamirRecovery,
+            KeyPurpose::SerpentStorage,
+            KeyPurpose::RsaKeyWrap,
         ] {
             prop_assert!(!p.info().is_empty());
         }
@@ -63,6 +68,16 @@ fn hkdf_sha512_uses_explicit_info_per_purpose() {
 }
 
 #[test]
+fn hkdf_sha256_rsa_key_wrap_distinct_from_serpent_storage() {
+    let mut a = [0u8; 32];
+    let mut b = [0u8; 32];
+    let hk = Hkdf::<Sha256>::new(Some(b"salt"), b"ikm");
+    hk.expand(KeyPurpose::RsaKeyWrap.info(), &mut a).unwrap();
+    hk.expand(KeyPurpose::SerpentStorage.info(), &mut b).unwrap();
+    assert_ne!(a, b);
+}
+
+#[test]
 fn derive_stub_returns_not_implemented() {
     let mut out = [0u8; 32];
     let r = crate::derive_subkey_sha512_stub(b"k", b"s", KeyPurpose::VaultRootUnwrap, &mut out);
@@ -71,10 +86,9 @@ fn derive_stub_returns_not_implemented() {
 
 #[test]
 fn ephemeral_material_dropped_after_derive_simulation() {
-    let mut st = VaultSessionState::EphemeralPending;
     let _secret = EphemeralEcdhSecretMaterial::new_zeroed();
     drop(_secret);
-    st = VaultSessionState::SessionActive;
+    let st = VaultSessionState::SessionActive;
     assert_eq!(st, VaultSessionState::SessionActive);
 }
 

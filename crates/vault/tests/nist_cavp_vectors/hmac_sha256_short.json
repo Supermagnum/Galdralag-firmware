@@ -1,0 +1,10 @@
+{
+  "description": "HMAC-SHA256 short vectors (RFC 4231 style)",
+  "vectors": [
+    {
+      "key_hex": "0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b",
+      "msg_hex": "4869205468657265",
+      "hmac_hex": "b0344c61d8db38535ca8afceaf0bf12b881dc200c9833da726e9376c2e32cff7"
+    }
+  ]
+}

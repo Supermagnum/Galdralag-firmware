@@ -1,0 +1,19 @@
+{
+  "document": "BSI TR-03111",
+  "version": "2.10",
+  "curve": "BrainpoolP256r1",
+  "note": "ECDH sample generated with cryptography.io BrainpoolP256R1 for cross-check; ECDH vectors pending official BSI extract.",
+  "vectors": {
+    "ecdh": [
+      {
+        "d_alice": "62e7bbfc99af20b70131d4762de9a94870b82744accd1b7ed3f30548e4e15ad3",
+        "Q_alice": "041e73375344f4c1c6cb8d419466e9b02310cd6f303b76945e40879f695cd1a10430551de02ecd01787c3ca0db19eb57f2f1b53a733c2b07b94f629911dbd8b171",
+        "d_bob": "28de68dd12d12bcc9cfe830226f744f6303d6c0b423652daba8ff20b53174fd4",
+        "Q_bob": "0461875d613937a1153bf481939d3143028252684e5c46ad396021bb05c3f9edf972220e40ee0c0884c172618ecda0b28781fbc4dc9e0ecbb5b9c06b6d7e0cb5d9",
+        "shared_secret": "4f49f973944846473b4be37b1d311fa642a13cd74efeda19c24d2a408bfe804f"
+      }
+    ],
+    "ecdsa_sign": [],
+    "ecdsa_verify": []
+  }
+}

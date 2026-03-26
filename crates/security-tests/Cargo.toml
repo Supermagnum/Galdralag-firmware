@@ -1,0 +1,11 @@
+[package]
+name = "security-tests"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Timing-analysis stubs and security regression hooks (host-side)"
+
+[dependencies]
+
+[lints]
+workspace = true

@@ -1,0 +1,9 @@
+{
+  "description": "RFC 7748 Section 6.1 first key-exchange vector",
+  "vectors": [
+    {
+      "alice": "77076d0a7318a57d3c16c17251b26645df1496dff944d7fbfc15b887fe467530",
+      "bob": "5dab087e624a8a4b79e17f8b83800ee66f3bb1292618b6fd1c2f8b27ff88e0eb"
+    }
+  ]
+}

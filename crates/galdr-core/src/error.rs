@@ -9,6 +9,8 @@ pub enum GaldrError {
     Denied,
     /// Integrity or authentication check failed.
     Integrity,
+    /// Device has zeroised; further PIN or unlock attempts are rejected.
+    DeviceZeroised,
 }
 
 /// Low-level hardware / driver failures (MMIO, ECC, secure element).

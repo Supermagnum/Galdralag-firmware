@@ -18,9 +18,47 @@ pub trait ZeroisationTrigger {
     fn trigger_zeroisation(&mut self);
 }
 
+/// Default PIN attempt limit for hardware tokens (smartcards, Nitrokey-class devices): three tries
+/// before lockout / zeroisation, matching common industry practice.
+pub const DEFAULT_MAX_PIN_ATTEMPTS: u32 = 3;
+
+/// Minimum `max_attempts` allowed when **provisioning** policy into the vault (inclusive).
+pub const MIN_PROVISIONED_PIN_ATTEMPTS: u32 = 3;
+
+/// Maximum `max_attempts` allowed when **provisioning** policy into the vault (inclusive).
+pub const MAX_PROVISIONED_PIN_ATTEMPTS: u32 = 10;
+
+/// Invalid provisioned attempt count (outside [`MIN_PROVISIONED_PIN_ATTEMPTS`]..=[`MAX_PROVISIONED_PIN_ATTEMPTS`]).
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum PinPolicyProvisionError {
+    MaxAttemptsOutOfRange,
+}
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct PinPolicyConfig {
     pub max_attempts: u32,
+}
+
+impl PinPolicyConfig {
+    /// Build policy for a **provisioned** token: only values in **3..=10** are accepted.
+    ///
+    /// The firmware default is [`DEFAULT_MAX_PIN_ATTEMPTS`]. Integrators may raise the limit (up to
+    /// 10) at provisioning time if operational needs outweigh marginal brute-force exposure; the value
+    /// is persisted in vault policy next to the PIN verifier hash.
+    pub fn try_with_max_attempts(max_attempts: u32) -> Result<Self, PinPolicyProvisionError> {
+        if !(MIN_PROVISIONED_PIN_ATTEMPTS..=MAX_PROVISIONED_PIN_ATTEMPTS).contains(&max_attempts) {
+            return Err(PinPolicyProvisionError::MaxAttemptsOutOfRange);
+        }
+        Ok(Self { max_attempts })
+    }
+}
+
+impl Default for PinPolicyConfig {
+    fn default() -> Self {
+        Self {
+            max_attempts: DEFAULT_MAX_PIN_ATTEMPTS,
+        }
+    }
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -82,16 +120,13 @@ impl<C: MonotonicCounter, Z: ZeroisationTrigger> PinPolicyMachine<C, Z> {
             return Ok(PinOutcome::Breach);
         }
         let ok = bool::from(verify());
-        self.state = if ok {
-            PinState::Unlocked
-        } else {
-            PinState::LockedIdle
-        };
         if ok {
-            Ok(PinOutcome::Success)
-        } else {
-            Ok(PinOutcome::Failed { attempts_used: count })
+            let _ = self.counter.refund_on_success();
+            self.state = PinState::Unlocked;
+            return Ok(PinOutcome::Success);
         }
+        self.state = PinState::LockedIdle;
+        Ok(PinOutcome::Failed { attempts_used: count })
     }
 
     pub fn into_inner(self) -> (PinPolicyConfig, PinState, C, Z) {
