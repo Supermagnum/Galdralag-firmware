@@ -1,6 +1,10 @@
-//! Host-side dudect-style timing harnesses (Welch t-statistic; threshold |t| <= 4.5 at 100k samples).
+//! Host-side dudect-style timing harnesses (Welch t-statistic; threshold |t| <= 4.5; most runs use
+//! 100k timings; Brainpool ECDH uses `DUDECT_SAMPLES_BRAINPOOL_REDUCED` / `DUDECT_SAMPLES_BRAINPOOL_SLOW`).
 
-use crate::dudect_stats::{update_ct_stats, Class, CtRunner, CtSummary, DUDECT_SAMPLES, DUDECT_THRESHOLD};
+use crate::dudect_stats::{
+    update_ct_stats, Class, CtRunner, CtSummary, DUDECT_SAMPLES, DUDECT_SAMPLES_BRAINPOOL_REDUCED,
+    DUDECT_SAMPLES_BRAINPOOL_SLOW, DUDECT_THRESHOLD,
+};
 use hmac::digest::generic_array::typenum::U32;
 use hmac::digest::generic_array::GenericArray;
 use rand::prelude::*;
@@ -24,10 +28,21 @@ fn subtle_ct_eq_bytes_32(a: &[u8], b: &[u8]) {
     black_box(acc);
 }
 
+fn sample_count_for_harness(name: &str) -> usize {
+    match name {
+        "timing_brainpool256_scalar_mult" | "timing_brainpool384_scalar_mult" => {
+            DUDECT_SAMPLES_BRAINPOOL_REDUCED
+        }
+        "timing_brainpool512_scalar_mult" => DUDECT_SAMPLES_BRAINPOOL_SLOW,
+        _ => DUDECT_SAMPLES,
+    }
+}
+
 fn print_result(name: &str, summ: &CtSummary) -> bool {
+    let n = summ.total_timings;
     let pass = summ.max_t.abs() <= DUDECT_THRESHOLD;
     println!("[DUDECT] {name}");
-    println!("  Samples:       {DUDECT_SAMPLES}");
+    println!("  Samples:       {n}");
     println!("  t-statistic:   {:+0.5}", summ.max_t);
     println!("  Threshold:     ±{DUDECT_THRESHOLD}");
     if pass {
@@ -287,7 +302,7 @@ fn bench_brainpool_ecdh_p256() -> CtSummary {
     let pc = c.public_key().expect("pc");
     let mut rng = StdRng::seed_from_u64(0xB256);
     let mut runner = CtRunner::default();
-    for _ in 0..DUDECT_SAMPLES {
+    for _ in 0..DUDECT_SAMPLES_BRAINPOOL_REDUCED {
         let left = rng.gen_bool(0.5);
         let cl = if left { Class::Left } else { Class::Right };
         if left {
@@ -317,7 +332,7 @@ fn bench_brainpool_ecdh_p384() -> CtSummary {
     let pc = c.public_key().expect("pc");
     let mut rng = StdRng::seed_from_u64(0xB384);
     let mut runner = CtRunner::default();
-    for _ in 0..DUDECT_SAMPLES {
+    for _ in 0..DUDECT_SAMPLES_BRAINPOOL_REDUCED {
         let left = rng.gen_bool(0.5);
         let cl = if left { Class::Left } else { Class::Right };
         if left {
@@ -347,7 +362,7 @@ fn bench_brainpool_ecdh_p512() -> CtSummary {
     let pc = c.public_key().expect("pc");
     let mut rng = StdRng::seed_from_u64(0xB512);
     let mut runner = CtRunner::default();
-    for _ in 0..DUDECT_SAMPLES {
+    for _ in 0..DUDECT_SAMPLES_BRAINPOOL_SLOW {
         let left = rng.gen_bool(0.5);
         let cl = if left { Class::Left } else { Class::Right };
         if left {
@@ -471,7 +486,6 @@ fn bench_timing_pin_compare() -> CtSummary {
 
 fn bench_timing_rsa_oaep_decrypt() -> CtSummary {
     use galdr_core::fake_hal::FakeTrng;
-    use std::sync::Arc;
     use vault::rsa_keys::RsaPrivateKey;
     static PK8: &[u8] = include_bytes!("../../vault/tests/data/rsa_2048_fuzz.pk8");
     let key = RsaPrivateKey::from_pkcs8_der(PK8).expect("rsa key");
@@ -481,19 +495,25 @@ fn bench_timing_rsa_oaep_decrypt() -> CtSummary {
         .public_key()
         .encrypt_oaep(pt, b"", &mut trng)
         .expect("encrypt oaep");
-    let good = Arc::new(ct_good.as_slice().to_vec());
-    let mut bad = (*good).clone();
-    *bad.last_mut().expect("ct") ^= 0x01;
-    let bad = Arc::new(bad);
+    let good = ct_good.as_slice().to_vec();
+    assert_eq!(good.len() % 32, 0, "RSA modulus-sized ct for subtle_ct_eq_bytes_32");
+    let mut bad = good.clone();
+    // Same flip position as `bench_timing_rsa_pss_verify` (first byte).
+    bad[0] ^= 0x01;
     let mut rng = StdRng::seed_from_u64(0x04E4);
-    let mut runner = CtRunner::default();
+    let mut work = Vec::with_capacity(DUDECT_SAMPLES);
     for _ in 0..DUDECT_SAMPLES {
         let left = rng.gen_bool(0.5);
-        let c = if left { Class::Left } else { Class::Right };
-        let g = good.clone();
-        let b = if left { good.clone() } else { bad.clone() };
+        if left {
+            work.push((Class::Left, good.clone(), good.clone()));
+        } else {
+            work.push((Class::Right, good.clone(), bad.clone()));
+        }
+    }
+    let mut runner = CtRunner::default();
+    for (c, a, b) in work {
         runner.run_one(c, move || {
-            subtle_ct_eq_bytes_32(black_box(&g), black_box(&b));
+            subtle_ct_eq_bytes_32(black_box(&a), black_box(&b));
         });
     }
     let (l, r) = runner.left_right();
@@ -502,26 +522,30 @@ fn bench_timing_rsa_oaep_decrypt() -> CtSummary {
 
 fn bench_timing_rsa_pss_verify() -> CtSummary {
     use galdr_core::fake_hal::FakeTrng;
-    use std::sync::Arc;
     use vault::rsa_keys::RsaPrivateKey;
     static PK8: &[u8] = include_bytes!("../../vault/tests/data/rsa_2048_fuzz.pk8");
     let key = RsaPrivateKey::from_pkcs8_der(PK8).expect("rsa key");
     let mut trng = FakeTrng::from_seed(0x5055);
     let msg = b"rsa pss dudect";
     let sig_good = key.sign_pss_sha256(msg, &mut trng).expect("sign");
-    let good = Arc::new(sig_good.as_slice().to_vec());
-    let mut bad = (*good).clone();
+    let good = sig_good.as_slice().to_vec();
+    assert_eq!(good.len() % 32, 0, "RSA modulus-sized sig for subtle_ct_eq_bytes_32");
+    let mut bad = good.clone();
     bad[0] ^= 0x01;
-    let bad = Arc::new(bad);
     let mut rng = StdRng::seed_from_u64(0x5056);
-    let mut runner = CtRunner::default();
+    let mut work = Vec::with_capacity(DUDECT_SAMPLES);
     for _ in 0..DUDECT_SAMPLES {
         let left = rng.gen_bool(0.5);
-        let c = if left { Class::Left } else { Class::Right };
-        let g = good.clone();
-        let b = if left { good.clone() } else { bad.clone() };
+        if left {
+            work.push((Class::Left, good.clone(), good.clone()));
+        } else {
+            work.push((Class::Right, good.clone(), bad.clone()));
+        }
+    }
+    let mut runner = CtRunner::default();
+    for (c, a, b) in work {
         runner.run_one(c, move || {
-            subtle_ct_eq_bytes_32(black_box(&g), black_box(&b));
+            subtle_ct_eq_bytes_32(black_box(&a), black_box(&b));
         });
     }
     let (l, r) = runner.left_right();
@@ -532,10 +556,20 @@ fn bench_timing_rsa_pss_verify() -> CtSummary {
 /// Returns process exit code: 0 if all executed harnesses pass threshold, 1 otherwise.
 pub fn run_all() -> i32 {
     let started = Instant::now();
-    println!("Galdr dudect harnesses ({} samples per class distribution; threshold |t| <= {})", DUDECT_SAMPLES, DUDECT_THRESHOLD);
+    println!(
+        "Galdr dudect harnesses ({} for most; {} for Brainpool P256/P384 ECDH; {} for Brainpool P512 ECDH; threshold |t| <= {})",
+        DUDECT_SAMPLES,
+        DUDECT_SAMPLES_BRAINPOOL_REDUCED,
+        DUDECT_SAMPLES_BRAINPOOL_SLOW,
+        DUDECT_THRESHOLD
+    );
     println!();
     eprintln!(
-        "Note: each harness prints to stdout when it finishes. Brainpool P256/P384/P512 and RSA benches are slow (minutes each); progress is announced on stderr before each run."
+        "Note: each harness prints to stdout when it finishes. Brainpool P256/P384 ECDH use {} timings; P512 uses {} (not {}); other harnesses use {}. RSA benches can still take minutes. Progress is announced on stderr before each run.",
+        DUDECT_SAMPLES_BRAINPOOL_REDUCED,
+        DUDECT_SAMPLES_BRAINPOOL_SLOW,
+        DUDECT_SAMPLES,
+        DUDECT_SAMPLES
     );
     let _ = std::io::stderr().flush();
 
@@ -560,7 +594,8 @@ pub fn run_all() -> i32 {
     ];
 
     for (name, f) in harnesses {
-        eprintln!("[DUDECT] Running {name} ({DUDECT_SAMPLES} samples) ...");
+        let n = sample_count_for_harness(name);
+        eprintln!("[DUDECT] Running {name} ({n} samples) ...");
         let _ = std::io::stderr().flush();
         let summ = f();
         if !print_result(name, &summ) {

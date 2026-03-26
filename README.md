@@ -23,25 +23,25 @@ Sometimes also used to activate magic rune inscriptions, as on the Kragehul I (D
 
 | Algorithm | Standard | Provided by | Tests |
 |-----------|----------|-------------|-------|
-| BrainpoolP256r1 ECDH/ECDSA | RFC 5639, BSI TR-03111 | in-tree `vault/src/brainpool.rs`, `vault/src/ecdsa_brainpool.rs` | Unit · RFC 5639 (domain) in unit tests · Wycheproof **ECDH** (`ecdh_brainpoolP256r1_test.json`) · Wycheproof **ECDSA** (`ecdsa_brainpoolP256r1_sha256_test.json`) · dudect **MISSING** |
-| BrainpoolP384r1 ECDH/ECDSA | RFC 5639, BSI TR-03111 | in-tree `vault/src/brainpool384.rs` | Unit · Wycheproof · BSI cross-check JSON · RFC vectors via integration tests · dudect **MISSING** (stub only) |
-| BrainpoolP512r1 ECDH/ECDSA | RFC 5639, BSI TR-03111 | in-tree `vault/src/brainpool512.rs` | Unit · Wycheproof · BSI cross-check JSON · RFC vectors via integration tests · dudect **MISSING** (stub only) |
-| ChaCha20-Poly1305 AEAD | RFC 8439 | `chacha20poly1305` workspace dep | Unit · Wycheproof · RFC 8439 (unit + integration) · dudect **MISSING** |
-| Shamir Secret Sharing (K-of-N) | Shamir 1979, vsss-rs | `vsss-rs` workspace dep | Unit · KAT vectors · dudect **MISSING** |
+| BrainpoolP256r1 ECDH/ECDSA | RFC 5639, BSI TR-03111 | in-tree `vault/src/brainpool.rs`, `vault/src/ecdsa_brainpool.rs` | Unit · RFC 5639 (domain) in unit tests · Wycheproof **ECDH** (`ecdh_brainpoolP256r1_test.json`) · Wycheproof **ECDSA** (`ecdsa_brainpoolP256r1_sha256_test.json`) · dudect **host** ECDH (`timing-test`, 5k timings) |
+| BrainpoolP384r1 ECDH/ECDSA | RFC 5639, BSI TR-03111 | in-tree `vault/src/brainpool384.rs` | Unit · Wycheproof · BSI cross-check JSON · RFC vectors via integration tests · dudect **host** ECDH (`timing-test`, 5k timings) |
+| BrainpoolP512r1 ECDH/ECDSA | RFC 5639, BSI TR-03111 | in-tree `vault/src/brainpool512.rs` | Unit · Wycheproof · BSI cross-check JSON · RFC vectors via integration tests · dudect **host** ECDH (`timing-test`, 15k timings) |
+| ChaCha20-Poly1305 AEAD | RFC 8439 | `chacha20poly1305` workspace dep | Unit · Wycheproof · RFC 8439 (unit + integration) · dudect **host** tag check (`timing-test`) |
+| Shamir Secret Sharing (K-of-N) | Shamir 1979, vsss-rs | `vsss-rs` workspace dep | Unit · KAT vectors · dudect **host** recover (`timing-test`) |
 | Twofish-256 AEAD | Schneier et al. 1998 | **not present in this workspace** | **MISSING** |
-| Serpent-256 AEAD | Anderson/Biham/Knudsen 1998 | `serpent` workspace dep | Unit · Spec vectors in `vault/tests/serpent_vectors.json` · dudect **MISSING** |
-| RSA-2048/3072/4096 OAEP, PSS | PKCS#1 v2.2, RFC 8017 | `rsa` workspace dep | Unit · Wycheproof · dudect **MISSING** |
-| AES-256-GCM | FIPS 197, NIST SP 800-38D | `aes-gcm` workspace dep | galdr-core smoke · vault **Wycheproof partial** (128-bit tag; AES-128/256; IV sizes under [Wycheproof (Google)](#wycheproof-google); skips AES-192, empty IV, 257-byte IV) · dudect **MISSING** |
-| HKDF (SHA-256/SHA-512) | RFC 5869 | `hkdf` workspace dep | Unit (galdr-core + vault) · Wycheproof **HKDF-SHA-256** and **HKDF-SHA-512** JSON in vault · RFC 5869 integration vectors · dudect **MISSING** |
-| HMAC (SHA-256/SHA-512) | RFC 2104 | `hmac` workspace dep | Unit (galdr-core + vault: RFC + NIST CAVP subset) · Wycheproof **HMAC-SHA-256** and **HMAC-SHA-512** JSON in vault · dudect **MISSING** |
+| Serpent-256 AEAD | Anderson/Biham/Knudsen 1998 | `serpent` workspace dep | Unit · Spec vectors in `vault/tests/serpent_vectors.json` · dudect **host** tag check (`timing-test`) |
+| RSA-2048/3072/4096 OAEP, PSS | PKCS#1 v2.2, RFC 8017 | `rsa` workspace dep | Unit · Wycheproof · dudect **host** constant-time compare on modulus-sized buffers (`timing-test`; not raw decrypt/verify wall time) |
+| AES-256-GCM | FIPS 197, NIST SP 800-38D | `aes-gcm` workspace dep | galdr-core smoke · vault **Wycheproof partial** (128-bit tag; AES-128/256; IV sizes under [Wycheproof (Google)](#wycheproof-google); skips AES-192, empty IV, 257-byte IV) · dudect **host** tag check (`timing-test`) |
+| HKDF (SHA-256/SHA-512) | RFC 5869 | `hkdf` workspace dep | Unit (galdr-core + vault) · Wycheproof **HKDF-SHA-256** and **HKDF-SHA-512** JSON in vault · RFC 5869 integration vectors · dudect **host** (`timing-test`) |
+| HMAC (SHA-256/SHA-512) | RFC 2104 | `hmac` workspace dep | Unit (galdr-core + vault: RFC + NIST CAVP subset) · Wycheproof **HMAC-SHA-256** and **HMAC-SHA-512** JSON in vault · dudect **host** (`timing-test`) |
 | PBKDF2 | RFC 8018 | `pbkdf2` workspace dep | Unit (galdr-core) · RFC 8018 integration vectors · dudect **MISSING** |
-| Ed25519 sign/verify | RFC 8032 | `ed25519-dalek` workspace dep | Unit (galdr-core) · Wycheproof **Ed25519 verify** JSON in vault · RFC 8032 integration vectors · dudect **MISSING** |
-| X25519 ECDH | RFC 7748 | `x25519-dalek` workspace dep | Unit (galdr-core) · Wycheproof **X25519** JSON in vault · RFC 7748 integration vectors · dudect **MISSING** |
+| Ed25519 sign/verify | RFC 8032 | `ed25519-dalek` workspace dep | Unit (galdr-core) · Wycheproof **Ed25519 verify** JSON in vault · RFC 8032 integration vectors · dudect **host** verify (`timing-test`) |
+| X25519 ECDH | RFC 7748 | `x25519-dalek` workspace dep | Unit (galdr-core) · Wycheproof **X25519** JSON in vault · RFC 7748 integration vectors · dudect **host** ECDH (`timing-test`) |
 | SHA-2 (224/256/384/512) | FIPS 180-4 | `sha2` workspace dep | Unit (galdr-core + NIST CAVP integration subset) · dudect **MISSING** |
 | SHA-3 family | FIPS 202 | `sha3` workspace dep | Unit (galdr-core + NIST CAVP integration subset) · dudect **MISSING** |
 | BLAKE2b/BLAKE2s | RFC 7693 | `blake2` workspace dep | Unit (galdr-core + RFC integration) · dudect **MISSING** |
 | BLAKE3 | BLAKE3 spec | `blake3` workspace dep | Unit (galdr-core + KAT integration) · dudect **MISSING** |
-| PIN policy (stateful) | — | in-tree `pin-policy` | Unit · Lifecycle integration tests · dudect **MISSING** |
+| PIN policy (stateful) | — | in-tree `pin-policy` | Unit · Lifecycle integration tests · dudect **host** compare (`timing-test`) |
 | PSRAM block device (optional) | — | **not present in this workspace** | **MISSING** |
 
 ## Cryptographic validation and supply chain integrity
@@ -89,7 +89,7 @@ Rust's ownership model prevents memory corruption but panics and logic
 errors remain in scope.
 
 #### dudect (timing side-channel analysis)
-`cargo run -p xtask -- timing-test` runs the `dudect_galdr` binary (Welch t-statistic at 100,000 samples per harness; threshold |t| <= 4.5). It exercises constant-time comparisons and several crypto paths (ChaCha/AES-GCM tag checks, HMAC, HKDF, Ed25519/X25519, Brainpool ECDH, Shamir, Serpent tag, PIN compare, RSA). **Before each harness**, a line is printed to **stderr** (`[DUDECT] Running …`) so the process does not look hung; **Brainpool P256/P384/P512 and RSA** benches can each take **several minutes**. When everything finishes, stdout ends with a **Summary** line and **Done — exit code 0** (or a non-zero exit if any harness failed). Stub symbols in `security-tests` (`DudectStatus::NotRun`) remain for API compatibility when the `dudect` feature is off.
+`cargo run -p xtask -- timing-test` builds and runs the `dudect_galdr` binary from `crates/security-tests` (Welch t-statistic on timing samples; pass when |t| <= **4.5**). Most harnesses use **100,000** timings; **Brainpool P256 and P384** ECDH use **5,000** each; **Brainpool P512** uses **15,000** (reduced counts keep wall time reasonable). Harnesses cover constant-time buffer/tag comparisons, HMAC verify, HKDF, Ed25519 verify, X25519 ECDH, Brainpool ECDH, Shamir recover, Serpent tag check, PIN compare, and RSA-related **constant-time equality** on modulus-sized ciphertext/signature bytes (not full OAEP decrypt or PSS verify latency). **stderr** prints `[DUDECT] Running …` before each harness; stdout prints per-harness t-statistics and a **Summary**. Typical wall time on a developer machine is on the order of **several minutes** (~4–5 minutes in one recorded run). Exit code **0** when all executed harnesses pass; **1** if any |t| exceeds the threshold. The capability table above marks primitives exercised by `timing-test` as **dudect host**; algorithms without a harness (for example PBKDF2, SHA-2/3, BLAKE2/3) remain **MISSING** there. Stub APIs in `security-tests` stay `DudectStatus::NotRun` when the `dudect` feature is disabled. Full stdout-oriented results and dates are recorded in **[docs/TEST_RESULTS.md](docs/TEST_RESULTS.md)**.
 
 ### Coverage summary
 
@@ -98,7 +98,7 @@ errors remain in scope.
 | Known bad crypto inputs       | Wycheproof                |
 | Brainpool-specific edge cases | BSI TR-03111              |
 | Malformed / unexpected inputs | Fuzzing                   |
-| Timing leaks on secrets       | dudect-bencher (`dudect_galdr`) + stubs for further paths |
+| Timing leaks on secrets       | `dudect_galdr` (`timing-test`) + stubs for paths not yet benchmarked |
 | Supply chain substitution     | Cargo.lock + pinned crates.io versions |
 | Tampering with resolved deps  | Lockfile + in-tree `subtle` patch + CI |
 

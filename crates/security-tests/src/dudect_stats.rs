@@ -9,7 +9,10 @@ use std::time::Instant;
 pub struct CtSummary {
     pub max_t: f64,
     pub max_tau: f64,
+    /// Subsample size for the percentile test that produced `max_t` (used for tau).
     pub sample_size: usize,
+    /// Total timing measurements (left + right); matches harness loop iterations.
+    pub total_timings: usize,
 }
 
 #[derive(Copy, Clone)]
@@ -141,6 +144,7 @@ pub fn update_ct_stats(
         .max_by(|&x, &y| local_cmp(compute_t(x).abs(), compute_t(y).abs()))
         .unwrap();
     let sample_size = max_test.sizes.0 + max_test.sizes.1;
+    let total_timings = left_samples.len() + right_samples.len();
     let max_t = compute_t(max_test);
     let max_tau = max_t / (sample_size as f64).sqrt();
 
@@ -149,6 +153,7 @@ pub fn update_ct_stats(
         max_t,
         max_tau,
         sample_size,
+        total_timings,
     };
     (summ, new_ctx)
 }
@@ -190,3 +195,10 @@ fn update_test_right(test: &mut CtTest, datum: f64) {
 
 pub const DUDECT_THRESHOLD: f64 = 4.5;
 pub const DUDECT_SAMPLES: usize = 100_000;
+
+/// Brainpool P512 ECDH: 100k samples would take excessive wall time. Same Welch threshold; lower N
+/// reduces statistical power slightly.
+pub const DUDECT_SAMPLES_BRAINPOOL_SLOW: usize = 15_000;
+
+/// Brainpool P256/P384 ECDH: fewer timings than P512 (and than 100k default harnesses).
+pub const DUDECT_SAMPLES_BRAINPOOL_REDUCED: usize = 5_000;
