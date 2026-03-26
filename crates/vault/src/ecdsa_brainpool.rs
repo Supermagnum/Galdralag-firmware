@@ -2,6 +2,7 @@
 
 use crate::brainpool_common::BrainpoolError;
 use bp256::BrainpoolP256r1;
+use bp256::elliptic_curve::pkcs8::DecodePublicKey;
 use ecdsa::der;
 use ecdsa::signature::{Signer, Verifier};
 use ecdsa::{SigningKey, VerifyingKey};
@@ -31,6 +32,14 @@ pub struct BrainpoolSignature {
 
 #[cfg(test)]
 impl BrainpoolSignature {
+    pub(crate) fn from_der_bytes_for_test(bytes: &[u8]) -> Result<Self, BrainpoolError> {
+        let mut der = heapless::Vec::new();
+        for b in bytes {
+            der.push(*b).map_err(|_| BrainpoolError::InvalidSignature)?;
+        }
+        Ok(BrainpoolSignature { der })
+    }
+
     pub(crate) fn xor_first_byte_for_test(&mut self) {
         if let Some(b) = self.der.get_mut(0) {
             *b ^= 0x01;
@@ -96,6 +105,13 @@ impl BrainpoolSigningKey {
 }
 
 impl BrainpoolVerifyingKey {
+    /// Deserialise a verifying key from X.509 / SPKI `SubjectPublicKeyInfo` DER (Wycheproof `publicKeyDer`).
+    pub fn from_public_key_der(bytes: &[u8]) -> Result<Self, BrainpoolError> {
+        let vk =
+            VerifyingKey::from_public_key_der(bytes).map_err(|_| BrainpoolError::InvalidPoint)?;
+        Ok(BrainpoolVerifyingKey(vk))
+    }
+
     /// Verify a signature over a message.
     pub fn verify(
         &self,

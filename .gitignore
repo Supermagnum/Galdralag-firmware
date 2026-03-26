@@ -1,3 +1,4 @@
 /target/
 fuzz/corpus/
 fuzz/artifacts/
+docs/.last_dudect_run.txt

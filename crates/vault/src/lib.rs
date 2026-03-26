@@ -36,11 +36,29 @@ mod tests;
 #[cfg(test)]
 mod wycheproof_chacha;
 #[cfg(test)]
+mod wycheproof_brainpool256;
+#[cfg(test)]
 mod wycheproof_brainpool384;
 #[cfg(test)]
 mod wycheproof_brainpool512;
 #[cfg(test)]
 mod wycheproof_rsa;
+#[cfg(test)]
+mod wycheproof_x25519;
+#[cfg(test)]
+mod wycheproof_ed25519;
+#[cfg(test)]
+mod wycheproof_hkdf_sha256;
+#[cfg(test)]
+mod wycheproof_hmac_sha256;
+#[cfg(test)]
+mod wycheproof_hkdf_sha512;
+#[cfg(test)]
+mod wycheproof_hmac_sha512;
+#[cfg(test)]
+mod wycheproof_aes_gcm;
+#[cfg(test)]
+mod wycheproof_ecdsa_brainpool256;
 
 pub use galdr_core::GaldrError;
 pub use kdf_policy::{derive_subkey_sha512_stub, KeyPurpose};

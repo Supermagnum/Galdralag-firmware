@@ -1,10 +1,26 @@
-//! Host-side security test harness stubs.
+//! Host-side security hooks and timing benches.
 //!
-//! Real constant-time analysis belongs in a controlled environment (fixed CPU frequency,
-//! isolated cores). These symbols exist so CI and `cargo xtask timing-test` have a stable entry
-//! point while [dudect](https://github.com/oreparaz/dudect)-style measurements are integrated.
+//! With `--features dudect`, the `dudect_galdr` binary runs statistical timing tests (Welch t)
+//! on constant-time and AEAD/ECDH/RSA paths. `cargo run -p xtask -- timing-test` invokes it.
+//! Stubs below remain for API compatibility when `dudect` is disabled.
 
 #![forbid(unsafe_code)]
+
+#[cfg(feature = "dudect")]
+mod dudect_stats;
+#[cfg(feature = "dudect")]
+mod dudect_harnesses;
+
+#[cfg(feature = "dudect")]
+pub fn run_dudect_harnesses() -> i32 {
+    dudect_harnesses::run_all()
+}
+
+#[cfg(not(feature = "dudect"))]
+pub fn run_dudect_harnesses() -> i32 {
+    eprintln!("rebuild with: cargo run -p security-tests --features dudect --bin dudect_galdr");
+    2
+}
 
 /// Placeholder for ChaCha20-Poly1305 decrypt timing classification.
 pub fn dudect_stub_chacha_decrypt() -> DudectStatus {

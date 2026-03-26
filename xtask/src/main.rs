@@ -53,7 +53,16 @@ fn main() {
         }
         Some("timing-test") => {
             let st = Command::new("cargo")
-                .args(["test", "-p", "security-tests"])
+                .args([
+                    "run",
+                    "-p",
+                    "security-tests",
+                    "--features",
+                    "dudect",
+                    "--bin",
+                    "dudect_galdr",
+                    "--",
+                ])
                 .stdin(Stdio::inherit())
                 .stdout(Stdio::inherit())
                 .stderr(Stdio::inherit())
