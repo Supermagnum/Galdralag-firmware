@@ -29,6 +29,7 @@ pub mod serpent_cipher;
 pub mod twofish_cipher;
 pub mod rsa_keys;
 pub mod rsa_vault;
+pub mod session_long_term_signing;
 pub mod public_key_vault;
 pub mod vault_pin_policy;
 
@@ -69,6 +70,10 @@ pub use session::VaultSessionState;
 pub use public_key_vault::{
     vault_delete_public_key, vault_load_public_key_der, vault_store_public_key_der, PublicKeySlot,
     PublicKeyVaultError, PUBLIC_KEY_REGION_BASE, PUBLIC_KEY_SLOT_BYTES,
+};
+pub use session_long_term_signing::{
+    vault_load_session_long_term_signing_key, vault_store_session_long_term_signing_key,
+    SessionLongTermSigningKey, SessionLongTermSigningVaultError,
 };
 pub use vault_pin_policy::{
     vault_read_pin_policy, vault_write_pin_policy, provisioned_attempts_range, VaultPinPolicyError,

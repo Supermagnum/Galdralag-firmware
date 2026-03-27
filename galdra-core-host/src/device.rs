@@ -163,4 +163,26 @@ impl Device {
     pub fn serial(&self) -> Option<String> {
         None
     }
+
+    /// Export 32-byte signing key material for Shamir splitting (requires unlock).
+    pub fn export_signing_key_shamir_material(
+        &self,
+        _slot: u32,
+    ) -> Result<zeroize::Zeroizing<[u8; 32]>, GaldraError> {
+        Err(GaldraError::DeviceNotConnected)
+    }
+
+    /// Hex fingerprint of the key in `slot` (for share metadata).
+    pub fn signing_key_fingerprint_hex(&self, _slot: u32) -> Result<String, GaldraError> {
+        Err(GaldraError::DeviceNotConnected)
+    }
+
+    /// Import a recovered signing key from Shamir reconstruction.
+    pub fn import_shamir_recovered_signing_key(
+        &self,
+        _slot: u32,
+        _material: &[u8; 32],
+    ) -> Result<(), GaldraError> {
+        Err(GaldraError::DeviceNotConnected)
+    }
 }

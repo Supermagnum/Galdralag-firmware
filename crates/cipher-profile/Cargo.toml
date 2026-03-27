@@ -1,0 +1,27 @@
+[package]
+name = "cipher-profile"
+version = "0.1.0"
+edition = "2021"
+license = "GPL-3.0"
+description = "Named cipher profiles: ECDHE curve, symmetric cascade, Shamir metadata"
+
+[dependencies]
+galdr-core = { path = "../galdr-core" }
+vault = { path = "../vault" }
+ephemeral-session = { path = "../ephemeral-session" }
+hkdf = { workspace = true }
+sha2 = { workspace = true }
+zeroize = { workspace = true }
+subtle = { workspace = true }
+heapless = { workspace = true }
+aes-gcm = { workspace = true }
+aead = { workspace = true }
+chacha20poly1305 = { workspace = true }
+
+[dev-dependencies]
+galdr-core = { path = "../galdr-core", features = ["test-hal"] }
+ephemeral-session = { path = "../ephemeral-session" }
+vault = { path = "../vault" }
+
+[lints]
+workspace = true

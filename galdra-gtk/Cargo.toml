@@ -6,11 +6,14 @@ license = "GPL-3.0"
 description = "GTK4 desktop client for Galdra (galdrad HTTP API)"
 
 [dependencies]
+base64 = { version = "0.22", default-features = false, features = ["std"] }
 clap = { workspace = true, features = ["derive", "env"] }
+dirs = "5"
 gtk = { workspace = true }
 reqwest = { workspace = true, default-features = false, features = ["blocking", "json", "rustls-tls"] }
 serde = { workspace = true }
 serde_json = { workspace = true }
+toml = { workspace = true }
 
 [lints.rust]
 unsafe_code = "forbid"

@@ -1,13 +1,16 @@
 //! OpenPGP encrypt / decrypt / sign / verify CLI wiring.
 
 use galdra_core_host::audit::{self, AuditAction, AuditEntry};
+use galdra_core_host::cipher_envelope::{is_cipher_profile_envelope, open_plaintext_after_openpgp, seal_plaintext_with_profile};
 use galdra_core_host::contacts::{self, ContactFilter, Identity};
 use galdra_core_host::encrypt::{self, try_decrypt_session_key_from_cert};
 use galdra_core_host::groups;
+use galdra_core_host::profiles::{self, ProfileStore};
 use galdra_core_host::sign;
 use galdra_core_host::GaldraError;
 use sequoia_openpgp::parse::Parse;
 use sequoia_openpgp::policy::StandardPolicy;
+use sha2::digest::Digest;
 use std::io::{Read, Write};
 use std::path::PathBuf;
 
@@ -45,6 +48,16 @@ fn collect_recipient_identities(
     Ok(out)
 }
 
+/// Placeholder sender fingerprint (hex) for profile AAD until token signing integration supplies a real value.
+const PLACEHOLDER_SENDER_FP: &str = "0000000000000000000000000000000000000000";
+
+fn session_id_from_ciphertext(ciphertext: &[u8]) -> String {
+    let mut h = sha2::Sha256::new();
+    h.update(ciphertext);
+    let out = h.finalize();
+    hex::encode(&out[..8])
+}
+
 /// Encrypt file to contacts or group members.
 #[allow(clippy::too_many_arguments)]
 pub fn run_encrypt(
@@ -60,6 +73,7 @@ pub fn run_encrypt(
     strict: bool,
     hidden_recipient_cli: bool,
     sign: bool,
+    profile: Option<String>,
 ) -> Result<(), GaldraError> {
     let fmt = format.as_deref().unwrap_or("openpgp");
     if fmt == "age" {
@@ -102,14 +116,28 @@ pub fn run_encrypt(
         .and_then(|s| s.to_str())
         .map(|s| s.to_string());
 
+    let store = ProfileStore::load(db)?;
+    let profile_name = profile
+        .as_deref()
+        .unwrap_or("standard")
+        .to_string();
+    let cipher_profile = store
+        .get_owned(&profile_name)
+        .ok_or_else(|| GaldraError::ProfileNotFound(profile_name.clone()))?;
+
     let ciphertext = if sign {
         return Err(GaldraError::Config(
             "cleartext signing during encrypt requires a connected token (not yet integrated)".to_string(),
         ));
     } else {
+        let sealed = seal_plaintext_with_profile(
+            &cipher_profile,
+            &plaintext,
+            PLACEHOLDER_SENDER_FP,
+        )?;
         encrypt::encrypt_openpgp(
             &policy,
-            &plaintext,
+            &sealed,
             fname.as_deref(),
             &certs,
             hidden,
@@ -119,18 +147,16 @@ pub fn run_encrypt(
 
     std::fs::write(&output, &ciphertext).map_err(GaldraError::Io)?;
 
+    let sid = session_id_from_ciphertext(&ciphertext);
+    let detail = profiles::audit_crypto_detail_multiline(&cipher_profile, idents.len(), &sid);
     audit::audit_append(
         db,
         AuditEntry {
             timestamp: chrono::Utc::now(),
             operator: None,
             action: AuditAction::Encrypt,
-            subject: group,
-            detail: Some(format!(
-                "recipients={},bytes={}",
-                idents.len(),
-                ciphertext.len()
-            )),
+            subject: group.map(|g| format!("group:{g}")),
+            detail: Some(detail),
             device_serial: None,
         },
     )?;
@@ -140,12 +166,14 @@ pub fn run_encrypt(
             "output": output,
             "bytes": ciphertext.len(),
             "recipients": idents.len(),
+            "profile": profile_name,
         }))?;
     } else if !quiet {
         eprintln!(
-            "Wrote {} bytes for {} recipient(s).",
+            "Wrote {} bytes for {} recipient(s) (profile {}).",
             ciphertext.len(),
-            idents.len()
+            idents.len(),
+            cipher_profile.name(),
         );
     }
     Ok(())
@@ -218,6 +246,7 @@ fn run_encrypt_age(
 }
 
 /// Decrypt ciphertext (requires token integration for production keys).
+#[allow(clippy::too_many_arguments)]
 pub fn run_decrypt(
     db: &mut galdra_core_host::db::Db,
     output_mode: OutputMode,
@@ -227,6 +256,7 @@ pub fn run_decrypt(
     recipient: Option<String>,
     input: PathBuf,
     output: PathBuf,
+    profile_hint: Option<String>,
 ) -> Result<(), GaldraError> {
     let fmt = format.as_deref().unwrap_or("openpgp");
     if fmt == "age" {
@@ -262,7 +292,7 @@ pub fn run_decrypt(
         try_decrypt_session_key_from_cert(&policy, &cert, pkesk, sym)
     };
 
-    let plain = encrypt::decrypt_openpgp(&policy, &ciphertext, &cert, try_decrypt, &[])
+    let inner = encrypt::decrypt_openpgp(&policy, &ciphertext, &cert, try_decrypt, &[])
         .map_err(|e| {
             if matches!(e, GaldraError::OpenPgp(_)) {
                 GaldraError::Config(
@@ -273,7 +303,46 @@ pub fn run_decrypt(
             }
         })?;
 
+    let store = ProfileStore::load(db)?;
+    let (plain, pname) = if is_cipher_profile_envelope(&inner) {
+        match open_plaintext_after_openpgp(&inner, |n| store.get_owned(n)) {
+            Ok(pair) => {
+                if let Some(ref hint) = profile_hint {
+                    if hint != &pair.1 {
+                        eprintln!(
+                            "Warning: --profile {hint} does not match ciphertext profile name {}.",
+                            pair.1
+                        );
+                    }
+                }
+                pair
+            }
+            Err(GaldraError::ProfileNotFound(name)) => {
+                eprintln!(
+                    "Warning: ciphertext was encrypted with profile \"{}\" which is not in the local registry. Add the profile definition before decrypting.",
+                    name
+                );
+                return Err(GaldraError::ProfileNotFound(name));
+            }
+            Err(e) => return Err(e),
+        }
+    } else {
+        if profile_hint.is_some() {
+            eprintln!(
+                "Warning: --profile is ignored for messages without a Galdra cipher-profile inner envelope."
+            );
+        }
+        (inner, "legacy-openpgp".to_string())
+    };
+
     std::fs::write(&output, &plain).map_err(GaldraError::Io)?;
+
+    let sid = session_id_from_ciphertext(&ciphertext);
+    let detail = if let Some(p) = store.get(&pname) {
+        profiles::audit_crypto_detail_multiline(p, 1, &sid)
+    } else {
+        format!("profile:{pname}\nsession_id:{sid} (profile definition missing from registry)")
+    };
 
     audit::audit_append(
         db,
@@ -282,7 +351,7 @@ pub fn run_decrypt(
             operator: None,
             action: AuditAction::Decrypt,
             subject: Some(id.id.clone()),
-            detail: Some(format!("bytes={}", plain.len())),
+            detail: Some(detail),
             device_serial: None,
         },
     )?;
@@ -291,9 +360,14 @@ pub fn run_decrypt(
         print_json(&serde_json::json!({
             "output": output,
             "bytes": plain.len(),
+            "profile": pname,
         }))?;
     } else if !quiet {
-        eprintln!("Wrote {} bytes of plaintext.", plain.len());
+        eprintln!(
+            "Wrote {} bytes of plaintext (profile {}).",
+            plain.len(),
+            pname
+        );
     }
     Ok(())
 }

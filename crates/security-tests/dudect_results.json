@@ -1,0 +1,147 @@
+{
+  "timing_aes_gcm_tag_check": {
+    "samples": 100000,
+    "status": "PASS",
+    "t": -0.85914
+  },
+  "timing_blake2b": {
+    "samples": 100000,
+    "status": "PASS",
+    "t": 2.04292
+  },
+  "timing_blake2s": {
+    "samples": 100000,
+    "status": "PASS",
+    "t": -2.5381
+  },
+  "timing_blake3": {
+    "samples": 100000,
+    "status": "PASS",
+    "t": -1.47562
+  },
+  "timing_brainpool256_scalar_mult": {
+    "samples": 5000,
+    "status": "PASS",
+    "t": 1.48477
+  },
+  "timing_brainpool384_scalar_mult": {
+    "samples": 5000,
+    "status": "PASS",
+    "t": -2.6799
+  },
+  "timing_brainpool512_scalar_mult": {
+    "samples": 15000,
+    "status": "PASS",
+    "t": -1.55175
+  },
+  "timing_cascade_auth_failure": {
+    "samples": 100000,
+    "status": "PASS",
+    "t": 2.1945805763717465
+  },
+  "timing_cascade_inner_vs_outer_failure": {
+    "samples": 100000,
+    "status": "PASS",
+    "t": 1.5577406880565914
+  },
+  "timing_chacha_tag_check": {
+    "samples": 100000,
+    "status": "PASS",
+    "t": 1.5214
+  },
+  "timing_ed25519_verify": {
+    "samples": 100000,
+    "status": "PASS",
+    "t": 1.51008
+  },
+  "timing_ephemeral_ecdh": {
+    "samples": 10000,
+    "status": "PASS",
+    "t": 3.187111318164292
+  },
+  "timing_fingerprint_lookup": {
+    "samples": 100000,
+    "status": "PASS",
+    "t": 2.5878200368258275
+  },
+  "timing_hkdf_derive": {
+    "samples": 100000,
+    "status": "PASS",
+    "t": -3.50326
+  },
+  "timing_hmac_verify": {
+    "samples": 100000,
+    "status": "PASS",
+    "t": -2.06906
+  },
+  "timing_pbkdf2": {
+    "samples": 100000,
+    "status": "PASS",
+    "t": -2.44431
+  },
+  "timing_pin_compare": {
+    "samples": 100000,
+    "status": "PASS",
+    "t": -1.82845
+  },
+  "timing_rsa_oaep_decrypt": {
+    "samples": 100000,
+    "status": "PASS",
+    "t": -1.68044
+  },
+  "timing_rsa_pss_verify": {
+    "samples": 100000,
+    "status": "PASS",
+    "t": 2.99207
+  },
+  "timing_serpent_tag_check": {
+    "samples": 100000,
+    "status": "PASS",
+    "t": -2.15022
+  },
+  "timing_sha256": {
+    "samples": 100000,
+    "status": "PASS",
+    "t": -1.31473
+  },
+  "timing_sha3_256": {
+    "samples": 200000,
+    "status": "PASS",
+    "t": -3.89831
+  },
+  "timing_sha3_512": {
+    "samples": 200000,
+    "status": "PASS",
+    "t": -1.51956
+  },
+  "timing_sha512": {
+    "samples": 100000,
+    "status": "PASS",
+    "t": -1.95467
+  },
+  "timing_shamir_recover": {
+    "samples": 100000,
+    "status": "PASS",
+    "t": 1.91206
+  },
+  "timing_signature_verify": {
+    "samples": 10000,
+    "status": "PASS",
+    "t": -2.3350600488508544
+  },
+  "timing_subtle_eq_u256": {
+    "samples": 100000,
+    "status": "PASS",
+    "t": -1.37078
+  },
+  "timing_twofish_tag_check": {
+    "samples": 100000,
+    "status": "PASS",
+    "t": -1.74366
+  },
+  "timing_x25519_ecdh": {
+    "samples": 100000,
+    "status": "PASS",
+    "t": 1.77939
+  }
+}

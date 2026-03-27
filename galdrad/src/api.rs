@@ -5,15 +5,29 @@ use axum::http::StatusCode;
 use axum::routing::{delete, get, post};
 use axum::{Json, Router};
 use chrono::{DateTime, Utc};
-use galdra_core_host::audit::{self, AuditAction, AuditFilter, AuditRecord};
+use galdra_core_host::audit::{self, AuditAction, AuditEntry, AuditFilter, AuditRecord};
 use galdra_core_host::contacts::{
     self, ContactFilter, ContactUpdate, Identity, NewContact,
 };
 use galdra_core_host::db::Db;
 use galdra_core_host::device::Device;
 use galdra_core_host::groups::{self, GroupSummary, GroupWithMembers};
+use galdra_core_host::cipher_profile::CipherProfileError;
+use galdra_core_host::cipher_envelope::{
+    is_cipher_profile_envelope, open_plaintext_after_openpgp, seal_plaintext_with_profile,
+};
+use galdra_core_host::encrypt::{self, encrypt_openpgp, try_decrypt_session_key_from_cert};
+use galdra_core_host::profiles::{
+    audit_crypto_detail_multiline, build_profile_from_options, parse_curve_wire, parse_layer_name,
+    ProfileStore, ProfileSummary,
+};
+use sha2::digest::Digest;
+use sha2::Sha256;
+use galdra_core_host::shamir_ops::{shamir_recover_key, shamir_split_key, ShamirShareExport};
 use galdra_core_host::GaldraError;
 use serde::Deserialize;
+use sequoia_openpgp::parse::Parse;
+use sequoia_openpgp::policy::StandardPolicy;
 use tower_http::trace::TraceLayer;
 use utoipa::OpenApi;
 use utoipa_swagger_ui::SwaggerUi;
@@ -47,6 +61,15 @@ where
     })
     .await
     .map_err(|e| GaldraError::Config(format!("join: {e}")))?
+}
+
+const PLACEHOLDER_SENDER_FP: &str = "0000000000000000000000000000000000000000";
+
+fn identity_to_cert(id: &Identity) -> Result<sequoia_openpgp::Cert, GaldraError> {
+    let bytes = id.pgp_pubkey.as_ref().ok_or_else(|| {
+        GaldraError::OpenPgp(format!("contact {} has no OpenPGP key", id.id))
+    })?;
+    sequoia_openpgp::Cert::from_bytes(bytes).map_err(|e| GaldraError::OpenPgp(e.to_string()))
 }
 
 fn resolve_identity(db: &Db, id: &str) -> Result<Identity, GaldraError> {
@@ -195,7 +218,7 @@ async fn delete_contact(
 
 #[utoipa::path(get, path = "/groups", responses((status = 200, description = "Group list")))]
 async fn list_groups(State(state): State<AppState>) -> Result<Json<Vec<GroupSummary>>, ApiError> {
-    let list = run_db_ro(&state, move |db| groups::group_list(db)).await?;
+    let list = run_db_ro(&state, groups::group_list).await?;
     Ok(Json(list))
 }
 
@@ -347,22 +370,315 @@ async fn list_audit(
     Ok(Json(rows))
 }
 
-async fn stub_encrypt(State(_): State<AppState>) -> (StatusCode, Json<serde_json::Value>) {
-    (
-        StatusCode::NOT_IMPLEMENTED,
-        Json(serde_json::json!({
-            "error": "encrypt is not implemented in galdrad yet",
-        })),
-    )
+#[derive(Debug, Deserialize)]
+pub struct EncryptBody {
+    pub group: String,
+    pub plaintext_b64: String,
+    pub profile: Option<String>,
+    pub sign: Option<bool>,
 }
 
-async fn stub_decrypt(State(_): State<AppState>) -> (StatusCode, Json<serde_json::Value>) {
-    (
-        StatusCode::NOT_IMPLEMENTED,
-        Json(serde_json::json!({
-            "error": "decrypt is not implemented in galdrad yet",
-        })),
+async fn encrypt_msg(
+    State(state): State<AppState>,
+    Json(body): Json<EncryptBody>,
+) -> Result<Json<serde_json::Value>, ApiError> {
+    if body.sign.unwrap_or(false) {
+        return Err(ApiError(GaldraError::Config(
+            "cleartext signing during encrypt requires a connected token (not yet integrated)"
+                .to_string(),
+        )));
+    }
+    let plain = base64::Engine::decode(
+        &base64::engine::general_purpose::STANDARD,
+        body.plaintext_b64.as_str(),
     )
+    .map_err(|e| GaldraError::Config(format!("base64: {e}")))?;
+    let group = body.group.clone();
+    let profile_name = body
+        .profile
+        .clone()
+        .unwrap_or_else(|| "standard".to_string());
+    let out = run_db(&state, move |db| {
+        let policy = StandardPolicy::new();
+        let store = ProfileStore::load(db)?;
+        let cipher_profile = store
+            .get_owned(&profile_name)
+            .ok_or_else(|| GaldraError::ProfileNotFound(profile_name.clone()))?;
+        let idents = groups::group_active_members(db, &group)?;
+        let mut certs = Vec::new();
+        for id in &idents {
+            certs.push(identity_to_cert(id)?);
+        }
+        let g = groups::group_get(db, &group)?;
+        let sealed = seal_plaintext_with_profile(&cipher_profile, &plain, PLACEHOLDER_SENDER_FP)?;
+        let ct = encrypt_openpgp(
+            &policy,
+            &sealed,
+            None,
+            &certs,
+            g.hidden_recipients,
+            true,
+        )?;
+        let b64 = base64::Engine::encode(
+            &base64::engine::general_purpose::STANDARD,
+            ct.as_slice(),
+        );
+        Ok::<_, GaldraError>(b64)
+    })
+    .await?;
+    Ok(Json(serde_json::json!({ "ciphertext_b64": out })))
+}
+
+#[derive(Debug, Deserialize, utoipa::ToSchema)]
+pub struct CreateProfileBody {
+    pub name: String,
+    pub description: Option<String>,
+    pub curve: String,
+    pub layers: Vec<String>,
+    pub shamir_threshold: Option<u8>,
+    pub shamir_total: Option<u8>,
+}
+
+async fn list_profiles(State(state): State<AppState>) -> Result<Json<serde_json::Value>, ApiError> {
+    let rows = run_db_ro(&state, move |db| {
+        let store = ProfileStore::load(db)?;
+        Ok::<_, GaldraError>(store.list())
+    })
+    .await?;
+    Ok(Json(serde_json::json!({ "profiles": rows })))
+}
+
+async fn get_profile(
+    State(state): State<AppState>,
+    Path(name): Path<String>,
+) -> Result<Json<serde_json::Value>, ApiError> {
+    let name_c = name.clone();
+    let v = run_db_ro(&state, move |db| {
+        let store = ProfileStore::load(db)?;
+        let p = store
+            .get(&name_c)
+            .ok_or_else(|| GaldraError::ProfileNotFound(name_c.clone()))?;
+        let s = ProfileSummary::from_profile(p, store.is_builtin(&name_c));
+        Ok::<_, GaldraError>(s)
+    })
+    .await?;
+    Ok(Json(serde_json::json!(v)))
+}
+
+async fn create_profile(
+    State(state): State<AppState>,
+    Json(body): Json<CreateProfileBody>,
+) -> Result<Json<serde_json::Value>, ApiError> {
+    let name = body.name.clone();
+    let name_out = name.clone();
+    let desc = body.description.clone().unwrap_or_default();
+    let curve_s = body.curve.clone();
+    let layers_in = body.layers.clone();
+    let kt = body.shamir_threshold.unwrap_or(1);
+    let nt = body.shamir_total.unwrap_or(1);
+    run_db(&state, move |db| {
+        if layers_in.is_empty() {
+            return Err(GaldraError::Config("layers must not be empty".to_string()));
+        }
+        let mut layers = Vec::new();
+        for s in &layers_in {
+            let l = parse_layer_name(s)?;
+            if layers.contains(&l) {
+                return Err(GaldraError::CipherProfile(format!(
+                    "{:?}",
+                    CipherProfileError::DuplicateCipher
+                )));
+            }
+            layers.push(l);
+        }
+        let curve = parse_curve_wire(&curve_s)?;
+        let profile = build_profile_from_options(&name, &desc, curve, &layers, kt, nt)?;
+        let mut store = ProfileStore::load(db)?;
+        store.add(db, profile)?;
+        Ok::<_, GaldraError>(())
+    })
+    .await?;
+    Ok(Json(serde_json::json!({ "name": name_out })))
+}
+
+async fn delete_profile(
+    State(state): State<AppState>,
+    Path(name): Path<String>,
+) -> Result<StatusCode, ApiError> {
+    let name_c = name.clone();
+    run_db(&state, move |db| {
+        let mut store = ProfileStore::load(db)?;
+        if store.is_builtin(&name_c) {
+            return Err(GaldraError::Config(
+                "built-in profiles cannot be removed".to_string(),
+            ));
+        }
+        store.remove(db, &name_c)?;
+        Ok::<_, GaldraError>(())
+    })
+    .await?;
+    Ok(StatusCode::NO_CONTENT)
+}
+
+#[derive(Debug, Deserialize)]
+pub struct ShamirSplitBody {
+    pub slot: u32,
+    pub profile: String,
+}
+
+async fn shamir_split_handler(
+    State(state): State<AppState>,
+    Json(body): Json<ShamirSplitBody>,
+) -> Result<Json<serde_json::Value>, ApiError> {
+    let profile = body.profile.clone();
+    let slot = body.slot;
+    let arms = run_db(&state, move |db| {
+        let store = ProfileStore::load(db)?;
+        let p = store
+            .get_owned(&profile)
+            .ok_or_else(|| GaldraError::ProfileNotFound(profile.clone()))?;
+        let dev = Device::connect()?;
+        let shares = shamir_split_key(&dev, &p, slot)?;
+        Ok::<_, GaldraError>(shares.into_iter().map(|s| s.to_armoured()).collect::<Vec<_>>())
+    })
+    .await?;
+    Ok(Json(serde_json::json!(arms)))
+}
+
+#[derive(Debug, Deserialize)]
+pub struct ShamirRecoverBody {
+    pub slot: u32,
+    pub shares: Vec<String>,
+}
+
+async fn shamir_recover_handler(
+    State(state): State<AppState>,
+    Json(body): Json<ShamirRecoverBody>,
+) -> Result<Json<serde_json::Value>, ApiError> {
+    let slot = body.slot;
+    let share_texts = body.shares.clone();
+    run_db(&state, move |_db| {
+        let mut exports = Vec::new();
+        for t in &share_texts {
+            exports.push(ShamirShareExport::from_armoured(t)?);
+        }
+        let dev = Device::connect()?;
+        shamir_recover_key(&dev, &exports, slot)?;
+        Ok::<_, GaldraError>(())
+    })
+    .await?;
+    Ok(Json(serde_json::json!({ "ok": true, "slot": slot })))
+}
+
+#[derive(Debug, Deserialize)]
+pub struct ShamirShareInfoQuery {
+    pub armoured: String,
+}
+
+async fn shamir_share_info(
+    Query(q): Query<ShamirShareInfoQuery>,
+) -> Result<Json<serde_json::Value>, ApiError> {
+    let ex = ShamirShareExport::from_armoured(&q.armoured).map_err(ApiError::from)?;
+    Ok(Json(serde_json::json!({
+        "profile": ex.profile_name,
+        "threshold": ex.threshold,
+        "total": ex.total,
+        "index": ex.index,
+        "fingerprint": ex.fingerprint,
+        "created": ex.created_at_rfc3339,
+    })))
+}
+
+fn session_id_from_ciphertext(ciphertext: &[u8]) -> String {
+    let mut h = Sha256::new();
+    h.update(ciphertext);
+    let out = h.finalize();
+    hex::encode(&out[..8])
+}
+
+#[derive(Debug, Deserialize)]
+pub struct DecryptBody {
+    pub recipient: String,
+    pub ciphertext_b64: String,
+    pub profile: Option<String>,
+}
+
+async fn decrypt_msg(
+    State(state): State<AppState>,
+    Json(body): Json<DecryptBody>,
+) -> Result<Json<serde_json::Value>, ApiError> {
+    let recipient = body.recipient.clone();
+    let ciphertext = base64::Engine::decode(
+        &base64::engine::general_purpose::STANDARD,
+        body.ciphertext_b64.as_str(),
+    )
+    .map_err(|e| GaldraError::Config(format!("base64: {e}")))?;
+    let profile_hint = body.profile.clone();
+    let out = run_db(&state, move |db| {
+        let policy = StandardPolicy::new();
+        let id = resolve_identity(db, &recipient)?;
+        let cert = identity_to_cert(&id)?;
+        let try_decrypt = |pkesk: &sequoia_openpgp::packet::PKESK,
+                           sym: Option<sequoia_openpgp::types::SymmetricAlgorithm>| {
+            try_decrypt_session_key_from_cert(&policy, &cert, pkesk, sym)
+        };
+        let inner = encrypt::decrypt_openpgp(&policy, &ciphertext, &cert, try_decrypt, &[])
+            .map_err(|e| {
+                if matches!(e, GaldraError::OpenPgp(_)) {
+                    GaldraError::Config(
+                        "decryption failed — host stores public keys only; use a connected token with decryption support (integration pending)".to_string(),
+                    )
+                } else {
+                    e
+                }
+            })?;
+        let store = ProfileStore::load(db)?;
+        let (plain, pname) = if is_cipher_profile_envelope(&inner) {
+            match open_plaintext_after_openpgp(&inner, |n| store.get_owned(n)) {
+                Ok(pair) => {
+                    if let Some(ref hint) = profile_hint {
+                        if hint != &pair.1 {
+                            // mismatch is informational; ciphertext profile wins
+                        }
+                    }
+                    pair
+                }
+                Err(GaldraError::ProfileNotFound(name)) => {
+                    return Err(GaldraError::ProfileNotFound(name));
+                }
+                Err(e) => return Err(e),
+            }
+        } else {
+            (inner, "legacy-openpgp".to_string())
+        };
+        let sid = session_id_from_ciphertext(&ciphertext);
+        let detail = if let Some(p) = store.get(&pname) {
+            audit_crypto_detail_multiline(p, 1, &sid)
+        } else {
+            format!("profile:{pname}\nsession_id:{sid} (profile definition missing from registry)")
+        };
+        audit::audit_append(
+            db,
+            AuditEntry {
+                timestamp: chrono::Utc::now(),
+                operator: None,
+                action: AuditAction::Decrypt,
+                subject: Some(id.id.clone()),
+                detail: Some(detail),
+                device_serial: None,
+            },
+        )?;
+        let b64 = base64::Engine::encode(
+            &base64::engine::general_purpose::STANDARD,
+            plain.as_slice(),
+        );
+        Ok::<_, GaldraError>((b64, pname))
+    })
+    .await?;
+    Ok(Json(serde_json::json!({
+        "plaintext_b64": out.0,
+        "profile": out.1,
+    })))
 }
 
 async fn stub_sign(State(_): State<AppState>) -> (StatusCode, Json<serde_json::Value>) {
@@ -419,8 +735,16 @@ pub fn router(state: AppState) -> Router {
         .route("/groups/:name/members/:id", delete(remove_group_member))
         .route("/device/status", get(device_status))
         .route("/audit", get(list_audit))
-        .route("/encrypt", post(stub_encrypt))
-        .route("/decrypt", post(stub_decrypt))
+        .route("/profiles", get(list_profiles).post(create_profile))
+        .route(
+            "/profiles/:name",
+            get(get_profile).delete(delete_profile),
+        )
+        .route("/shamir/split", post(shamir_split_handler))
+        .route("/shamir/recover", post(shamir_recover_handler))
+        .route("/shamir/share-info", get(shamir_share_info))
+        .route("/encrypt", post(encrypt_msg))
+        .route("/decrypt", post(decrypt_msg))
         .route("/sign", post(stub_sign))
         .route("/verify", post(stub_verify))
         .with_state(state)

@@ -96,6 +96,23 @@ pub struct TwofishPlaintext {
 }
 
 impl TwofishKey {
+    /// Derive cipher and MAC keys from HKDF-SHA256 using `info` as the sole HKDF label (no [`KeyPurpose`] prefix).
+    pub fn derive_from_prk_label(prk: &[u8], info: &[u8]) -> Result<Self, TwofishError> {
+        let hk = Hkdf::<Sha256>::from_prk(prk).map_err(|_| TwofishError::KeyDerivation)?;
+        let mut okm = [0u8; 64];
+        hk.expand(info, &mut okm)
+            .map_err(|_| TwofishError::KeyDerivation)?;
+        let mut cipher_key = [0u8; 32];
+        let mut mac_key = [0u8; 32];
+        cipher_key.copy_from_slice(&okm[..32]);
+        mac_key.copy_from_slice(&okm[32..]);
+        okm.zeroize();
+        Ok(Self {
+            cipher_key: zeroize::Zeroizing::new(cipher_key),
+            mac_key: zeroize::Zeroizing::new(mac_key),
+        })
+    }
+
     /// Derive cipher and MAC keys from HKDF-SHA256 for the given `KeyPurpose` and extra `info`.
     pub fn derive(prk: &[u8], purpose: KeyPurpose, info: &[u8]) -> Result<Self, TwofishError> {
         let mut inf = heapless::Vec::<u8, 256>::new();
@@ -147,6 +164,17 @@ impl TwofishKey {
 }
 
 impl TwofishNonce {
+    /// Derive a 128-bit nonce from HKDF-SHA256 using `info` as the sole label; uses the first 16 bytes of a 32-byte expand.
+    pub fn derive_from_prk_label(prk: &[u8], info: &[u8]) -> Result<Self, TwofishError> {
+        let hk = Hkdf::<Sha256>::from_prk(prk).map_err(|_| TwofishError::KeyDerivation)?;
+        let mut okm = [0u8; 32];
+        hk.expand(info, &mut okm)
+            .map_err(|_| TwofishError::KeyDerivation)?;
+        let mut n = [0u8; 16];
+        n.copy_from_slice(&okm[..16]);
+        Ok(Self(n))
+    }
+
     /// Generate a random nonce from the TRNG (128 bits).
     pub fn generate<T: HardwareTrng>(trng: &mut T) -> Result<Self, TwofishError> {
         let mut n = [0u8; 16];

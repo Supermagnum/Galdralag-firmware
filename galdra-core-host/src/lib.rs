@@ -4,6 +4,8 @@
 //! duplicating policy or database access.
 
 pub mod audit;
+pub use cipher_profile;
+pub mod cipher_envelope;
 pub mod config;
 pub mod contacts;
 pub mod db;
@@ -13,6 +15,8 @@ pub mod error;
 pub mod groups;
 pub mod keyserver;
 pub mod ldap;
+pub mod profiles;
+pub mod shamir_ops;
 pub mod sign;
 pub mod sync;
 

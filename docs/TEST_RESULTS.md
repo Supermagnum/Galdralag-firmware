@@ -2,11 +2,11 @@
 
 ## Last full run
 
-- **Date (UTC):** 2026-03-26T23:02:44Z
-- **Commit:** `5e2d4bc5d6b8d82877306d8a7c1941e043dba61f`
+- **Date (UTC):** 2026-03-27T03:25:00Z
+- **Commit:** `b5c905d1ae57133e212ed5f6e67f0646f5018518`
 - **xtask version:** 0.1.0 (fuzz skipped via `--no-fuzz`)
 
-**Section 1** unit-test totals were recomputed at this commit with `cargo test --workspace --exclude xtask` (sum of every `test result:` line). **Section 9** matches a successful `cargo run -p xtask -- timing-test` at this commit (host-dependent t-stats). Refresh with the same command after crypto or harness changes.
+**Section 1** unit-test totals were recomputed at this commit with `cargo test --workspace --exclude xtask` (sum of every `test result:` line). **Section 9** lists t-statistics from **`crates/security-tests/dudect_results.json`** (authoritative PASS cache updated when `cargo run -p xtask -- timing-test` succeeds). Values are host-dependent. For a **full** dudect sweep (~910 s on a typical developer machine), use `timing-test --all`; the default `timing-test` skips harnesses already marked PASS in that JSON file.
 
 ## 1. Unit tests
 
@@ -53,8 +53,8 @@ Runner: `vault/tests/nist_cavp.rs`.
 ### Encryption timing (dudect)
 
     Tool: Welch t-statistic harnesses via `cargo run -p xtask -- timing-test` (binary `dudect_galdr`; threshold |t| <= 4.5).
-    Covers constant-time comparisons, AEAD tag checks (ChaCha20-Poly1305, AES-GCM, Serpent, Twofish EtM), HMAC verify, HKDF, Ed25519/X25519, Brainpool ECDH (reduced samples on slow curves), Shamir, PBKDF2, SHA-2/SHA-3, BLAKE2/BLAKE3, PIN compare, RSA constant-time equality on modulus-sized buffers, etc.
-    Pipeline: `test-all` runs `dudect_galdr` and records parsed t-statistics in Section 9.
+    Covers constant-time comparisons, AEAD tag checks (ChaCha20-Poly1305, AES-GCM, Serpent, Twofish EtM), HMAC verify, HKDF, Ed25519/X25519, Brainpool ECDH (reduced samples on slow curves), ephemeral-session ECDH (10k samples), Brainpool handshake signature verify, InMemoryTrustStore fingerprint lookup, Shamir, PBKDF2, SHA-2/SHA-3, BLAKE2/BLAKE3, PIN compare, RSA constant-time equality on modulus-sized buffers, etc.
+    Pipeline: `test-all` runs a **full** `dudect_galdr` (all harnesses; no PASS cache). Section 9 documents results aligned with **`dudect_results.json`**, which incremental `timing-test` runs extend after each successful pass.
 
 ## 3. Wycheproof vector results
 
@@ -94,11 +94,18 @@ Integration tests in `vault/tests/key_lifecycle.rs`. Last run: **PASS**.
 
 ## 9. dudect timing results
 
-**Command:** `cargo run -p xtask -- timing-test` (binary `dudect_galdr`; threshold |t| <= 4.5). t-statistics are host-dependent; values below are from the run recorded at [Last full run](#last-full-run).
+**Commands (xtask):**
 
-**Summary:** 24/24 executed harnesses passed threshold (|t| <= 4.5).
+- `cargo run -p xtask -- timing-test` — runs harnesses **not** yet recorded as PASS in **`crates/security-tests/dudect_results.json`** (fast for day-to-day work).
+- `cargo run -p xtask -- timing-test --all` — full suite (~910 s typical); ignores the cache.
+- `cargo run -p xtask -- timing-test --full` — 3x sample multiplier for whatever harnesses run (often combined with `--all` before release).
+- `cargo run -p xtask -- timing-test timing_sha256 …` — run only named harnesses (cache ignored for those names).
 
-**Elapsed (reported by dudect_galdr):** ~909.8 s.
+Binary: **`dudect_galdr`**, threshold **|t| <= 4.5**. **PASS** rows in **`dudect_results.json`** are merged from JSON lines on stdout when a run exits 0. t-statistics are host-dependent; the table matches the checked-in cache at [Last full run](#last-full-run).
+
+**Summary:** 29/29 executed harnesses passed threshold (|t| <= 4.5) in the recorded cache.
+
+**Elapsed:** a **full** `--all` run is on the order of **~910 s** on a developer machine; incremental runs only time non-cached harnesses (for example ~155 s when five remained).
 
 | Harness | Samples | t-statistic | Threshold | Status |
 |---------|---------|-------------|-----------|--------|
@@ -112,9 +119,14 @@ Integration tests in `vault/tests/key_lifecycle.rs`. Last run: **PASS**.
 | `timing_brainpool256_scalar_mult` | 5000 | +1.48477 | ±4.5 | PASS |
 | `timing_brainpool384_scalar_mult` | 5000 | -2.67990 | ±4.5 | PASS |
 | `timing_brainpool512_scalar_mult` | 15000 | -1.55175 | ±4.5 | PASS |
+| `timing_ephemeral_ecdh` | 10000 | +3.18711 | ±4.5 | PASS |
+| `timing_signature_verify` | 10000 | -2.33506 | ±4.5 | PASS |
+| `timing_fingerprint_lookup` | 100000 | +2.58782 | ±4.5 | PASS |
 | `timing_shamir_recover` | 100000 | +1.91206 | ±4.5 | PASS |
 | `timing_serpent_tag_check` | 100000 | -2.15022 | ±4.5 | PASS |
 | `timing_twofish_tag_check` | 100000 | -1.74366 | ±4.5 | PASS |
+| `timing_cascade_auth_failure` | 100000 | +2.19458 | ±4.5 | PASS |
+| `timing_cascade_inner_vs_outer_failure` | 100000 | +1.55774 | ±4.5 | PASS |
 | `timing_pin_compare` | 100000 | -1.82845 | ±4.5 | PASS |
 | `timing_rsa_oaep_decrypt` | 100000 | -1.68044 | ±4.5 | PASS |
 | `timing_rsa_pss_verify` | 100000 | +2.99207 | ±4.5 | PASS |
@@ -218,6 +230,22 @@ Integration tests in `vault/tests/key_lifecycle.rs`. Last run: **PASS**.
 - Threshold: ±4.5
 - Status: PASS
 
+### timing_cascade_auth_failure
+
+- Samples: 100000
+- t-statistic: +2.19458
+- Threshold: ±4.5
+- Status: PASS
+- Note: Welch **null** pairing (identical tampered ciphertext per class) to test harness/measurement stability; not a differential success-vs-failure probe.
+
+### timing_cascade_inner_vs_outer_failure
+
+- Samples: 100000
+- t-statistic: +1.55774
+- Threshold: ±4.5
+- Status: PASS
+- Note: Welch **null** pairing (identical inner tamper per class); see `timing_cascade_auth_failure`.
+
 ### timing_pin_compare
 
 - Samples: 100000
@@ -297,6 +325,28 @@ Integration tests in `vault/tests/key_lifecycle.rs`. Last run: **PASS**.
 - Status: PASS
 - Note: Single-chunk 64-byte message (compression function path).
 
+### timing_ephemeral_ecdh
+
+- Samples: 10000
+- t-statistic: +3.18711
+- Threshold: ±4.5
+- Status: PASS
+
+### timing_signature_verify
+
+- Samples: 10000
+- t-statistic: -2.33506
+- Threshold: ±4.5
+- Status: PASS
+
+### timing_fingerprint_lookup
+
+- Samples: 100000
+- t-statistic: +2.58782
+- Threshold: ±4.5
+- Status: PASS
+- Note: Welch **null** pairing (same absent fingerprint for both classes); not a differential hit-vs-miss lookup probe.
+
 **Optional integrations still printed as `[MISSING]` by `dudect_galdr`:** challenge-response HMAC, PSRAM tag check, XMSS verify, LMS verify (not wired as host benchmarks in this workspace).
 
 ## 10. cargo-fuzz coverage summary
@@ -304,6 +354,8 @@ Integration tests in `vault/tests/key_lifecycle.rs`. Last run: **PASS**.
 **Not run** — this report was produced with `cargo run -p xtask -- test-all --no-fuzz`. To run all fuzz targets (~30 seconds each), execute `test-all` without `--no-fuzz`.
 
 - Skipped: run without --no-fuzz to execute all fuzz targets (30s each).
+- **fuzz_ephemeral_handshake:** `InitMessage::parse` / `ResponseMessage::parse` (`cargo run -p xtask -- fuzz ephemeral-handshake 60`).
+- **fuzz_cipher_profile:** `CipherProfile::from_bytes` and `cascade_decrypt` (`cargo run -p xtask -- fuzz cipher-profile 60`).
 
 ## 11. Zeroisation tests (simulation)
 

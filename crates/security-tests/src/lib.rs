@@ -1,13 +1,16 @@
 //! Host-side security hooks and timing benches.
 //!
 //! With `--features dudect`, the `dudect_galdr` binary runs statistical timing tests (Welch t)
-//! on constant-time and AEAD/ECDH/RSA paths. `cargo run -p xtask -- timing-test` invokes it.
+//! on constant-time and AEAD/ECDH/RSA paths. `cargo run -p xtask -- timing-test` invokes it
+//! incrementally (skips harnesses with PASS in `dudect_results.json`; use `--all` for full runs).
 //! Stubs below remain for API compatibility when `dudect` is disabled.
 
 #![forbid(unsafe_code)]
 
 #[cfg(feature = "dudect")]
 mod dudect_stats;
+#[cfg(feature = "dudect")]
+mod dudect_sample_counts;
 #[cfg(feature = "dudect")]
 mod timing_pbkdf2;
 #[cfg(feature = "dudect")]
@@ -18,6 +21,8 @@ mod timing_sha3;
 mod timing_blake2;
 #[cfg(feature = "dudect")]
 mod timing_blake3;
+#[cfg(feature = "dudect")]
+mod timing_cascade;
 #[cfg(feature = "dudect")]
 mod dudect_harnesses;
 

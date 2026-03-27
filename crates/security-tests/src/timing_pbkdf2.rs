@@ -8,9 +8,8 @@
 // Operational note: timing leakage in PBKDF2 is a lower operational concern than
 // AEAD tag checks or ECDH for this firmware; this harness establishes a baseline.
 
-use crate::dudect_stats::{
-    update_ct_stats, Class, CtRunner, CtSummary, DUDECT_SAMPLES_PBKDF2,
-};
+use crate::dudect_sample_counts::samples_for_harness;
+use crate::dudect_stats::{update_ct_stats, Class, CtRunner, CtSummary};
 use pbkdf2::pbkdf2_hmac;
 use rand::prelude::*;
 use sha2::Sha256;
@@ -20,9 +19,10 @@ use std::hint::black_box;
 pub fn bench_timing_pbkdf2() -> CtSummary {
     const PW_A: [u8; 16] = *b"AAAAAAAAAAAAAAAA";
     let salt = [0x38u8; 16];
+    let n = samples_for_harness("timing_pbkdf2");
     let mut rng = StdRng::seed_from_u64(0x50424B44);
-    let mut work = Vec::with_capacity(DUDECT_SAMPLES_PBKDF2);
-    for _ in 0..DUDECT_SAMPLES_PBKDF2 {
+    let mut work = Vec::with_capacity(n);
+    for _ in 0..n {
         if rng.gen_bool(0.5) {
             work.push((Class::Left, PW_A));
         } else {

@@ -879,6 +879,23 @@ dependencies = [
 ]
 
 [[package]]
+name = "cipher-profile"
+version = "0.1.0"
+dependencies = [
+ "aead",
+ "aes-gcm",
+ "chacha20poly1305",
+ "ephemeral-session",
+ "galdr-core",
+ "heapless",
+ "hkdf 0.12.4",
+ "sha2 0.10.9",
+ "subtle",
+ "vault",
+ "zeroize",
+]
+
+[[package]]
 name = "clap"
 version = "2.34.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1307,6 +1324,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "dirs"
+version = "5.0.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "44c45a9d03d6676652bcb5e724c7e988de1acad23a711b5217ab9cbecbec2225"
+dependencies = [
+ "dirs-sys",
+]
+
+[[package]]
 name = "dirs-next"
 version = "2.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1314,6 +1340,18 @@ checksum = "b98cf8ebf19c3d1b223e151f99a4f9f0690dca41414773390fc824184ac833e1"
 dependencies = [
  "cfg-if",
  "dirs-sys-next",
+]
+
+[[package]]
+name = "dirs-sys"
+version = "0.4.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "520f05a5cbd335fae5a99ff7a6ab8627577660ee5cfd6a94a6a929b52ff0321c"
+dependencies = [
+ "libc",
+ "option-ext",
+ "redox_users",
+ "windows-sys 0.48.0",
 ]
 
 [[package]]
@@ -1545,6 +1583,20 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn 2.0.117",
+]
+
+[[package]]
+name = "ephemeral-session"
+version = "0.1.0"
+dependencies = [
+ "galdr-core",
+ "heapless",
+ "hkdf 0.12.4",
+ "hmac 0.12.1",
+ "sha2 0.10.9",
+ "subtle",
+ "vault",
+ "zeroize",
 ]
 
 [[package]]
@@ -1956,13 +2008,16 @@ dependencies = [
  "chrono",
  "clap 4.6.0",
  "galdra-core-host",
+ "hex",
  "image",
  "predicates",
+ "qrcode",
  "rpassword",
  "rqrr",
  "sequoia-openpgp",
  "serde",
  "serde_json",
+ "sha2 0.10.9",
  "tempfile",
  "tokio",
 ]
@@ -1974,8 +2029,13 @@ dependencies = [
  "anyhow",
  "base64 0.22.1",
  "chrono",
+ "cipher-profile",
+ "ephemeral-session",
+ "galdr-core",
+ "heapless",
  "hex",
  "ldap3",
+ "rand 0.8.5",
  "rusqlite",
  "sequoia-net",
  "sequoia-openpgp",
@@ -1987,6 +2047,7 @@ dependencies = [
  "tokio",
  "toml 0.8.23",
  "uuid",
+ "vault",
  "zeroize",
 ]
 
@@ -1994,11 +2055,14 @@ dependencies = [
 name = "galdra-gtk"
 version = "0.1.0"
 dependencies = [
+ "base64 0.22.1",
  "clap 4.6.0",
+ "dirs",
  "gtk4",
  "reqwest 0.12.28",
  "serde",
  "serde_json",
+ "toml 0.8.23",
 ]
 
 [[package]]
@@ -2006,11 +2070,15 @@ name = "galdrad"
 version = "0.1.0"
 dependencies = [
  "axum",
+ "base64 0.22.1",
  "chrono",
  "clap 4.6.0",
  "galdra-core-host",
+ "hex",
+ "sequoia-openpgp",
  "serde",
  "serde_json",
+ "sha2 0.10.9",
  "tokio",
  "tower",
  "tower-http",
@@ -3716,6 +3784,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "option-ext"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "04744f49eae99ab78e0d5c0b603ab218f515ea8cfe5a456d7629ad883a3b6e7d"
+
+[[package]]
 name = "p256"
 version = "0.13.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4161,6 +4235,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7f6d64c71eb498fe9eae14ce4ec935c555749aef511cca85b5568910d6e48001"
 dependencies = [
  "bytemuck",
+]
+
+[[package]]
+name = "qrcode"
+version = "0.14.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d68782463e408eb1e668cf6152704bd856c78c5b6417adaee3203d8f4c1fc9ec"
+dependencies = [
+ "image",
 ]
 
 [[package]]
@@ -4970,15 +5053,19 @@ dependencies = [
  "blake2",
  "blake3",
  "chacha20poly1305",
+ "cipher-profile",
  "dudect-bencher",
  "ed25519-dalek",
+ "ephemeral-session",
  "galdr-core",
+ "heapless",
  "hex",
  "hkdf 0.12.4",
  "hmac 0.12.1",
  "pbkdf2",
  "pin-policy",
  "rand 0.8.5",
+ "serde_json",
  "sha2 0.10.9",
  "sha3",
  "subtle",

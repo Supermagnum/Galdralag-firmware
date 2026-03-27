@@ -70,6 +70,17 @@ impl Drop for ChaChaPlaintext {
 }
 
 impl ChaChaKey {
+    /// Derive a 256-bit key with HKDF-SHA256 using `info` as the sole label (no [`KeyPurpose`] prefix).
+    ///
+    /// Intended for cipher-profile cascades where the full domain string is supplied by the caller.
+    pub fn derive_from_prk_label(prk: &[u8], info: &[u8]) -> Result<Self, ChaChaError> {
+        let hk = Hkdf::<Sha256>::from_prk(prk).map_err(|_| ChaChaError::KeyDerivation)?;
+        let mut okm = [0u8; 32];
+        hk.expand(info, &mut okm)
+            .map_err(|_| ChaChaError::KeyDerivation)?;
+        Ok(Self(okm))
+    }
+
     /// Derive a key from HKDF output for the given purpose.
     /// The `info` bytes provide additional domain separation beyond KeyPurpose.
     pub fn derive(prk: &[u8], purpose: KeyPurpose, info: &[u8]) -> Result<Self, ChaChaError> {
@@ -105,6 +116,17 @@ impl ChaChaKey {
 }
 
 impl ChaChaNonce {
+    /// Derive a 96-bit nonce with HKDF-SHA256 using `info` as the sole label; uses the first 12 bytes of the expand output.
+    pub fn derive_from_prk_label(prk: &[u8], info: &[u8]) -> Result<Self, ChaChaError> {
+        let hk = Hkdf::<Sha256>::from_prk(prk).map_err(|_| ChaChaError::KeyDerivation)?;
+        let mut okm = [0u8; 32];
+        hk.expand(info, &mut okm)
+            .map_err(|_| ChaChaError::KeyDerivation)?;
+        let mut n = GenericArray::<u8, U12>::default();
+        n.copy_from_slice(&okm[..12]);
+        Ok(Self(n))
+    }
+
     /// Generate a random nonce from the TRNG. Preferred construction.
     pub fn generate<T: HardwareTrng>(trng: &mut T) -> Result<Self, ChaChaError> {
         let mut n = GenericArray::<u8, U12>::default();
@@ -152,6 +174,18 @@ impl ChaChaCiphertext {
     /// Raw ciphertext bytes (body || tag).
     pub fn as_slice(&self) -> &[u8] {
         self.buf.as_slice()
+    }
+
+    /// Decode ciphertext bytes (body || Poly1305 tag) for cascade and framing callers.
+    pub fn try_from_slice(buf: &[u8]) -> Result<Self, ChaChaError> {
+        if buf.len() > MAX_CHACHA_CIPHERTEXT {
+            return Err(ChaChaError::InvalidLength);
+        }
+        let mut v = heapless::Vec::new();
+        for b in buf {
+            v.push(*b).map_err(|_| ChaChaError::InvalidLength)?;
+        }
+        Ok(Self { buf: v })
     }
 
     pub(crate) fn from_heapless_vec(buf: heapless::Vec<u8, MAX_CHACHA_CIPHERTEXT>) -> Self {

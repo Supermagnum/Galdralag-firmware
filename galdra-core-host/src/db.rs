@@ -10,6 +10,7 @@ use std::path::Path;
 const MIGRATIONS: &[(u32, &str)] = &[
     (1, include_str!("../migrations/001_initial.sql")),
     (2, include_str!("../migrations/002_audit_prev_hash.sql")),
+    (3, include_str!("../migrations/003_user_profiles.sql")),
 ];
 
 /// OpenPGP contacts, groups, audit, and config store.

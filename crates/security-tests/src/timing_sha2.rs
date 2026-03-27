@@ -9,16 +9,18 @@
 //
 // Operational note: hash timing is less critical than AEAD tag or ECDH paths here.
 
-use crate::dudect_stats::{update_ct_stats, Class, CtRunner, CtSummary, DUDECT_SAMPLES};
+use crate::dudect_sample_counts::samples_for_harness;
+use crate::dudect_stats::{update_ct_stats, Class, CtRunner, CtSummary};
 use rand::prelude::*;
 use sha2::{Digest, Sha256, Sha512};
 use std::hint::black_box;
 
 /// SHA-256 over 64-byte blocks: class 0 all-zero, class 1 random.
 pub fn bench_timing_sha256() -> CtSummary {
+    let n = samples_for_harness("timing_sha256");
     let mut rng = StdRng::seed_from_u64(0x534841323536);
-    let mut work = Vec::with_capacity(DUDECT_SAMPLES);
-    for _ in 0..DUDECT_SAMPLES {
+    let mut work = Vec::with_capacity(n);
+    for _ in 0..n {
         if rng.gen_bool(0.5) {
             work.push((Class::Left, [0u8; 64]));
         } else {
@@ -41,9 +43,10 @@ pub fn bench_timing_sha256() -> CtSummary {
 
 /// SHA-512 over 64-byte blocks: class 0 all-zero, class 1 random.
 pub fn bench_timing_sha512() -> CtSummary {
+    let n = samples_for_harness("timing_sha512");
     let mut rng = StdRng::seed_from_u64(0x534841353132);
-    let mut work = Vec::with_capacity(DUDECT_SAMPLES);
-    for _ in 0..DUDECT_SAMPLES {
+    let mut work = Vec::with_capacity(n);
+    for _ in 0..n {
         if rng.gen_bool(0.5) {
             work.push((Class::Left, [0u8; 64]));
         } else {
