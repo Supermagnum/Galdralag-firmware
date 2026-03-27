@@ -52,6 +52,83 @@ Architecture notes for this repository: [docs/ARCHITECTURE.md](docs/ARCHITECTURE
 
 ---
 
+## Documentation
+
+- **[Galdra — Token Management Tool Specification](https://github.com/Supermagnum/Galdralag-firmware/blob/main/docs/GALDRA-TOOL.md)** — host tools (`galdra` CLI, `galdrad` daemon, `galdra-gtk`), contacts, groups, OpenPGP workflows, and operational behaviour.
+- **[Glossary](https://github.com/Supermagnum/Galdralag-firmware/blob/main/docs/GLOSSARY.md)** — short definitions of terms used across this repository.
+
+Same files in a local clone: [docs/GALDRA-TOOL.md](docs/GALDRA-TOOL.md), [docs/GLOSSARY.md](docs/GLOSSARY.md).
+
+---
+
+## Build, install, and uninstall
+
+Use a **stable Rust** toolchain as pinned in [rust-toolchain.toml](rust-toolchain.toml). Firmware uses the `riscv32imac-unknown-none-elf` target; host tools use the host triple.
+
+### Compile firmware
+
+1. Install the embedded target:
+
+   ```bash
+   rustup target add riscv32imac-unknown-none-elf
+   ```
+
+2. Type-check firmware crates (fails if `test-hal` would leak into production builds):
+
+   ```bash
+   cargo run -p xtask -- check-fw
+   ```
+
+3. Build firmware crates in release mode:
+
+   ```bash
+   cargo run -p xtask -- build-fw
+   ```
+
+   Object code and archives land under `target/riscv32imac-unknown-none-elf/release/`. A full bootable **Xous** system image for a specific board is produced by the wider Baochip / Xous integration flow when you follow that product’s build; `xtask` here runs `cargo build` for the firmware library crates listed in `xtask` (not a single ready-to-flash file by itself).
+
+### Flashing
+
+This repository does **not** ship a one-command flasher. Programming the **Baochip-1x** (JTAG, ROM/USB boot, or vendor tools) follows the board and silicon documentation. Start from the **[Baochip-1x firmware design README](https://raw.githubusercontent.com/Supermagnum/Baochip-1x-firmware/refs/heads/main/README.md)** and your board’s flashing guide.
+
+### Compile and install host tools (`galdra`, `galdrad`, `galdra-gtk`)
+
+Host crates live at the workspace root: `galdra/`, `galdrad/`, `galdra-gtk/`.
+
+**GTK 4 (required for `galdra-gtk` only):** install development packages so `pkg-config` can find `gtk4` (crate `gtk4` 0.9). Examples: Debian/Ubuntu — `libgtk-4-dev`; Fedora — `gtk4-devel`; Arch — `gtk4`.
+
+Build release binaries from the repository root:
+
+```bash
+cargo build --release -p galdra -p galdrad -p galdra-gtk
+```
+
+Executables: `target/release/galdra`, `target/release/galdrad`, `target/release/galdra-gtk`.
+
+**Install** into `~/.cargo/bin` (adjust `--path` if you are not in the repo root):
+
+```bash
+cargo install --locked --path galdra
+cargo install --locked --path galdrad
+cargo install --locked --path galdra-gtk
+```
+
+You can instead copy those three binaries to any directory on your `PATH`.
+
+### Uninstall host tools
+
+If you used `cargo install --path` as above:
+
+```bash
+cargo uninstall galdra
+cargo uninstall galdrad
+cargo uninstall galdra-gtk
+```
+
+If you copied binaries manually, remove the files you added. Firmware is not “installed” on the host; erasing or reflashing the device is covered by your hardware documentation.
+
+---
+
 ## Key capabilities
 
 ### What makes this token unusual
@@ -245,6 +322,8 @@ than introducing unreviewed cryptographic code.
 
 ## Quick start
 
+Firmware build prerequisites and install paths are in [Build, install, and uninstall](#build-install-and-uninstall) above.
+
 ```bash
 rustup target add riscv32imac-unknown-none-elf
 cargo test --workspace --exclude xtask
@@ -254,6 +333,8 @@ cargo run -p xtask -- test-host
 cargo run -p xtask -- test-all
 cargo run -p xtask -- timing-test
 ```
+
+**Fuzzing (libFuzzer):** install `cargo-fuzz`, use nightly, then e.g. `cargo run -p xtask -- fuzz chacha_roundtrip 60`. Target names, xtask aliases, and **recommended corpus seeds** per target are in [fuzz/README.md](fuzz/README.md).
 
 Enable `galdr-core` feature `test-hal` **only** in tests or host tools.
 Never enable it in production firmware images — enforced by `check-fw`.
