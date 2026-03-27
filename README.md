@@ -5,6 +5,14 @@
 > dependencies. Post-quantum algorithms are feature-gated and marked
 > **PENDING INDEPENDENT AUDIT**. See [Post-quantum status](#post-quantum-status).
 
+> **Note:** Parts of this project were developed with AI assistance (Claude, Anthropic).
+> The design, cryptographic choices, and security decisions have not been reviewed
+> by a professional cryptographer. Treat this as an experimental project and apply
+> your own critical judgement. Independent expert review is strongly recommended
+> before any production deployment.
+
+It is ready for testing by humans; using a **virtual machine** for that is suggested. There may be bugs that automated tests have not discovered.
+
 ---
 
 ## About the name
