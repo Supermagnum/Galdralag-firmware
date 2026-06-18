@@ -21,17 +21,29 @@ IS66WVR8M8FALL SOIC-8 or others footprint in the space freed by removing the Pic
 
 Reroute:
 USBC_P → D+ edge pad.
+
 USBC_N → D− edge pad.
+
 VBUS → VBUS edge pad.
+
 GND → GND edge pad.
+
 CC1/CC2 resistors → DNP (not needed for USB-A, leave footprints, mark do-not-populate).
+
 PC0–PC3 → test pads on PCB bottom or simply unconnected.
+
 Quad-SPI bus:
+
 BIO23 (QSPI1D0) → PSRAM SIO0.
+
 BIO24 (QSPI1D1) → PSRAM SIO1.
+
 BIO25 (QSPI1D2) → PSRAM SIO2.
+
 BIO26 (QSPI1D3) → PSRAM SIO3.
+
 BIO27 (QSPI1CLK) → PSRAM CLK.
+
 BIO28 (QSPI1CS0) → PSRAM CE#.
 
 PSRAM power and decoupling:
