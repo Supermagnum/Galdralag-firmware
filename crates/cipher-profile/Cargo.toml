@@ -18,11 +18,19 @@ heapless = { workspace = true }
 aes-gcm = { workspace = true }
 aead = { workspace = true }
 chacha20poly1305 = { workspace = true }
+hex = { workspace = true }
+serde_json = { workspace = true }
+
+[[bin]]
+name = "cascade-kat-gen"
+path = "src/bin/cascade_kat_gen.rs"
 
 [dev-dependencies]
 galdr-core = { path = "../galdr-core", features = ["test-hal"] }
 ephemeral-session = { path = "../ephemeral-session" }
 vault = { path = "../vault" }
+hex = { workspace = true }
+serde_json = { workspace = true }
 
 [lints]
 workspace = true

@@ -1,0 +1,32 @@
+{
+  "aad_hex": "70726f66696c657c7c66707c7c7473",
+  "description": "CESS-mapped built-in profiles: fixed IKM/AAD/PT; expected outer cascade ciphertext (hex). Multi-layer rows include intermediate_before_outer_hex (bytes fed to the outer Serpent EtM step). Regenerate: cargo run -p cipher-profile --bin cascade-kat-gen > crates/cipher-profile/tests/fixtures/cascade_cess_kat.json",
+  "ikm_hex": "3131313131313131313131313131313131313131313131313131313131313131",
+  "plaintext_hex": "77777777777777777777777777777777777777777777777777777777777777777777777777777777777777777777777777777777777777777777777777777777",
+  "schema_version": 1,
+  "vectors": [
+    {
+      "expected_ciphertext_hex": "340fa46007cd5d4606ebf3a0dde54941fd4c63f99f277f3546791e67618f6365be3e0a95b599e2fdd968a518538b77abc1f2aa340fdccdf08f74d877945c8372b88e098c6e09a8d0222b8d501a0dbfc8",
+      "profile": "standard",
+      "suite_id": "0x0001"
+    },
+    {
+      "expected_ciphertext_hex": "04d3ea7af1fb0db29b9932bf50724c6900e554281cf3acb5554bf01a4e3684be41726beacc4f61b2c8e6776075f0c230a93d8495bee357cb2e35368b480d6ae5282fa2a21ef254631ce8e6f25b5cba0f127392bf32c444e8e4d8445fc1ef5c401d530b697c936e34c569f8c83f6af673f3fa79ac4947b1a99db0da531c716c31225409c0f8d678cb93185dfdf9db87ff",
+      "intermediate_before_outer_hex": "0173b4502102692a8eff0e59c24e33da89ff6b102f65e0a729d077a080a4c41d54ba31f0aca0884c1e4381487ce1c35fbf4f5cab5cf375b6a5b71e4d83c47e2b217415bb9011763545f786468146821522a49df4c63a5e7d386356f52cc09537514f99aa67a4d5a1646a7cdc4b7409b4",
+      "profile": "conservative",
+      "suite_id": "0x0003"
+    },
+    {
+      "expected_ciphertext_hex": "04d3ea7af1fb0db29b9932bf50724c6900e554281cf3acb5554bf01a4e3684be41726beacc4f61b2c8e6776075f0c230a93d8495bee357cb2e35368b480d6ae5282fa2a21ef254631ce8e6f25b5cba0f127392bf32c444e8e4d8445fc1ef5c401d530b697c936e34c569f8c83f6af673f3fa79ac4947b1a99db0da531c716c31225409c0f8d678cb93185dfdf9db87ff",
+      "intermediate_before_outer_hex": "0173b4502102692a8eff0e59c24e33da89ff6b102f65e0a729d077a080a4c41d54ba31f0aca0884c1e4381487ce1c35fbf4f5cab5cf375b6a5b71e4d83c47e2b217415bb9011763545f786468146821522a49df4c63a5e7d386356f52cc09537514f99aa67a4d5a1646a7cdc4b7409b4",
+      "profile": "conservative-shamir",
+      "suite_id": "0x0003"
+    },
+    {
+      "expected_ciphertext_hex": "6659fdf5e8f802d13f11b6255ce46c393e933fba4f3159950f7c287dbe71747f40e428cc04f9d4577004be2b7c413dcf171206141c364c65afbadcf13128aeedae8a3a6f4cb752a353999a80c49c0c3d4754c0083451dbce2b493db0ec65005bff46ca02d2cd752a61d99ee023614f8cae23e688b028f288d9fc3c550e38f6aab9eca9fe26136670a38579af84eef722",
+      "intermediate_before_outer_hex": "19341144ad95132d507bdc57def6a230ddb4aa1a642450309bc62b377b483f4cccdb8ecd4fdb5ed61c1dbe792eb8db05fd7855c3d881c6f80acedccf44d366e72d745fd2896437591f9ec4f7299a13655d6e704b1eb1ba04b98fcb13ba9143c4c38a097dabb5fa6b711e206048a95d03",
+      "profile": "high-assurance",
+      "suite_id": "0x0012"
+    }
+  ]
+}

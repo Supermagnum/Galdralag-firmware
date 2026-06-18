@@ -76,6 +76,18 @@ pub fn cess_blake3_integrity_info(suite_id: u16) -> Vec<u8> {
     out
 }
 
+/// HKDF-BLAKE3 `info` for the **HMAC-BLAKE3** key that authenticates the AEAD
+/// output **after** layer `after_layer_index` (0 = innermost), before the next
+/// cascade layer encrypts. Distinct from `cess_blake3_integrity_info` (suite-only label).
+pub fn cess_blake3_integrity_gap_info(suite_id: u16, after_layer_index: u8) -> Vec<u8> {
+    let mut out = Vec::with_capacity(36);
+    out.extend_from_slice(b"cess-blake3-integrity-");
+    push_hex_u16_be(&mut out, suite_id);
+    out.extend_from_slice(b"-gap");
+    push_layer_index(&mut out, after_layer_index);
+    out
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -93,6 +105,18 @@ mod tests {
         assert_eq!(
             cess_blake3_integrity_info(0x0004).as_slice(),
             b"cess-blake3-integrity-0004"
+        );
+    }
+
+    #[test]
+    fn cess_blake3_integrity_gap_info_shape() {
+        assert_eq!(
+            cess_blake3_integrity_gap_info(0x0003, 0).as_slice(),
+            b"cess-blake3-integrity-0003-gap-l0"
+        );
+        assert_eq!(
+            cess_blake3_integrity_gap_info(0x0003, 1).as_slice(),
+            b"cess-blake3-integrity-0003-gap-l1"
         );
     }
 }

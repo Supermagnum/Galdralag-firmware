@@ -563,17 +563,20 @@ The items below are **Galdralag firmware capabilities**, not requirements of the
   Full rules and wire layout: [docs/CIPHER_PROFILES.md](docs/CIPHER_PROFILES.md).
   Every profile selection is logged in the audit trail.
 
-- **Optional keyed BLAKE3 between cascade layers (CESS)** — In addition to each
-  layer’s own AEAD tag and to the **Mode A** outer ChaCha20-Poly1305 envelope,
-  **CESS** allows an optional **keyed BLAKE3** integrity tag **between** inner
-  cascade stages. That yields an explicit authenticated checkpoint **after**
-  each stage as ciphertext moves outward, not only at the outer boundary. This
-  tree provides the HKDF-BLAKE3 `info` helper `cess::cess_blake3_integrity_info`
-  ([`inner_info.rs`](crates/cess/src/inner_info.rs)) in **`crates/cess`**; **framing and verification of inter-layer BLAKE3 tags
-  inside `cipher-profile` cascade encrypt/decrypt is not implemented yet** (see
-  [docs/CESS_CONFORMANCE.md](docs/CESS_CONFORMANCE.md)). **Combination counts**
-  under current `cipher-profile` rules (**four** AEAD primitives, **no cipher
-  repeated** in one profile, order matters):
+- **Keyed BLAKE3 between cascade layers (CESS)** — In addition to each layer’s
+  own AEAD tag and to the **Mode A** outer ChaCha20-Poly1305 envelope, **CESS**
+  defines **keyed BLAKE3**-style integrity **between** inner cascade stages. For
+  **registry-mapped** profiles (`suite_id` via built-in names), **`cipher-profile`**
+  appends a **32-byte HMAC-BLAKE3** over each inner layer’s AEAD output before the
+  next layer encrypts; keys are derived with **HKDF-BLAKE3** using
+  `cess::cess_blake3_integrity_gap_info` ([`inner_info.rs`](crates/cess/src/inner_info.rs)).
+  **Single-layer** built-ins skip extra tags; **custom** profiles (no `suite_id`)
+  keep the legacy cascade without inter-layer MACs. See
+  [docs/CIPHER_PROFILES.md](docs/CIPHER_PROFILES.md) and
+  [docs/CESS_CONFORMANCE.md](docs/CESS_CONFORMANCE.md). **Combination counts**
+  under `cipher-profile` cipher rules (**four** AEAD primitives, **no cipher
+  repeated** in one profile, order matters); the BLAKE3 column is the CESS
+  **design-space** count (independent on/off per gap), not a per-message host toggle:
 
   | Cascade length | Ordered distinct-cipher stacks | × optional BLAKE3 on/off at each of the **length−1** gaps between layers |
   |:--------------:|--------------------------------:|---------------------------------------------------------------------------:|
@@ -587,7 +590,9 @@ The items below are **Galdralag firmware capabilities**, not requirements of the
   choices from AES-256-GCM, ChaCha20-Poly1305, Twofish-256, Serpent-256). The
   **316** figure is the same stacks multiplied by every **independent**
   on/off pattern for optional inter-layer BLAKE3 (**2^(k−1)** patterns for **k**
-  layers). Built-in profile names use a **small** subset of the 64.
+  layers). **This firmware** applies inter-layer MACs for **all** gaps when a
+  built-in **`suite_id`** profile has **≥ 2** layers (not a per-gap toggle).
+  Built-in profile names use a **small** subset of the 64.
 
 - **Optional microSD decoy volume** — if a PSRAM chip is fitted, an extra bulk
   decoy LUN can appear after unlock. **If no microSD is fitted, the device is

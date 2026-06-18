@@ -1,12 +1,16 @@
 // Cryptographic correctness of each cipher layer is verified by the
-// Wycheproof test suites in vault/tests/. This module composes those
-// implementations; it does not re-implement any primitive.
+// Wycheproof test suites in vault/tests/ and committed cascade KATs in
+// `tests/fixtures/cascade_cess_kat.json` (regenerate: `cascade-kat-gen` binary).
+// This module composes those implementations; it does not re-implement any primitive.
 
 //! Multi-layer encrypt and decrypt.
 //!
 //! Built-in profiles whose names map to a CESS registry [`suite_id`](cess::suite_id_for_profile_name)
 //! use **HKDF-BLAKE3** with UTF-8 `info` strings per **CESS v0.2 §8.3** (and distinct per-layer
-//! suffixes for cascade subkeys). Custom profiles without a registry mapping continue to use
+//! suffixes for cascade subkeys). For **two or more** layers, **HMAC-BLAKE3** over
+//! [`cess::cess_blake3_integrity_info`] (suite label) **concatenated** with each inner layer’s
+//! AEAD ciphertext is appended before the next layer encrypts (subkeys from
+//! [`cess::cess_blake3_integrity_gap_info`]). Custom profiles without a registry mapping continue to use
 //! **HKDF-SHA256** over a **32-byte** PRK and [`layer_key_info`](crate::domain::layer_key_info) labels.
 
 extern crate alloc;
@@ -18,10 +22,12 @@ use crate::profile::CipherProfile;
 use aead::{Aead, KeyInit, Payload};
 use aes_gcm::{Aes256Gcm, Key, Nonce};
 use cess::{
-    hkdf_blake3, suite_id_for_profile_name, CessInnerEtM64Cipher, cess_inner_cascade_etm64_info,
+    cess_blake3_integrity_gap_info, cess_blake3_integrity_info, hkdf_blake3, hmac_blake3,
+    suite_id_for_profile_name, CessInnerEtM64Cipher, cess_inner_cascade_etm64_info,
     cess_inner_cascade_layer_key_info, cess_inner_cascade_layer_nonce_info,
 };
 use heapless::Vec;
+use subtle::ConstantTimeEq;
 use vault::chacha_aead::{
     chacha_decrypt, chacha_encrypt, ChaChaCiphertext, ChaChaKey, ChaChaNonce, ChaChaPlaintext,
 };
@@ -34,6 +40,9 @@ use vault::twofish_cipher::{
 use zeroize::Zeroize;
 
 const MAX_CT: usize = 65536;
+
+/// HMAC-BLAKE3 tag length (CESS inter-layer integrity).
+const INTER_LAYER_MAC_LEN: usize = 32;
 
 /// Authenticated cascade output (outer ciphertext only).
 #[derive(Debug)]
@@ -80,6 +89,72 @@ fn hkdf_blake3_okm64(ikm: &[u8], info: &[u8]) -> Result<[u8; 64], CipherProfileE
         .map_err(|_| CipherProfileError::KeyDerivation)
 }
 
+/// Bytes fed to the **outermost** cascade encrypt step (after inner layers and any inter-layer MACs).
+///
+/// For a single-layer profile this is not defined; returns [`CipherProfileError::CipherError`].
+/// Matches the same IKM / AAD / plaintext rules as [`cascade_encrypt`] (only the outermost layer
+/// receives the caller `aad`; inner layers use empty AAD).
+pub fn cascade_blob_before_outermost_encrypt(
+    profile: &CipherProfile,
+    ikm: &[u8],
+    aad: &[u8],
+    plaintext: &[u8],
+) -> Result<Vec<u8, MAX_CT>, CipherProfileError> {
+    let n = profile.layers().len();
+    if n < 2 {
+        return Err(CipherProfileError::CipherError { layer: 0 });
+    }
+    cascade_forward_encrypt(profile, ikm, aad, plaintext, n - 1)
+}
+
+fn cascade_forward_encrypt(
+    profile: &CipherProfile,
+    ikm: &[u8],
+    aad: &[u8],
+    plaintext: &[u8],
+    last_layer_exclusive: usize,
+) -> Result<Vec<u8, MAX_CT>, CipherProfileError> {
+    if plaintext.len() > MAX_CASCADE_PLAINTEXT {
+        return Err(CipherProfileError::PayloadTooLarge);
+    }
+    let cess_sid = suite_id_for_profile_name(profile.name());
+    if cess_sid.is_none() && ikm.len() != 32 {
+        return Err(CipherProfileError::KeyDerivation);
+    }
+    let name = profile.name();
+    let layers = profile.layers();
+    let n = layers.len();
+    if last_layer_exclusive > n {
+        return Err(CipherProfileError::CipherError { layer: 0 });
+    }
+    let mut current = Vec::<u8, MAX_CT>::new();
+    for b in plaintext {
+        current.push(*b).map_err(|_| CipherProfileError::PayloadTooLarge)?;
+    }
+    for i in 0..last_layer_exclusive {
+        let layer = layers[i];
+        let layer_aad = if i + 1 == n { aad } else { &[][..] };
+        let kinfo = layer_key_info(name, layer, i as u8)?;
+        let ninfo = layer_nonce_info(name, layer, i as u8)?;
+        current = encrypt_layer(
+            ikm,
+            cess_sid,
+            layer,
+            layer_aad,
+            current.as_slice(),
+            kinfo.as_slice(),
+            ninfo.as_slice(),
+            i as u8,
+        )?;
+        if let Some(sid) = cess_sid {
+            if i + 1 < n {
+                current = cess_append_inter_layer_mac(ikm, sid, i as u8, current)?;
+            }
+        }
+    }
+    Ok(current)
+}
+
 /// Encrypt `plaintext` with the profile cascade (inner layers first).
 ///
 /// `ikm` is key material for layer derivation:
@@ -96,38 +171,11 @@ pub fn cascade_encrypt(
     aad: &[u8],
     plaintext: &[u8],
 ) -> Result<CascadeCiphertext, CipherProfileError> {
-    if plaintext.len() > MAX_CASCADE_PLAINTEXT {
-        return Err(CipherProfileError::PayloadTooLarge);
-    }
-    let cess_sid = suite_id_for_profile_name(profile.name());
-    if cess_sid.is_none() && ikm.len() != 32 {
-        return Err(CipherProfileError::KeyDerivation);
-    }
-    let name = profile.name();
-    let layers = profile.layers();
-    let n = layers.len();
-    let mut current = Vec::<u8, MAX_CT>::new();
-    for b in plaintext {
-        current.push(*b).map_err(|_| CipherProfileError::PayloadTooLarge)?;
-    }
-    for (i, layer) in layers.iter().enumerate() {
-        let layer_aad = if i + 1 == n { aad } else { &[][..] };
-        let kinfo = layer_key_info(name, *layer, i as u8)?;
-        let ninfo = layer_nonce_info(name, *layer, i as u8)?;
-        current = encrypt_layer(
-            ikm,
-            cess_sid,
-            *layer,
-            layer_aad,
-            current.as_slice(),
-            kinfo.as_slice(),
-            ninfo.as_slice(),
-            i as u8,
-        )?;
-    }
+    let n = profile.layers().len();
+    let current = cascade_forward_encrypt(profile, ikm, aad, plaintext, n)?;
     let mut pname = heapless::String::new();
     pname
-        .push_str(name)
+        .push_str(profile.name())
         .map_err(|_| CipherProfileError::InvalidProfileName)?;
     Ok(CascadeCiphertext {
         profile_name: pname,
@@ -171,6 +219,11 @@ pub fn cascade_decrypt(
             ninfo.as_slice(),
             idx as u8,
         )?;
+        if let Some(sid) = cess_sid {
+            if idx > 0 {
+                buf = cess_verify_and_strip_inter_layer_mac(ikm, sid, (idx - 1) as u8, buf)?;
+            }
+        }
     }
     Ok(CascadePlaintext { buf })
 }
@@ -181,6 +234,75 @@ fn map_decrypt_err<T>(r: Result<T, CipherProfileError>) -> Result<T, CipherProfi
 
 fn legacy_prk32(ikm: &[u8]) -> Result<&[u8; 32], CipherProfileError> {
     <&[u8; 32]>::try_from(ikm).map_err(|_| CipherProfileError::KeyDerivation)
+}
+
+fn cess_inter_layer_mac_key(
+    ikm: &[u8],
+    suite_id: u16,
+    after_layer: u8,
+) -> Result<[u8; 32], CipherProfileError> {
+    let info = cess_blake3_integrity_gap_info(suite_id, after_layer);
+    hkdf_blake3_okm32(ikm, info.as_slice())
+}
+
+/// HMAC-BLAKE3 input: suite integrity label (CESS §8.3) then inner AEAD ciphertext octets.
+fn cess_inter_layer_hmac_message(
+    suite_id: u16,
+    body: &[u8],
+) -> Result<Vec<u8, MAX_CT>, CipherProfileError> {
+    let label = cess_blake3_integrity_info(suite_id);
+    let mut out = Vec::new();
+    for b in label {
+        out.push(b).map_err(|_| CipherProfileError::PayloadTooLarge)?;
+    }
+    for b in body {
+        out.push(*b).map_err(|_| CipherProfileError::PayloadTooLarge)?;
+    }
+    Ok(out)
+}
+
+fn cess_append_inter_layer_mac(
+    ikm: &[u8],
+    suite_id: u16,
+    after_layer: u8,
+    body: Vec<u8, MAX_CT>,
+) -> Result<Vec<u8, MAX_CT>, CipherProfileError> {
+    let key = cess_inter_layer_mac_key(ikm, suite_id, after_layer)?;
+    let msg = cess_inter_layer_hmac_message(suite_id, body.as_slice())?;
+    let mac = hmac_blake3(&key, msg.as_slice());
+    let mut out = body;
+    for b in mac.iter() {
+        out.push(*b).map_err(|_| CipherProfileError::PayloadTooLarge)?;
+    }
+    Ok(out)
+}
+
+fn cess_verify_and_strip_inter_layer_mac(
+    ikm: &[u8],
+    suite_id: u16,
+    after_layer: u8,
+    buf: Vec<u8, MAX_CT>,
+) -> Result<Vec<u8, MAX_CT>, CipherProfileError> {
+    if buf.len() < INTER_LAYER_MAC_LEN {
+        return Err(CipherProfileError::AuthenticationFailed);
+    }
+    let split = buf.len() - INTER_LAYER_MAC_LEN;
+    let body = &buf.as_slice()[..split];
+    let mac_bytes = &buf.as_slice()[split..];
+    let key = cess_inter_layer_mac_key(ikm, suite_id, after_layer)?;
+    let msg = cess_inter_layer_hmac_message(suite_id, body)?;
+    let expect = hmac_blake3(&key, msg.as_slice());
+    let mac_arr: [u8; INTER_LAYER_MAC_LEN] = mac_bytes
+        .try_into()
+        .map_err(|_| CipherProfileError::AuthenticationFailed)?;
+    if bool::from(!expect.ct_eq(&mac_arr)) {
+        return Err(CipherProfileError::AuthenticationFailed);
+    }
+    let mut out = Vec::new();
+    for b in body {
+        out.push(*b).map_err(|_| CipherProfileError::AuthenticationFailed)?;
+    }
+    Ok(out)
 }
 
 fn encrypt_layer(

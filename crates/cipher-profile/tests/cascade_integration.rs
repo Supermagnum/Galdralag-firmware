@@ -1,9 +1,10 @@
 //! Cascade encrypt/decrypt integration checks (built-in profiles).
 
 use cipher_profile::{
-    cascade_decrypt, cascade_encrypt, layer_key_info, layer_nonce_info, CipherProfile,
-    CipherProfileError, ProfileRegistry,
+    cascade_decrypt, cascade_encrypt, layer_key_info, layer_nonce_info, CipherLayer,
+    CipherProfile, CipherProfileBuilder, CipherProfileError, ProfileRegistry,
 };
+use ephemeral_session::SessionCurve;
 use subtle::ConstantTimeEq;
 
 const BUILTIN_NAMES: &[&str] = &[
@@ -18,6 +19,26 @@ fn tr<T, E: core::fmt::Debug>(r: Result<T, E>) -> T {
         Ok(v) => v,
         Err(e) => panic!("{:?}", e),
     }
+}
+
+/// P(4, 2): ordered distinct two-layer stacks (inner first, outer second).
+fn two_layer_ordered_cipher_pairs() -> Vec<(CipherLayer, CipherLayer)> {
+    const L: [CipherLayer; 4] = [
+        CipherLayer::Aes256Gcm,
+        CipherLayer::ChaCha20Poly1305,
+        CipherLayer::Twofish256,
+        CipherLayer::Serpent256,
+    ];
+    let mut out = Vec::with_capacity(12);
+    for inner in L {
+        for outer in L {
+            if inner != outer {
+                out.push((inner, outer));
+            }
+        }
+    }
+    assert_eq!(out.len(), 12, "P(4,2) ordered cipher pairs");
+    out
 }
 
 /// HKDF-SHA256 `info` bytes for each layer in **encrypt** order (inner first: index 0, 1, ...).
@@ -97,6 +118,21 @@ fn cascade_roundtrip_all_builtins() {
         let out = tr(cascade_decrypt(profile, &prk, aad, &ct));
         assert!(bool::from(out.as_bytes().ct_eq(pt.as_slice())));
     }
+    // Twelve ordered two-layer stacks (HKDF-SHA256 PRK path; no CESS suite_id): composition only.
+    for (idx, (inner, outer)) in two_layer_ordered_cipher_pairs().into_iter().enumerate() {
+        let pname = format!("two-{:02}", idx + 1);
+        let b = tr(CipherProfileBuilder::new(pname.as_str()));
+        let b = b.curve(SessionCurve::BrainpoolP256r1);
+        let b = tr(b.layer(inner));
+        let b = tr(b.layer(outer));
+        let profile = tr(b.build());
+        let ct = tr(cascade_encrypt(&profile, &prk, aad, &pt));
+        let out = tr(cascade_decrypt(&profile, &prk, aad, &ct));
+        assert!(
+            bool::from(out.as_bytes().ct_eq(pt.as_slice())),
+            "round-trip two-layer pair {idx} {pname} inner={inner:?} outer={outer:?}"
+        );
+    }
 }
 
 #[test]
@@ -119,6 +155,19 @@ fn cascade_ciphertext_tamper_conservative() {
     let mut ct = tr(cascade_encrypt(profile, &prk, b"aad", &pt));
     let last = ct.ciphertext.len() - 1;
     ct.ciphertext[last] ^= 0x01;
+    let r = cascade_decrypt(profile, &prk, b"aad", &ct);
+    assert!(matches!(r, Err(CipherProfileError::AuthenticationFailed)));
+}
+
+#[test]
+fn cascade_corrupted_mid_ciphertext_conservative_fails() {
+    let prk = [0xEFu8; 32];
+    let reg = ProfileRegistry::with_builtins();
+    let profile = tr(reg.get("conservative").ok_or("missing"));
+    let pt = [0x77u8; 32];
+    let mut ct = tr(cascade_encrypt(profile, &prk, b"aad", &pt));
+    let mid = ct.ciphertext.len() / 2;
+    ct.ciphertext[mid] ^= 0x5A;
     let r = cascade_decrypt(profile, &prk, b"aad", &ct);
     assert!(matches!(r, Err(CipherProfileError::AuthenticationFailed)));
 }

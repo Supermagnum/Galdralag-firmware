@@ -43,23 +43,29 @@ registry.register(profile)?;
 - Every session creation is logged with the full profile
   algorithm selection before any cryptographic operations begin.
 
-## Optional keyed BLAKE3 between cascade layers (CESS)
+## Keyed BLAKE3 between cascade layers (CESS)
 
-In **CESS**, a registry profile may specify **additional** **keyed BLAKE3**
-integrity tags **between** inner bulk cascade layers. That is separate from:
+In **CESS**, registry profiles may specify **keyed BLAKE3**-style integrity
+**between** inner bulk cascade layers. That is separate from:
 
 - each layer’s own AEAD authentication (AES-GCM tag, Poly1305, or EtM HMAC in
   this codebase), and
 - the **Mode A** outer ChaCha20-Poly1305 envelope over `suite_id || inner_blob`.
 
-Those BLAKE3 checkpoints authenticate the intermediate ciphertext **after** each
-inner stage as data moves outward through the stack.
+Those checkpoints authenticate the intermediate AEAD output **after** each inner
+stage before the next layer encrypts.
 
-This repository exposes the HKDF-BLAKE3 `info` UTF-8 builder
-`cess::cess_blake3_integrity_info` in [`crates/cess/src/inner_info.rs`](../crates/cess/src/inner_info.rs).
-**Framing and verification of inter-layer BLAKE3 tags inside
-`cipher-profile::cascade_encrypt` / `cascade_decrypt` is not implemented yet**
-(implementation posture: [CESS_CONFORMANCE.md](CESS_CONFORMANCE.md)).
+**Implementation (Galdralag):** For profiles whose name maps to a CESS
+**`suite_id`** (`suite_id_for_profile_name` is `Some`) and the cascade has **two
+or more** layers, `cipher-profile::cascade_encrypt` appends a **32-byte
+HMAC-BLAKE3** (same construction as `cess::hmac_blake3`) over
+**`cess::cess_blake3_integrity_info(suite_id)`** (UTF-8 suite label) **concatenated
+with** the current inner AEAD ciphertext after each inner layer except the
+outermost; `cascade_decrypt` verifies and strips those tags (constant-time
+compare) in reverse order. HKDF-BLAKE3 subkeys for those MACs use UTF-8 `info`
+from `cess::cess_blake3_integrity_gap_info` in
+[`crates/cess/src/inner_info.rs`](../crates/cess/src/inner_info.rs). **Single-layer**
+or **custom** (unmapped) profiles do **not** add inter-layer MACs.
 
 ## Combination counts (cipher stacks and BLAKE3 gap patterns)
 
@@ -92,8 +98,10 @@ stack length **k** (one pattern when k = 1: no inter-layer gaps).
 
 - **64** — cipher orderings only (what `cipher-profile` enforces today).
 - **316** — same stacks multiplied by every on/off assignment for optional
-  inter-layer BLAKE3 (theoretical CESS framing; not all combinations are
-  registry-backed or implemented in-tree).
+  inter-layer BLAKE3 (CESS design space; not all combinations are
+  registry-backed). **This tree** turns inter-layer MACs **on** for every gap
+  whenever the profile maps to a **`suite_id`** and has **≥ 2** layers (not a
+  per-gap runtime toggle).
 
 Built-in profile names in this document use a **small** subset of the 64
 cipher-only stacks.
