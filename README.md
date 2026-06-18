@@ -18,6 +18,7 @@ It is ready for testing by humans; using a **virtual machine** for that is sugge
 - [About the name](#about-the-name)
 - [What this is](#what-this-is)
 - [Documentation](#documentation)
+- [OpenPGP and GnuPG compatibility](#openpgp-and-gnupg-compatibility)
 - [Build, install, and uninstall](#build-install-and-uninstall)
   - [Compile firmware](#compile-firmware)
   - [Flashing](#flashing)
@@ -92,6 +93,29 @@ At that point the project will be a complete, tested, open-source hardware secur
 - **[Glossary](https://github.com/Supermagnum/Galdralag-firmware/blob/main/docs/GLOSSARY.md)** — short definitions of terms used across this repository.
 
 Same files in a local clone: [docs/GALDRA-TOOL.md](docs/GALDRA-TOOL.md), [docs/GLOSSARY.md](docs/GLOSSARY.md).
+
+- **[OpenPGP card application and GnuPG](docs/OPENPGP_CARD.md)** — host compatibility (`gpg`, `scdaemon`, CCID), key slots, algorithms, udev, PIN policy, and unsupported features.
+
+---
+
+## OpenPGP and GnuPG compatibility
+
+The firmware implements the **OpenPGP card application** (documented as version **3.4.1** in [docs/OPENPGP_CARD.md](docs/OPENPGP_CARD.md)). That is the same class of device GnuPG drives for **OpenPGP smart cards** over **CCID/USB**: the host needs a normal smart card stack (`pcscd`, `ccid` drivers, GnuPG’s `scdaemon`). **No custom host-side cryptographic driver** is required beyond what you would use for any OpenPGP card.
+
+**What this enables on the host (once the device is visible as a CCID reader):**
+
+| Area | Notes |
+|------|--------|
+| **GnuPG workflows** | `gpg --card-status`, `gpg --card-edit`, encrypt/decrypt and sign using keys on the card |
+| **SSH** | `gpg-agent` with `enable-ssh-support` and the usual `SSH_AUTH_SOCK` setup |
+| **Mail and files** | Clients that use GnuPG (e.g. Thunderbird, Evolution, Kleopatra) and standard `gpg` file encryption |
+| **Other tools** | Anything that talks OpenPGP card + CCID the same way GnuPG does |
+
+**Key slots (typical defaults):** **SIG** (signing), **DEC** (decryption / ECDH), **AUT** (authentication, e.g. SSH). Algorithms are selectable per slot (Brainpool curves, NIST P-256/P-384, Ed25519 / X25519, RSA). The full table and `key-attr` behaviour are in [docs/OPENPGP_CARD.md](docs/OPENPGP_CARD.md).
+
+**Not covered by OpenPGP card / GnuPG here:** **WebAuthn / FIDO2** is a different protocol and is out of scope for this card application (see the same doc).
+
+**Integration status:** The OpenPGP and CCID logic lives in **`usb-personality`** and is covered by unit tests, integration tests, and the **`openpgp_dispatch`** fuzz target (see [docs/TEST_RESULTS.md](docs/TEST_RESULTS.md)). Wiring the USB **CCID** service into the running **Xous** image is still **integration work**; follow [docs/XOUS_CCID_INTEGRATION.md](docs/XOUS_CCID_INTEGRATION.md). Until that is done, **end-to-end GnuPG against real hardware** is not available, even though the card application behaviour is implemented in firmware sources.
 
 ---
 
@@ -330,7 +354,7 @@ cargo run -p xtask -- test-all
 | `galdr-core` | HAL traits (`MonotonicCounter`, `HardwareTrng`, `ZeroiseController`, `VaultStorage`), shared errors, `test-hal` fakes |
 | `vault` | RRAM vault contracts, HKDF `KeyPurpose` labels, key material types (`zeroize`, no `Clone`/`Copy`) |
 | `pin-policy` | PIN state machine; counter increment before `subtle::ConstantTimeEq`; threshold zeroisation |
-| `usb-personality` | Mass-storage vs authenticated-unlock personas; challenge/response; USB disconnect-on-lock |
+| `usb-personality` | Mass-storage vs authenticated-unlock personas; challenge/response; OpenPGP/CCID card application; USB disconnect-on-lock |
 | `psram-store` | Optional PSRAM block device; probe-absent short-circuit; mount/unmount access gate |
 | `ephemeral-session` | Authenticated ephemeral ECDH session protocol; forward secrecy |
 | `cipher-profile` | User-configurable cipher cascade profiles; built-in and user-defined |
