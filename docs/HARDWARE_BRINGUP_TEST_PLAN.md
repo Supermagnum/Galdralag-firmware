@@ -85,6 +85,8 @@ cargo run -p host-tools --bin galdralag-provision -- \
 
 Omit `--user-pin` / `--admin-pin` to be prompted securely (no echo; `rpassword` — PINs are not placed in shell history). PINs may be up to **32 bytes** each.
 
+**Wire format:** the tool sends **two newline-terminated lines** (user PIN bytes, then admin PIN bytes), matching **xous-core** **`usb-bao1x`**. On Xous, **`usb-bao1x`** writes **PDDB** **`usb.ccid`** (**`OKV1`**, **`user_pin_line`**, **`admin_pin_line`**). If your image includes **`galdralag-service`**, it waits for that sentinel, bridges into **RRAM**, then serves **CCID** via **`usb-bao1x`** ([services/galdralag/README.md](../../services/galdralag/README.md), **`cargo run -p xtask -- build-and-register`**).
+
 When provisioning completes, the device should re-enumerate and present **CCID** / OpenPGP as in step 2. Confirm with:
 
 ```bash

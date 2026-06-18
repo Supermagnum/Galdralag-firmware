@@ -13,19 +13,38 @@ path = "src/main.rs"
 required-features = ["xous-bsp"]
 
 [features]
-xous-bsp = []
+default = []
+# Enable the real Xous CCID daemon (board-specific PDDB / USB HAL features).
+xous-bsp = ["board-baosec"]
+board-baosec = []
+board-dabao = []
 
 [dependencies]
 galdr-core = { path = "../../crates/galdr-core" }
+log = "0.4.14"
+
+[target.'cfg(target_os = "xous")'.dependencies]
+baochip-openpgp = { path = "../../crates/baochip-openpgp", features = ["board-baosec"] }
+bao1x-hal = { path = "../../xous-core/libs/bao1x-hal", features = ["std", "board-baosec"] }
+ticktimer = { package = "xous-api-ticktimer", version = "0.9.70" }
 usb-personality = { path = "../../crates/usb-personality" }
-galdr-vault = { path = "../../crates/vault" }
+xous = "0.9.70"
+xous-ipc = "0.10.10"
+xous-names = { package = "xous-api-names", version = "0.9.71" }
+log-server = { package = "xous-api-log", version = "0.1.69" }
+pddb = { path = "../../xous-core/services/pddb", default-features = false, features = ["mbbb"] }
+rkyv = { version = "0.8.8", default-features = false, features = ["std", "alloc"] }
+trng = { path = "../../xous-core/services/trng" }
 
 [dev-dependencies]
 galdr-core = { path = "../../crates/galdr-core", features = ["test-hal"] }
 
-# The reboot module performs direct MMIO writes (volatile pointer dereferences) to
-# the Baochip-1x ACRAM one-way counter and sysctrl soft-reset register. This is the
-# only place in this crate that requires unsafe; the workspace default (forbid) is
-# intentionally overridden here for that narrow reason.
 [lints.rust]
 unsafe_code = "allow"
+
+# This crate is its own workspace root when built via `--manifest-path` so `[patch.crates-io]` applies.
+[workspace]
+
+[patch.crates-io]
+curve25519-dalek = { git = "https://github.com/betrusted-io/curve25519-dalek.git", branch = "main" }
+svd2utra = { path = "../../xous-core/svd2utra" }

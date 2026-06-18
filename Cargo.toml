@@ -20,11 +20,12 @@ members = [
     "galdra",
     "galdrad",
     "galdra-gtk",
-    "services/galdralag",
 ]
 
-# Built from the Xous tree (`xous-core/services/usb-bao1x`); keep out of the host workspace lockfile graph.
-exclude = ["crates/baochip-openpgp"]
+# `galdralag-service` is built via `--manifest-path` (see `services/galdralag/README.md`): it pulls
+# path `pddb` + `bao1x-hal` from `xous-core` and cannot share the host workspace lockfile without an
+# `svd2utra` / `loader` resolve clash.
+exclude = ["crates/baochip-openpgp", "services/galdralag"]
 
 [workspace.package]
 version = "0.1.0"

@@ -1,8 +1,10 @@
 // USB CDC PIN provisioning client for Galdralag first boot (operator-chosen PINs).
 //
+// Wire format matches xous-core `services/usb-bao1x` provisioning serial: two newline-terminated
+// lines (user PIN, then admin PIN), raw bytes, no STATUS/COMMIT framing.
+//
 // SPDX-License-Identifier: GPL-3.0-only
 
-use std::io::{BufRead, BufReader};
 use std::time::Duration;
 
 use clap::Parser;
@@ -14,7 +16,7 @@ const PROVISIONING_PIN_MAX: usize = 32;
 #[derive(Parser, Debug)]
 #[command(
     name = "galdralag-provision",
-    about = "Provision User and Admin PINs over USB CDC (first boot)"
+    about = "Provision user and admin PINs over USB CDC (xous two-line protocol; first boot)"
 )]
 struct Args {
     /// Serial device (e.g. /dev/ttyACM0)
@@ -24,6 +26,9 @@ struct Args {
     user_pin: Option<String>,
     #[arg(long)]
     admin_pin: Option<String>,
+    /// After sending PINs, wait up to N seconds for the device to USB-reset (serial read error).
+    #[arg(long, default_value = "15")]
+    wait_reset_secs: u64,
 }
 
 fn main() {
@@ -62,65 +67,45 @@ fn run() -> Result<(), String> {
         .open()
         .map_err(|e| e.to_string())?;
 
-    let reader_port = port.try_clone().map_err(|e| e.to_string())?;
-    let mut reader = BufReader::new(reader_port);
+    // Line 1: user PIN; line 2: admin PIN (matches `IrqProvSerialRx` handling in usb-bao1x).
+    send_line(port.as_mut(), ub, true)?;
+    send_line(port.as_mut(), ab, true)?;
 
-    send_line(port.as_mut(), b"STATUS\n")?;
-    let status = read_resp_line(&mut reader)?;
-    match status.as_str() {
-        "NEEDS_PROVISIONING" => {}
-        "PROVISIONED" => {
-            println!("Device reports PROVISIONED; nothing to do.");
-            return Ok(());
-        }
-        other => {
-            return Err(format!("unexpected STATUS response: {other:?}"));
-        }
-    }
+    println!("Sent PIN lines. Device should store OKV1 in PDDB and reset USB for CCID enumeration.");
 
-    send_line(
+    wait_for_usb_reset_hint(
         port.as_mut(),
-        format!("SET_USER_PIN:{user_pin}\n").as_bytes(),
+        Duration::from_secs(args.wait_reset_secs),
     )?;
-    expect_ok(&mut reader)?;
 
-    send_line(
-        port.as_mut(),
-        format!("SET_ADMIN_PIN:{admin_pin}\n").as_bytes(),
-    )?;
-    expect_ok(&mut reader)?;
-
-    send_line(port.as_mut(), b"COMMIT\n")?;
-    expect_ok(&mut reader)?;
-
-    println!("Provisioning complete. Device should switch to CCID / OpenPGP enumeration.");
     Ok(())
 }
 
-fn send_line(port: &mut dyn SerialPort, data: &[u8]) -> Result<(), String> {
-    port.write_all(data).map_err(|e| e.to_string())?;
+fn send_line(port: &mut dyn SerialPort, payload: &[u8], add_newline: bool) -> Result<(), String> {
+    port.write_all(payload).map_err(|e| e.to_string())?;
+    if add_newline {
+        port.write_all(b"\n").map_err(|e| e.to_string())?;
+    }
     port.flush().map_err(|e| e.to_string())?;
     Ok(())
 }
 
-fn read_resp_line(reader: &mut impl BufRead) -> Result<String, String> {
-    let mut buf = String::new();
-    reader
-        .read_line(&mut buf)
-        .map_err(|e| format!("read: {e}"))?;
-    let line = buf
-        .trim_end_matches(|c| c == '\r' || c == '\n')
-        .to_string();
-    if line.starts_with("ERR:") {
-        return Err(line);
+/// Optional confirmation: after firmware saves PDDB it forces a USB reset; reads often fail.
+fn wait_for_usb_reset_hint(port: &mut dyn SerialPort, total: Duration) -> Result<(), String> {
+    let deadline = std::time::Instant::now() + total;
+    port.set_timeout(Duration::from_millis(200))
+        .map_err(|e| e.to_string())?;
+    let mut one = [0u8; 1];
+    while std::time::Instant::now() < deadline {
+        match port.read(&mut one) {
+            Ok(0) => continue,
+            Ok(_) => continue,
+            Err(_) => {
+                println!("Serial read ended (device may have reset).");
+                return Ok(());
+            }
+        }
     }
-    Ok(line)
-}
-
-fn expect_ok(reader: &mut impl BufRead) -> Result<(), String> {
-    let line = read_resp_line(reader)?;
-    if line != "OK" {
-        return Err(format!("expected OK, got {line:?}"));
-    }
+    println!("No serial error within wait window; if the device reset, CCID should appear.");
     Ok(())
 }

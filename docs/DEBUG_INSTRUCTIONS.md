@@ -113,7 +113,7 @@ cargo check -p <crate-name> --target riscv32imac-unknown-none-elf
 
 (Only crates that declare that target in their build will succeed; host-only crates are checked on the host triple instead.)
 
-For **USB CCID on Xous**, see **`crates/baochip-openpgp`**, **`xous-core/services/usb-bao1x`** (feature **`ccid-openpgp`**), [docs/RRAM_LAYOUT.md](docs/RRAM_LAYOUT.md), and the [README — Known limitations / open work](../README.md#known-limitations--open-work). **GnuPG against real hardware** can still fail at the OS or provisioning layer even when unit tests pass.
+For **USB CCID on Xous**, see **`crates/baochip-openpgp`**, **`xous-core/services/usb-bao1x`** (feature **`ccid-openpgp`**), optional **`galdralag-service`** ([services/galdralag/README.md](../services/galdralag/README.md), **`cargo run -p xtask -- build-and-register`**), [docs/RRAM_LAYOUT.md](docs/RRAM_LAYOUT.md), and the [README — Known limitations / open work](../README.md#known-limitations--open-work). **GnuPG against real hardware** can still fail at the OS or provisioning layer even when unit tests pass.
 
 ---
 

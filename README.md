@@ -372,7 +372,7 @@ The firmware implements the **OpenPGP card application** (documented as version 
 
 **OpenPGP card vs. OpenPGP messages:** The **card** specification defines how the token exposes PINs, key slots, and on-card operations over CCID. **GnuPG** uses that through `scdaemon`. The **OpenPGP message format** for files and mail (RFC 4880 and successors) is a **host-side** layer: the card supplies keys; GnuPG still applies the message format on the PC. Neither the card spec nor RFC 4880 defines **Shamir splitting**, **ephemeral ECDH sessions**, or **cipher profiles** — those are [firmware-specific](#standards-vs-firmware-specific-features).
 
-**Integration status:** The OpenPGP and CCID logic lives in **`usb-personality`**, **`baochip-openpgp`**, and the **Xous** **`usb-bao1x`** service (see **xous-core**). Memory layout: [docs/RRAM_LAYOUT.md](docs/RRAM_LAYOUT.md). **End-to-end GnuPG on real hardware** still needs a full Xous image (with **`ccid-openpgp`**), a working host CCID stack (`pcscd`, driver), and items under [Known limitations / open work](#known-limitations--open-work) addressed where they apply to your ship target.
+**Integration status:** The OpenPGP and CCID logic lives in **`usb-personality`**, **`baochip-openpgp`**, and the **Xous** **`usb-bao1x`** service (see **xous-core**). Optional **`galdralag-service`** (`services/galdralag`) runs as a separate Xous process, connects to **`usb-bao1x`** for **CCID** IPC, and bridges **PDDB** provisioning data into **RRAM**; build and **`baosec`** registration: [services/galdralag/README.md](services/galdralag/README.md) and **`cargo run -p xtask -- build-and-register`**. Memory layout: [docs/RRAM_LAYOUT.md](docs/RRAM_LAYOUT.md). **End-to-end GnuPG on real hardware** still needs a full Xous image (with **`ccid-openpgp`**), a working host CCID stack (`pcscd`, driver), and items under [Known limitations / open work](#known-limitations--open-work) addressed where they apply to your ship target.
 
 ## Token session and key export
 
@@ -551,6 +551,8 @@ Use a **stable Rust** toolchain as pinned in [rust-toolchain.toml](rust-toolchai
    ```
 
    Object code and archives land under `target/riscv32imac-unknown-none-elf/release/`. A full bootable **Xous** system image for a specific board is produced by the wider Baochip / Xous integration flow when you follow that product's build; `xtask` here runs `cargo build` for the firmware library crates listed in `xtask` (not a single ready-to-flash file by itself).
+
+4. **Xous CCID daemon (`galdralag-service`)** — needs the **`riscv32imac-unknown-xous-elf`** Xous toolchain (not the bare **`riscv32imac-unknown-none-elf`** firmware triple above). From repo root: **`cargo run -p xtask -- build-and-register release`**. That rebuilds the ELF, verifies it on disk, prints the **`baosec`** cratespec, and optionally runs **`cargo xtask baosec`** when given **`--xous-core /path/to/xous-core`**. Details: [services/galdralag/README.md](services/galdralag/README.md).
 
 ### Flashing
 
@@ -832,8 +834,8 @@ cargo run -p xtask -- test-all
 | `cipher-profile` | User-configurable cipher cascade profiles; built-in and user-defined |
 | `cess` | HKDF-BLAKE3 `K_outer`, ChaCha outer AEAD, `suite_id \|\| inner_blob`; see [CESS_CONFORMANCE.md](docs/CESS_CONFORMANCE.md) |
 | `security-tests` | dudect timing harnesses for all cryptographic paths |
-| `host-tools` | Host manifest hashing, update verification, `psram-unlock` binary |
-| `xtask` | Build, check, test, fuzz, timing-test orchestration |
+| `host-tools` | Host manifest hashing, update verification, `psram-unlock`, **`galdralag-provision`** (Xous two-line CDC PIN provisioning) |
+| `xtask` | Build, check, test, fuzz, **`build-and-register`** (Xous `galdralag-service`), timing-test |
 
 ---
 
@@ -869,6 +871,8 @@ cargo run -p xtask -- test-biometric
 cargo run -p xtask -- timing-test biometric
 cargo run -p xtask -- fuzz biometric_dispatch 60
 cargo run -p xtask -- timing-test
+# Xous CCID daemon (separate triple; see [Build, install, and uninstall](#build-install-and-uninstall) step 4):
+# cargo run -p xtask -- build-and-register release
 ```
 
 **Fuzzing (libFuzzer):** install `cargo-fuzz`, use nightly, then e.g. `cargo run -p xtask -- fuzz chacha_roundtrip 60` or `cargo run -p xtask -- fuzz openpgp_dispatch 60` (OpenPGP APDU path) or `cargo run -p xtask -- fuzz biometric_dispatch 60` (biometric CBOR path). Target names, xtask aliases, and **recommended corpus seeds** per target are in [fuzz/README.md](fuzz/README.md).
@@ -882,27 +886,29 @@ Never enable it in production firmware images — enforced by `check-fw`.
 
 ### CCID initial PIN: first-boot provisioning (USB CDC)
 
-On first boot (OpenPGP PIN verifier digests still zero), firmware must not silently pick **unknown** PINs. Production **`usb-bao1x`** images (without `dev-provisioning` or `trng-pin-fallback`) return **`HalError::NeedsProvisioning`** until the operator stages PINs:
+On first boot (OpenPGP PIN verifier digests still zero), firmware must not silently pick **unknown** PINs. Production **Xous** **`usb-bao1x`** images (without `dev-provisioning` or `trng-pin-fallback`) expose a **USB CDC-ACM** provisioning serial and return **`HalError::NeedsProvisioning`** until the operator has supplied PINs.
 
-1. The device enumerates a **USB CDC-ACM** provisioning interface ( **`ProvisioningClass`**, feature **`provisioning-personality`** on `usb-personality` ).
-2. The host runs **`galdralag-provision`** from this repo:  
+1. The host runs **`galdralag-provision`** from this repo:  
    `cargo run -p host-tools --bin galdralag-provision -- --port /dev/ttyACM0`  
    Use **`--user-pin`** / **`--admin-pin`** or omit them for interactive prompts via **`rpassword`** (nothing is echoed; PINs are not stored in shell history).
-3. The tool sends `STATUS`, `SET_USER_PIN`, `SET_ADMIN_PIN`, `COMMIT`; the device writes **`PNU1` / `PNA1`** via **`write_provisioning_pins`** (`baochip-openpgp`), then continues **`OpenPgpVaultBackend::new`** and normal **CCID** enumeration.
+2. The tool sends **exactly two newline-terminated lines**: **line 1 = user PIN** (raw bytes), **line 2 = admin PIN** — matching **xous-core** `usb-bao1x` provisioning (not `STATUS` / `SET_USER_PIN` / `COMMIT` framing). See `crates/host-tools/src/provision.rs`.
+3. **Xous** stores provisioning state in **PDDB** under **`usb.ccid`** (sentinel **`OKV1`**, keys **`user_pin_line`**, **`admin_pin_line`** per **`ccid_store`** in xous-core). The device resets USB and re-enumerates for **CCID** / OpenPGP.
+
+When **`galdralag-service`** is included in the image (**`build-and-register`** / **`baosec`** positional cratespec, [services/galdralag/README.md](services/galdralag/README.md)), it waits for **PDDB** **`OKV1`**, bridges those PIN lines into **RRAM** via **`write_provisioning_pins`**, opens the vault, then drives **CCID** against **`usb-bao1x`**. Without that daemon, **`usb-bao1x`** itself may own the full CCID stack depending on your xous-core configuration.
+
+**Other builds:** `usb-personality` also provides **`ProvisioningClass`** (feature **`provisioning-personality`**) with a **line-oriented STATUS / SET_USER_PIN / … / COMMIT** protocol for non-Xous or test harnesses; **`galdralag-provision`** is aimed at the **Xous two-line** reader, not that class.
 
 **Development / lab shortcuts:** feature **`dev-provisioning`** with **`CCID_USER_PIN`** / **`CCID_ADMIN_PIN`** in the process environment (see `baochip-openpgp`). Optional **`trng-pin-fallback`** generates **unrecoverable** random PINs unless captured out-of-band — it is **`compile_error!`-disallowed** together with **`board-dabao`**.
 
 **After the vault exists**, changing PINs still uses **GnuPG** / **OpenPGP CHANGE REFERENCE DATA** over CCID (`gpg --card-edit` → `passwd`), not the CDC provision protocol.
 
-**Sequencing:** `PNU1` / `PNA1` are **cleared** after a successful first `new`. They exist to pass operator-chosen PINs **into** that constructor; routine PIN updates are card-application commands, not raw provision-slot writes.
+**Sequencing:** RRAM provision slots **`PNU1` / `PNA1`** carry operator-chosen PINs **into** the first successful vault open, then clear; routine PIN updates are card-application commands, not raw provision-slot writes.
 
 PIN cap: 32 bytes (firmware limit; OpenPGP spec allows 127). See
 `CCID_PIN_PROVISION_PAYLOAD_MAX_BYTES` in
 `crates/baochip-openpgp/src/xous_impl.rs`.
 
-**Integration:** Wiring lives in **xous-core** `services/usb-bao1x` (not built in this workspace). Apply the init flow there: on `NeedsProvisioning`, run the CDC provisioning poll loop, call `write_provisioning_pins`, reopen the backend, then attach `CcidClass`. See [docs/HARDWARE_BRINGUP_TEST_PLAN.md](docs/HARDWARE_BRINGUP_TEST_PLAN.md).
-
-The required usb-bao1x changes in betrusted-io/xous-core are tracked in [issue #875](https://github.com/betrusted-io/xous-core/issues/875).
+**Integration:** **`usb-bao1x`** lives in **xous-core** (not built in this workspace). Bring-up: [docs/HARDWARE_BRINGUP_TEST_PLAN.md](docs/HARDWARE_BRINGUP_TEST_PLAN.md). Historical tracking: [xous-core issue #875](https://github.com/betrusted-io/xous-core/issues/875).
 
 ---
 

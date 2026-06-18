@@ -8,6 +8,9 @@ fuzz/last_fuzz_matrix.log
 fuzz/artifacts/
 docs/.last_dudect_run.txt
 
+# Local xous-core checkout for path dependencies (not part of this repository)
+/xous-core/
+
 # Local-only standards drafts (not published to origin)
 docs/local-only/
 

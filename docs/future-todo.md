@@ -87,7 +87,7 @@ Hardware bring-up sequence (Q2)
 Run in this order on first hardware:
 
 - gpg --card-status — confirms CCID enumeration, AID, and key slots
-- On first boot only (PIN verifier digests unprovisioned), run **`galdralag-provision`** from [host-tools](../crates/host-tools/) — `cargo run -p host-tools --bin galdralag-provision -- --port /dev/ttyACM0` (PINs via `--user-pin` / `--admin-pin` or interactive **`rpassword`** prompts). The device must expose the **USB CDC-ACM provisioning personality** until PINs are staged and committed (see `usb-personality` / `provisioning-personality`).
+- On first boot only (PIN verifier digests unprovisioned), run **`galdralag-provision`** from [host-tools](../crates/host-tools/) — `cargo run -p host-tools --bin galdralag-provision -- --port /dev/ttyACM0` (PINs via `--user-pin` / `--admin-pin` or **`rpassword`** prompts). The host sends **two newline-terminated lines** (user PIN, admin PIN) matching **xous-core** **`usb-bao1x`** CDC provisioning; the device records **PDDB** **`usb.ccid`** / **`OKV1`** and PIN lines, then re-enumerates for **CCID**. With **`galdralag-service`** in the image, that process bridges **PDDB** into **RRAM** for OpenPGP (see [services/galdralag/README.md](../services/galdralag/README.md)).
 - gpg --card-edit → passwd — exercises PIN change **after** you know the User and Admin PIN from provisioning (or dev-only env paths).
 - RRAM map sign-off — manual review of the authoritative Baochip-1x memory map against the layout in docs/RRAM_LAYOUT.md; gate for production
 
@@ -95,9 +95,9 @@ Run in this order on first hardware:
 
 ### 0. First-boot operator PIN UX (resolved — USB CDC provisioning)
 
-**Status:** Addressed in-tree via a **CDC-ACM provisioning personality** (`crates/usb-personality`, feature `provisioning-personality`) and **host tool** `galdralag-provision` (`crates/host-tools/src/provision.rs`). On production paths without `dev-provisioning` or `trng-pin-fallback`, the Xous **`usb-bao1x`** server should expose this personality when `HalError::NeedsProvisioning` is returned from `open_or_provision_backend` / pin load helpers, accept `SET_USER_PIN` / `SET_ADMIN_PIN` / `COMMIT`, call `write_provisioning_pins`, then re-run backend open and switch USB to **CCID**.
+**Status:** Addressed in-tree via host tool **`galdralag-provision`** (`crates/host-tools/src/provision.rs`): **two newline-terminated lines** (user PIN, admin PIN) on the CDC serial, matching **xous-core** **`usb-bao1x`**, which persists **`OKV1`** / PIN lines in **PDDB** **`usb.ccid`**. Optional **`galdralag-service`** (`services/galdralag`) bridges **PDDB** into **RRAM** and handles **CCID** IPC with **`usb-bao1x`**. Separately, **`usb-personality`** **`ProvisioningClass`** (STATUS / SET_USER_PIN / COMMIT) remains for non-Xous or test layouts.
 
-**Initial PIN delivery:** Operator-chosen PINs (1–32 bytes each) are written to RRAM `PNU1` / `PNA1` through the line protocol and consumed on the first successful `OpenPgpVaultBackend::new` (provision band cleared afterward). This is **not** the same as everyday PIN changes: after the vault exists, PIN updates still go through **OpenPGP CHANGE REFERENCE DATA** over CCID, not raw provision-slot writes.
+**Initial PIN delivery:** Operator-chosen PINs (1–32 bytes each) reach **RRAM** **`PNU1` / `PNA1`** either via that PDDB bridge and **`write_provisioning_pins`** or via **`usb-bao1x`**-local handling, then **`OpenPgpVaultBackend` / `open_or_provision_backend`** consumes them on first successful open (provision band cleared afterward). After the vault exists, PIN updates use **OpenPGP CHANGE REFERENCE DATA** over CCID, not raw provision-slot writes.
 
 **PIN cap:** 32 bytes (firmware limit; OpenPGP spec allows 127). See `CCID_PIN_PROVISION_PAYLOAD_MAX_BYTES` in `crates/baochip-openpgp/src/xous_impl.rs`.
 

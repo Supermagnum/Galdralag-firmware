@@ -25,6 +25,7 @@ default = []
 dev-provisioning = []
 trng-pin-fallback = []
 board-dabao = []
+board-baosec = ["bao1x-hal/board-baosec"]
 
 [lints.rust]
 unsafe_code = "allow"
