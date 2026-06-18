@@ -48,7 +48,7 @@ This project is **registered with the [Open Invention Network (OIN)](https://ope
   - [Using keyservers](#using-keyservers)
   - [Common keyservers](#common-keyservers)
   - [Best practices and caveats](#best-practices-and-caveats)
-  - [WoT registry server specification (design; not implemented)](server.md)
+  - [Fulla (WoT registry server)](https://github.com/Supermagnum/Fulla)
 - [Standards vs. firmware-specific features](#standards-vs-firmware-specific-features)
 - [Shamir secret sharing and drive encryption](#shamir-secret-sharing-and-drive-encryption)
 - [German eID and Governikus as a trust anchor for public keys](#german-eid-and-governikus-as-a-trust-anchor-for-public-keys)
@@ -59,6 +59,7 @@ This project is **registered with the [Open Invention Network (OIN)](https://ope
   - [Compile firmware](#compile-firmware)
   - [Flashing](#flashing)
   - [Compile and install host tools (`galdra`, `galdrad`, `galdra-gtk`)](#compile-and-install-host-tools-galdra-galdrad-galdra-gtk)
+  - [Run `galdrad` and the desktop GUI (`galdra-gtk`)](#run-galdrad-and-the-desktop-gui-galdra-gtk)
   - [Uninstall host tools](#uninstall-host-tools)
 - [Key capabilities](#key-capabilities)
   - [What makes this token unusual](#what-makes-this-token-unusual)
@@ -102,6 +103,8 @@ Hardware specification, boot model, requirement tables, and ComboHash/PKE
 usage are documented in **[Supermagnum/Baochip-1x-firmware](https://github.com/Supermagnum/Baochip-1x-firmware)**.
 The **Dabao** evaluation board (KiCad, schematics, switches, pinout) is **[baochip/dabao](https://github.com/baochip/dabao)**. To enter **bootloader mode** for flashing, **press SW2** to toggle it (see that repo's schematic).
 Architecture notes for this repository: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
+
+**Galdra contact metadata.** The **Galdra** host tool keeps a **local SQLite** directory of recipients (contacts). Each stored identity includes the OpenPGP public key material plus optional **sidecar labels** such as **email**, **display name**, **organisation**, **department**, **role**, **badge number**, **callsign**, **DMR subscriber ID**, **radio affiliation**, **street / country / postal code / region**, **Fluxer ID**, **Discord ID**, **IRC id**, and free-form **notes**, together with key timing fields (for example fingerprint, last fetch time, expiry). These tags live in the host database; they are **not** magically bound to OpenPGP User IDs unless you align them yourself, and they are **not** cryptographically asserted unless you check them **out of band**. Optional **`galdra keyserver push`** can send overlapping fields to a project registry as JSON alongside the exported public key.
 
 ### What this firmware is (and is not)
 
@@ -337,7 +340,7 @@ was only known to those who understood.
 | [docs/FINGERVEIN_DEVICE.md](docs/FINGERVEIN_DEVICE.md) | ESP32-CAM open finger vein device: hardware, protocol sketch, liveness |
 | [docs/SWEET_PLATFORM_INTEGRATION.md](docs/SWEET_PLATFORM_INTEGRATION.md) | sweet platform hand scanner: hardware, integration, liveness, dataset |
 | [docs/GALDRA-TOOL.md](docs/GALDRA-TOOL.md) | Host tools (`galdra`, `galdrad`, `galdra-gtk`): workflows, provisioning, PIN policy, operational behaviour |
-| [server.md](server.md) | **WoT registry server**: specification for a project-hosted OpenPGP public-key registry (`galdralag-keyserver`, planned); optional amateur-radio labels and postal hint fields aligned with local contact rows; Hagrid reuse, SQLite; **`galdra keyserver push`** / **`galdra keyserver fetch`** (not yet implemented)—see also [Web of Trust and Key Signing Parties](#web-of-trust-and-key-signing-parties) |
+| [Supermagnum/Fulla](https://github.com/Supermagnum/Fulla) | **Fulla**: WoT-oriented OpenPGP public-key registry (server repository and implementation). **No public registry instance is running yet**; one is planned. **`galdra keyserver push`** / **`galdra keyserver fetch`** and optional **`[keyserver]`** config target this ecosystem—see also [Web of Trust and Key Signing Parties](#web-of-trust-and-key-signing-parties). Supplementary design notes remain in [docs/server.md](docs/server.md). |
 | [docs/GLOSSARY.md](docs/GLOSSARY.md) | **Plain-language glossary** (A–Z) for non-technical readers; technical detail remains in linked docs |
 | [CLAUDE.md](CLAUDE.md) | Instructions for **Claude** / AI coding agents; points to [`.cursor/rules/`](.cursor/rules/) for **Cursor** |
 | [docs/GALDRALAG_DEV_REFERENCE.md](docs/GALDRALAG_DEV_REFERENCE.md) | Toolchain, `xtask` commands, fuzzing and crypto test entry points |
@@ -520,7 +523,7 @@ gpg --refresh-keys
 
 For authoritative behaviour of **`gpg`**, trust models, and distribution options, see the **GnuPG** manual and upstream documentation.
 
-A separate **WoT-aligned project registry server** (`galdralag-keyserver`, not yet in this workspace Cargo tree) **remains a design** specified in **[server.md](server.md)** for storing contributor public keys plus optional amateur-radio labels and postal hint columns (organisation, department, radio fields, mailing-address strings). **`galdra keyserver push`**, **`galdra keyserver fetch`**, and the **`[keyserver]`** config stanza described there are **not yet implemented** in **`galdra`** / **`galdra-core-host`**.
+The **Fulla** project (**[Supermagnum/Fulla on GitHub](https://github.com/Supermagnum/Fulla)**) hosts the WoT-aligned registry server work: implementation and evolving specification for storing contributor public keys plus optional amateur-radio labels and postal-hint columns (organisation, department, radio fields, mailing-address strings) aligned with Galdra contact rows. **`galdra keyserver push`**, **`galdra keyserver fetch`**, and the **`[keyserver]`** config stanza are implemented in **`galdra`** / **`galdra-core-host`** against that direction. **No public Fulla registry is deployed yet**; a publicly operated service is expected in the future. Additional historical design prose lives in **[docs/server.md](docs/server.md)**.
 
 ---
 
@@ -742,7 +745,18 @@ This repository does **not** ship a one-command flasher yet. Programming the **B
 
 Host crates live at the workspace root: `galdra/`, `galdrad/`, `galdra-gtk/`.
 
-**GTK 4 (required for `galdra-gtk` only):** install development packages so `pkg-config` can find `gtk4` (crate `gtk4` 0.9). Examples: Debian/Ubuntu — `libgtk-4-dev`; Fedora — `gtk4-devel`; Arch — `gtk4`.
+**Ubuntu / Debian** (install before `cargo build` / `cargo install`):
+
+```bash
+sudo apt update
+sudo apt install build-essential pkg-config libpcsclite-dev pcscd libssl-dev
+# required only for `galdra-gtk`:
+sudo apt install libgtk-4-dev
+```
+
+`libpcsclite-dev` satisfies the **default** **`galdra`** **PC/SC** linking path; **`pcscd`** is the daemon that serves smart-card readers at runtime. **`libssl-dev`** is required so **openssl-sys** can link (**sequoia-net** keyserver lookups and **ldap3** TLS use **native-tls** today). Omit **`libgtk-4-dev`** if you never build **`galdra-gtk`**.
+
+**GTK 4 (`galdra-gtk` only):** `pkg-config` must resolve **gtk4** (workspace crate **`gtk`** 0.9.x, package **`gtk4`**). On Fedora use **`gtk4-devel`**; on Arch **`gtk4`**.
 
 Build release binaries from the repository root:
 
@@ -762,7 +776,33 @@ cargo install --locked --path galdra-gtk
 
 You can instead copy those three binaries to any directory on your `PATH`.
 
+### Run `galdrad` and the desktop GUI (`galdra-gtk`)
+
+**`galdra-gtk`** is the GTK4 desktop binary (Cargo package **`galdra-gtk`**; there is no **`galdra-gui`**). It is a front-end to the **`galdrad`** REST API — run **`galdrad`** first.
+
+**Daemon** — **`galdrad`** listens on **`127.0.0.1:8742`** by default (`--listen` overrides); see [`galdrad/src/main.rs`](galdrad/src/main.rs).
+
+```bash
+galdrad
+```
+
+Quick check: `curl -s http://127.0.0.1:8742/health` (interactive API docs: **`http://127.0.0.1:8742/swagger-ui/`**.)
+
+**Desktop GUI** — **`galdra-gtk`** uses **`http://127.0.0.1:8742`** by default (`--base-url` or **`GALDRAD_URL`**); see [`galdra-gtk/src/main.rs`](galdra-gtk/src/main.rs).
+
+```bash
+galdra-gtk
+galdra-gtk --base-url http://127.0.0.1:8742
+GALDRAD_URL=http://127.0.0.1:8742 galdra-gtk
+```
+
+From a fresh **`cargo build --release`**, without installing: **`./target/release/galdrad`** then **`./target/release/galdra-gtk`** from the repo root.
+
+**Host vs token:** **`galdra-gtk`** mirrors whatever **`galdrad`** exposes over HTTP; token **unlock**, **provision**, and other CCID flows stay on the **`galdra`** CLI (see **`galdra device`** in **[docs/GALDRA-TOOL.md](docs/GALDRA-TOOL.md)** and Tier **2c**).
+
 **Contact directory (`galdra contact`, `galdrad` `/contacts`):** creating a contact **requires an e-mail** (CLI: `--email`; HTTP: JSON field `email`). Optional fields include **display name** (`--name` / `name`), **Fluxer**, **Discord**, and **IRC** ids, plus **postal hints** (`street`, `country`, `postal_code`, `region`), amateur-radio **`dmr_id`**, and **`radio_affiliation`**. These values are stored only in local SQLite metadata (they are **not verified** against external services). Commands and field limits are summarized in **[docs/GALDRA-TOOL.md](docs/GALDRA-TOOL.md)** under **Contacts** and **Identity model**.
+
+### Uninstall host tools
 
 If you used `cargo install --path` as above:
 
@@ -1046,6 +1086,8 @@ than introducing unreviewed cryptographic code.
 ## Quick start
 
 Firmware build prerequisites and install paths are in [Build, install, and uninstall](#build-install-and-uninstall) above.
+
+**Host desktop GUI (`galdra-gtk`):** after [building/installing](#compile-and-install-host-tools-galdra-galdrad-galdra-gtk) **`galdrad`** and **`galdra-gtk`**, start **`galdrad`** then **`galdra-gtk`** ([step-by-step](#run-galdrad-and-the-desktop-gui-galdra-gtk)).
 
 ```bash
 rustup target add riscv32imac-unknown-none-elf

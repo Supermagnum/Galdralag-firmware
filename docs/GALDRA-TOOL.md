@@ -182,11 +182,19 @@ Interactive API documentation is available in the running process at **http://12
 
 ### Desktop GUI `galdra-gtk`
 
-The GTK4 client talks to `galdrad` over HTTP. The base URL defaults to `http://127.0.0.1:8742` and can be set with `--base-url` or the **`GALDRAD_URL`** environment variable:
+The desktop binary is **`galdra-gtk`** (workspace directory **`galdra-gtk/`**). There is no separate **`galdra-gui`** package name.
+
+Start **`galdrad`** first (defaults to **127.0.0.1:8742**; see [Local daemon `galdrad`](#local-daemon-galdrad-http-on-localhost)). The GTK4 client then talks to it over HTTP.
+
+Base URL defaults to **`http://127.0.0.1:8742`** (same host as `galdrad`’s default listen address). Override with **`--base-url`** or **`GALDRAD_URL`**:
 
 ```bash
+galdra-gtk
+galdra-gtk --base-url http://127.0.0.1:8742
 GALDRAD_URL=http://127.0.0.1:8742 galdra-gtk
 ```
+
+If you change **`galdrad`**’s **`--listen`**, point **`galdra-gtk`** at the matching URL.
 
 ### What may still be incomplete
 
@@ -553,19 +561,25 @@ Token **unlock** / **lock** remain **`galdra device`** CLI flows; they are **not
 **Location:** `galdra-gtk/` (workspace root; **`gtk4`** crate)
 **Technology:** **GTK 4** with **Rust** bindings (**gtk4-rs** / **gtk-rs-core**). No HTML, no embedded browser engine, no SPA served over HTTP for the primary UI.
 
-The desktop application is a **native** client over the `galdrad` HTTP API (same JSON routes as the CLI-oriented surface). It provides:
+The desktop application is a **native** client over the `galdrad` HTTP API. **As implemented** in **`galdra-gtk/src/`** today, the main window exposes these areas (stack tabs):
 
-- Contact management with search and filter
-- Group management with drag-and-drop membership editing
-- Visual group membership editor for building complex groups
-- File encryption and decryption via drag-and-drop
-- Token status display (locked/unlocked, key slots used)
-- Audit log viewer
+- **Overview** — **`GET /health`** and **`GET /device/status`** as pretty-printed JSON.
+- **Contacts** — read-only list from **`GET /contacts`**. Add, edit, fetch, and search stay on **`galdra`**, **`galdrad`** HTTP, or Swagger for now.
+- **Groups** — read-only list from **`GET /groups`** (name and member count). Membership changes are not edited inside GTK today.
+- **Audit** — **`GET /audit`** as pretty-printed JSON.
+- **Profiles** — list and **create / edit / delete** user cipher profiles (**`/profiles`**) with a **`ColumnView`** and editor window (matches **`galdrad`** payloads).
+- **Crypto** — file **encrypt** and **decrypt** using path fields, **Browse** buttons, and profile dropdowns (**`POST /encrypt`**, **`POST /decrypt`**); default profile is persisted locally in the GUI config.
+- **Shamir** — split, recover (pasted armoured shares), and share metadata viewer (**`/shamir/*`** endpoints).
 
-The GTK4 GUI is appropriate for clinical staff, dispatch centres, and any
-environment where a polished **desktop** interface matters more than scriptability.
+There is **no** drag-and-drop targeting in the GTK shell yet; richer contact/group UI may arrive later without changing this API split.
+
+Token lock state appears in **`/device/status`** on **Overview**, not as a standalone unlock workflow (unlock remains **`galdra device`**; see Tier **2b** note above).
+
+The GTK4 GUI is appropriate for operators who prefer a **desktop** surface next to scripting and Swagger.
 
 It must work **without internet access**. UI resources ship with the application binary or load from the local filesystem; **no** runtime fetch of web frameworks.
+
+**How to launch:** Start **`galdrad`** (daemon), then **`galdra-gtk`**. Defaults and flags (**`--listen`**, **`--base-url`**, **`GALDRAD_URL`**) live in **[README.md § Run `galdrad` and the desktop GUI (`galdra-gtk`)](../README.md#run-galdrad-and-the-desktop-gui-galdra-gtk)** — same as [`galdrad/src/main.rs`](../galdrad/src/main.rs) and [`galdra-gtk/src/main.rs`](../galdra-gtk/src/main.rs).
 
 ---
 

@@ -3,7 +3,7 @@ name = "galdra-gtk"
 version = "0.1.0"
 edition = "2021"
 license = "GPL-3.0"
-description = "GTK4 desktop client for Galdra (galdrad HTTP API)"
+description = "GTK4 desktop client for Galdra (Cargo binary name galdra-gtk; talks to galdrad over HTTP)"
 
 [dependencies]
 base64 = { version = "0.22", default-features = false, features = ["std"] }
