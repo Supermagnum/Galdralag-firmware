@@ -2,7 +2,7 @@
 //!
 //! **Security role:** this crate is the only long-term key store path; USB and PIN layers must not
 //! persist raw IKMs. Align layout with Baochip-1x **4 MiB RRAM** and measured-boot policy from the
-//! [platform README](https://raw.githubusercontent.com/Supermagnum/Baochip-1x-firmware/refs/heads/main/README.md).
+//! [platform README](https://github.com/Supermagnum/Baochip-1x-firmware).
 //!
 //! **`alloc`:** the `rsa` workspace dependency performs heap-backed big-integer arithmetic; RSA APIs
 //! in this crate use [`alloc::vec::Vec`] for ciphertexts and DER blobs while the rest of the vault

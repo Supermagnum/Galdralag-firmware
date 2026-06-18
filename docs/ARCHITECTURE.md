@@ -1,7 +1,7 @@
 # Galdr / Galdralag firmware architecture (Baochip-1x, Xous)
 
 This document specifies a Rust/Xous firmware architecture for the **Baochip-1x** SoC (see also the
-[upstream Baochip-1x design README](https://raw.githubusercontent.com/Supermagnum/Baochip-1x-firmware/refs/heads/main/README.md)): a RISC-V application-class core, on-chip **RRAM** for durable secrets, a **USB 2.0 device** controller, and a **tamper-aware monotonic attempt counter** block. It is a design artifact only; implementation lives in the workspace crates.
+[upstream Baochip-1x design README](https://github.com/Supermagnum/Baochip-1x-firmware)): a RISC-V application-class core, on-chip **RRAM** for durable secrets, a **USB 2.0 device** controller, and a **tamper-aware monotonic attempt counter** block. It is a design artifact only; implementation lives in the workspace crates.
 
 ## 1. Threat model (summary)
 

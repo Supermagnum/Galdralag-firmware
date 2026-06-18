@@ -2,7 +2,7 @@
 //!
 //! **TODO (developer):** When firmware calls these crates, prefer Baochip-1x **PKE / ComboHash /
 //! AES** where policy mandates, and retain these tests as software cross-checks (see Baochip
-//! [design README](https://raw.githubusercontent.com/Supermagnum/Baochip-1x-firmware/refs/heads/main/README.md)).
+//! [design README](https://github.com/Supermagnum/Baochip-1x-firmware)).
 
 #[test]
 fn hkdf_sha256_rfc5869_appendix_a() {

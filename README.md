@@ -98,6 +98,7 @@ information needed to make that decision for yourself.
   - [Risk assessment and deployment](#risk-assessment-and-deployment)
 - [About the name](#about-the-name)
 - [What this is](#what-this-is)
+  - [Signed firmware (Ed25519, boot0)](#signed-firmware-ed25519-boot0)
 - [Documentation](#documentation)
 - [OpenPGP and GnuPG compatibility](#openpgp-and-gnupg-compatibility)
 - [Standards vs. firmware-specific features](#standards-vs-firmware-specific-features)
@@ -165,13 +166,17 @@ encrypted vault. The full hardware stack — RTL, schematics, bootloader,
 OS — is open source and auditable.
 
 Hardware specification, boot model, requirement tables, and ComboHash/PKE
-usage are documented in the
-**[Baochip-1x firmware design README](https://raw.githubusercontent.com/Supermagnum/Baochip-1x-firmware/refs/heads/main/README.md)**.
+usage are documented in **[Supermagnum/Baochip-1x-firmware](https://github.com/Supermagnum/Baochip-1x-firmware)**.
+The **Dabao** evaluation board (KiCad, schematics, switches, pinout) is **[baochip/dabao](https://github.com/baochip/dabao)**. To enter **bootloader mode** for flashing, **press SW2** to toggle it (see that repo’s schematic).
 Architecture notes for this repository: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
 The only remaining work before physical hardware works is the Xous USB service wiring — and that is documented in [docs/XOUS_CCID_INTEGRATION.md](docs/XOUS_CCID_INTEGRATION.md), waiting for the BSP crates to be available.
 
 At that point the project will be a complete, tested, open-source hardware security token firmware: **OpenPGP card–style behaviour** for GnuPG over CCID (see [OpenPGP and GnuPG compatibility](#openpgp-and-gnupg-compatibility)), plus **additional on-device features** not currently defined by the OpenPGP card standard — ephemeral ECDH with forward secrecy, Shamir K-of-N, cipher-agnostic profiles, PSRAM decoy volume — as summarised in [Standards vs. firmware-specific features](#standards-vs-firmware-specific-features). All on open RTL with a reproducible bootloader.
+
+### Signed firmware (Ed25519, boot0)
+
+Shippable firmware for **Baochip-1x** is **signed** with **Ed25519**. You sign the firmware image with an **Ed25519** private key; **GnuPG** can do this with **`gpg --sign`** using an **Ed25519 signing subkey** (the usual OpenPGP detached-signature workflow, adapted to whatever packaging your build emits). The immutable **boot0** ROM in the SoC **verifies** that signature against the **corresponding public keys burned into the device** (and the wider **key manifest** for the boot chain) **before** the next stage — **boot1** — is allowed to run. **boot1** then loads signed application images (for example **UF2** blobs delivered over USB mass storage in bootloader mode). Default parts carry **four** on-chip Ed25519 public keys (roles such as code deployment, beta, and developer); **boot0** / **boot1** enforce a **mutual-distrust** policy between Baochip and third-party signing keys. Full boot flow, **UF2** delivery, console, **boot1** updates, and security model: **[Getting Started with Baochip Targets](https://github.com/betrusted-io/xous-core/blob/dev/README-baochip.md)** in **xous-core**.
 
 ---
 
@@ -421,7 +426,11 @@ Use a **stable Rust** toolchain as pinned in [rust-toolchain.toml](rust-toolchai
 
 ### Flashing
 
-This repository does **not** ship a one-command flasher. Programming the **Baochip-1x** (JTAG, ROM/USB boot, or vendor tools) follows the board and silicon documentation. Start from the **[Baochip-1x firmware design README](https://raw.githubusercontent.com/Supermagnum/Baochip-1x-firmware/refs/heads/main/README.md)** and your board’s flashing guide.
+This repository does **not** ship a one-command flasher. Programming the **Baochip-1x** (JTAG, ROM/USB boot, or vendor tools) follows the board and silicon documentation. Start from **[Supermagnum/Baochip-1x-firmware](https://github.com/Supermagnum/Baochip-1x-firmware)**; **eval board hardware** is in **[baochip/dabao](https://github.com/baochip/dabao)** — on the Dabao board, **SW2** toggles **bootloader mode** (see that schematic).
+
+**Committing UF2 without the physical boot button:** After copying **`loader.uf2`**, **`xous.uf2`**, and **`apps.uf2`** to the **BAOCHIP** volume, you can either press the physical **boot** button **or** type **`boot`** in the **boot1** USB serial console (1 000 000 baud, e.g. `screen /dev/ttyACM0 1000000`). That avoids relying on the **boot** button for this step only. The console **disconnects** when you type **`boot`**; that is **expected** (the system reboots into the next stage). On Linux, `dmesg --follow` helps confirm USB re-enumeration. This is distinct from **PROG** (hold while connecting USB to enter the **BAOCHIP** mass-storage bootloader). See **[baochip/dabao#2](https://github.com/baochip/dabao/issues/2)** (closed).
+
+**Xous / Baochip flow:** Images are **Ed25519-signed** and verified by **boot0** before execution; see [Signed firmware (Ed25519, boot0)](#signed-firmware-ed25519-boot0). For **dabao**, **UF2** layout, holding **PROG** while plugging USB to enter mass-storage mode, and **boot1** update steps, see **[Getting Started with Baochip Targets](https://github.com/betrusted-io/xous-core/blob/dev/README-baochip.md)**.
 
 ### Compile and install host tools (`galdra`, `galdrad`, `galdra-gtk`)
 

@@ -1,7 +1,7 @@
 //! Galdr core: hardware abstraction traits, shared errors, and security-boundary documentation.
 //!
 //! Firmware targets **Baochip-1x** (Dabao) under **Xous** on `riscv32imac-unknown-none-elf`.
-//! See the [Baochip-1x firmware design README](https://raw.githubusercontent.com/Supermagnum/Baochip-1x-firmware/refs/heads/main/README.md)
+//! See the [Baochip-1x firmware design README](https://github.com/Supermagnum/Baochip-1x-firmware)
 //! for silicon capabilities (RRAM, always-on counters, ComboHash, PKE, TRNG, USB HS).
 
 #![cfg_attr(not(test), no_std)]

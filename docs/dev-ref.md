@@ -45,13 +45,15 @@
 Galdralag is the firmware project for **Baochip-1x** (Dabao evaluation board)
 devices running the **Xous** microkernel, built for `riscv32imac-unknown-none-elf`.
 
+Eval board hardware (KiCad, switches, pinout): **[baochip/dabao](https://github.com/baochip/dabao)**. **SW2** toggles **bootloader mode** for programming (see the dabao schematic).
+Firmware design and platform notes: **[Supermagnum/Baochip-1x-firmware](https://github.com/Supermagnum/Baochip-1x-firmware)**.
+
 The firmware targets OpenPGP smartcard-class behaviour and vault semantics,
 in the same product category as Nitrokey-class devices, with the platform and
-boot security model documented in the Baochip-1x firmware design README.
+boot security model documented in that Baochip-1x firmware repository.
 
 Hardware goals, boot model, crypto profiles, and host-visible USB behaviour
-are aligned with the upstream Baochip-1x firmware design README (requirement
-tables, ComboHash/PKE usage, Shamir, reproducible updates, test-vector sources).
+are aligned with it (requirement tables, ComboHash/PKE usage, Shamir, reproducible updates, test-vector sources).
 
 ---
 

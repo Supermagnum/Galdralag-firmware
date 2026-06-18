@@ -39,7 +39,7 @@ NIST program producing known-answer test vectors; this repo includes a **subset*
 Implementation discipline so that secret-dependent branches or memory access patterns do not leak timing information. **dudect** harnesses on the host are one statistical check; they do not replace review of embedded code.
 
 **ComboHash**  
-On **Baochip-1x** silicon, a hardware accelerator for cryptographic hashing (often mentioned together with **PKE** in the upstream [Baochip firmware design README](https://raw.githubusercontent.com/Supermagnum/Baochip-1x-firmware/refs/heads/main/README.md)). When firmware routes work through ComboHash instead of software SHA-2, **HKDF `info` strings and domain separation** in `vault` must remain byte-identical to the software path.
+On **Baochip-1x** silicon, a hardware accelerator for cryptographic hashing (often mentioned together with **PKE** in the upstream [Baochip firmware design README](https://github.com/Supermagnum/Baochip-1x-firmware)). When firmware routes work through ComboHash instead of software SHA-2, **HKDF `info` strings and domain separation** in `vault` must remain byte-identical to the software path.
 
 ---
 

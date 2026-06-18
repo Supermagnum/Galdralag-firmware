@@ -10,6 +10,8 @@ This document describes how to create a **modified PCB** for a **USB-A security 
 
 The **Dabao** evaluation board follows a **Raspberry Pi Pico**–style layout: **40 pins** along the **edges** (castellated / through-hole header). That is **ideal for firmware testing** (breadboard, logic probes, shields). A **USB dongle** product does **not** need that exposed GPIO; the goal is a **compact** board with **USB-A** and the **SoC** (and **optional QSPI PSRAM**), not a development breakout. This guide assumes you **remove** the Pico header and related area to free space for **edge-mount USB-A** and **PSRAM routing** — same silicon and power tree as the reference, **different** outline and connector strategy.
 
+On the stock **Dabao** eval board, **SW2** is used to **toggle bootloader mode** (for flashing); **SW1** is reset. A **USB dongle** product normally **omits** both switches and fixes reset and enable as below.
+
 ---
 
 ## Why USB-A on the PCB edge
@@ -54,14 +56,15 @@ Optional: the **KiCad StepUp** ecosystem (community workbenches) can align KiCad
 ## Remove
 
 - **Pico** castellated header footprint and **all** its copper.
-- **SW1** push button.
+- **SW1** push button (reset on eval).
+- **SW2** push button (bootloader mode toggle on eval).
 
 ---
 
 ## Replace / fix
 
 - **SW1** → Pull **RST_N** high via a **10 kΩ** resistor to **3.3 V** with a **100 nF** cap to **GND** for clean power-on reset. Same function, **no button**.
-- **SW2** → **EN** pin pulled **fixed high** via resistor to **3.3 V**. Remove the button; **keep** the pull resistor.
+- **SW2** → On the eval board this switch **toggles bootloader mode** (often tied to **EN** or a boot strap per schematic). For the dongle, remove the switch and pull **EN** **fixed high** via resistor to **3.3 V**; **keep** the pull resistor.
 - **EN** held permanently asserted means the buck converters are **always enabled** when **VBUS** is present — correct for a **dongle**.
 
 ---
