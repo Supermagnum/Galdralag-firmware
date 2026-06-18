@@ -7,7 +7,7 @@ Sometimes also used to activate magic rune inscriptions, as on the Kragehul I (D
 
 **Galdralag** is the metrical form used for galdr: structured, precise, rule-bound verse in which the pattern is part of the force of the spell. The suffix *lag* is akin to "law" or "pattern."
 
-**Runes** were literally secret, encoded knowledge; the usage was only known to those who understand.
+**Runes** were literally secret, encoded knowledge; the shamanic usage was only known to those who understand.
 
 ---
 
