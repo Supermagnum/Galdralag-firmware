@@ -24,10 +24,15 @@ Sometimes also used to activate magic rune inscriptions, as on the Kragehul I (D
 
 ### Dependency vendoring and pinning
 
-All cryptographic dependencies are vendored locally via `cargo vendor`
-and committed to the repository. The `vendor/` directory is treated as
-read-only; any modification will break the build. `Cargo.lock` is
-committed and pinned — no network fetches occur during builds.
+`Cargo.lock` is committed so dependency versions resolve reproducibly.
+The `subtle` crate is **not** taken from crates.io as-is: the workspace
+uses `[patch.crates-io]` in the root `Cargo.toml` to point `subtle` at
+the in-tree copy under `crates/subtle-vendored` (treat that tree like
+vendored code: change only with review and lockfile updates).
+
+Other dependencies are fetched from **crates.io** at the versions pinned
+in `Cargo.lock` (normal Cargo behavior). This repository does **not**
+ship a full `cargo vendor` tree under `vendor/`.
 
 Security audited workspace dependencies:
 `aes-gcm`, `chacha20poly1305`, `ed25519-dalek`, `x25519-dalek`,
@@ -74,8 +79,8 @@ data influences control flow.
 | Brainpool-specific edge cases | BSI TR-03111              |
 | Malformed / unexpected inputs | Fuzzing                   |
 | Timing leaks on secrets       | dudect                    |
-| Supply chain substitution     | Cargo vendor + Cargo.lock |
-| Post-vendor tampering         | Read-only vendor dir + CI |
+| Supply chain substitution     | Cargo.lock + pinned crates.io versions |
+| Tampering with resolved deps  | Lockfile + in-tree `subtle` patch + CI |
 
 ### Known limitations
 
@@ -213,6 +218,7 @@ hardware verification status in `docs/HARDWARE_VERIFICATION.md`.
 | Crate | Role |
 |-------|------|
 | `galdr-core` | HAL traits (`MonotonicCounter`, `HardwareTrng`, `ZeroiseController`, `VaultStorage`), shared errors, `test-hal` fakes |
+| `bp512` | Brainpool P-512r1 curve support (in-tree; used by `vault` for P512 ECDH/ECDSA) |
 | `vault` | RRAM vault contracts, HKDF **domain separation** labels (`KeyPurpose`), key material types (`zeroize`, no `Clone`/`Copy`) |
 | `pin-policy` | PIN state machine; **counter increment before** `subtle::ConstantTimeEq` PIN check; threshold zeroisation |
 | `usb-personality` | Mass-storage vs authenticated-unlock personalities; no secret leakage to uninformed hosts (scaffold) |
@@ -232,6 +238,10 @@ cargo run -p xtask -- test-crypto
 cargo run -p xtask -- wycheproof
 cargo run -p xtask -- test-all
 ```
+
+Additional **xtask** entry points (timing, RSA bench, libFuzzer wrappers): run
+`cargo run -p xtask --` with no subcommand to print the full usage line
+(`timing-test`, `bench-rsa`, `fuzz`, `fuzz-chacha`, `fuzz-shamir`, etc.).
 
 ## Flashing firmware
 
@@ -261,7 +271,7 @@ Artifacts appear under `target/riscv32imac-unknown-none-elf/<debug|release>/` (o
 
 When this workspace publishes a single linked `.elf` or a standard image name for CI, this section should be updated with exact commands and base addresses.
 
-Developer-focused crypto, fuzzing, and vector notes: [GALDRALAG_DEV_REFERENCE.md](GALDRALAG_DEV_REFERENCE.md).
+Developer-focused crypto, fuzzing, and vector notes: [docs/GALDRALAG_DEV_REFERENCE.md](docs/GALDRALAG_DEV_REFERENCE.md).
 
 Enable `galdr-core` feature **`test-hal`** only in tests or host tools (see crate `dev-dependencies`). Do not enable it in production firmware images.
 
