@@ -30,6 +30,8 @@ Architecture notes for this repository: [docs/ARCHITECTURE.md](docs/ARCHITECTURE
 
 Cryptographic **primitives** are not implemented in-tree: use the audited workspace dependencies (`aes-gcm`, `chacha20poly1305`, `ed25519-dalek`, `x25519-dalek`, `hkdf`, `pbkdf2`, `hmac`, `sha2`, `sha3`, `blake2`, `blake3`, `vsss-rs`, `zeroize`, `subtle`, `p256`, `p384`).
 
+These rust crates are part of the RustCrypto project (except vsss-rs and the dalek family) — they all had independent security audits, are widely used in production security software, and are maintained by people with cryptographic expertise. Using them means a developer inherits that audit history rather than introducing new unreviewed cryptographic code.
+
 ## Commands
 
 ```text
