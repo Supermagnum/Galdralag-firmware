@@ -299,10 +299,117 @@ once confirmed.
 
 ---
 
-## 10. Zeroisation (hardware)
+## 10. Manual PIN lockout verification
 
-Trigger zeroisation and confirm the device responds correctly.
-See `docs/HARDWARE_VERIFICATION.md` for the full procedure.
+This section verifies that failed User PIN attempts are counted **before** the
+PIN comparison, that the counter **persists across power loss** (RRAM flush via
+the Xous PDDB layer), that lockout fires at the configured threshold, that key
+material is **destroyed** (not merely blocked), and that the device can be
+returned to a clean state after the test.
+
+**This test is not automatable without physical hardware.** It must be performed
+manually on a real flashed Baochip-1x device. Simulation and host-side unit
+tests do not substitute for it.
+
+**Warning:** This test **permanently destroys** on-device key material. Use
+**test keys only** — never keys protecting real data.
+
+**Power-cycle between attempts is essential.** After each deliberate wrong PIN,
+unplug and replug the device (full USB power removal) before the next attempt.
+This specifically exercises RRAM write durability through the Xous PDDB layer,
+not only the in-memory firmware logic. If the retry counter **resets** after
+power-cycle, that indicates a **Xous PDDB write ordering** issue, not necessarily
+a bug in Galdralag firmware itself. Report such failures to the **xous-core**
+team at [betrusted-io/xous-core](https://github.com/betrusted-io/xous-core).
+
+Repeat the full sequence below for **each** configured PIN attempt threshold:
+**3**, **5**, **7**, and **10**. Each run requires a **fresh** flash and
+first-boot provision so the threshold is written at provision time (default
+**3** when using `galdralag-provision` alone; for **5**, **7**, or **10**, use
+the provision path that persists `max_pin_attempts` — see
+[PIN attempt policy](GALDRA-TOOL.md#pin-attempt-policy) in `docs/GALDRA-TOOL.md`).
+
+### 10.1. Provision and baseline crypto check
+
+1. Flash firmware per **Flash firmware** above.
+2. Complete first-boot PIN provisioning via `galdralag-provision` (section 3):
+
+   ```bash
+   cargo run -p host-tools --bin galdralag-provision -- \
+     --port /dev/ttyACM0 \
+     --user-pin 'your-test-user-pin' \
+     --admin-pin 'your-test-admin-pin'
+   ```
+
+3. Confirm CCID enumeration (`gpg --card-status`).
+4. Generate on-device keys (section 4).
+5. Encrypt a test payload and decrypt it successfully (section 6) to confirm
+   the device is working **before** lockout testing. Retain the encrypted file
+   (e.g. `/tmp/galdralag_lockout_test.gpg`) for step 10.4.
+
+Record the User PIN retry count from `gpg --card-status` (PW1 retries remaining).
+
+### 10.2. Wrong PIN with power-cycle persistence
+
+For each wrong attempt (one at a time, up to threshold − 1):
+
+1. Trigger a User PIN prompt with a deliberate wrong PIN, for example:
+
+   ```bash
+   gpg --decrypt /tmp/galdralag_lockout_test.gpg
+   # Enter an incorrect User PIN when prompted
+   ```
+
+2. Confirm the operation fails and note the **retries remaining** in
+   `gpg --card-status` (should decrease by one compared to the previous step).
+3. **Power-cycle:** unplug USB, wait several seconds, replug.
+4. Run `gpg --card-status` again and confirm retries remaining **did not reset**
+   to the provisioned maximum.
+
+If the counter resets after step 3, **stop** and file an issue against
+**xous-core** (see note above); do not treat it as a Galdralag-only defect
+without that triage.
+
+### 10.3. Lockout at threshold
+
+1. Submit one more wrong User PIN (the Nth failed attempt for threshold N).
+2. Confirm lockout / zeroisation: `gpg --card-status` should report blocked
+   PIN state and all key slots `[none]` (or equivalent termination).
+3. Compare behaviour against the configured threshold (3, 5, 7, or 10) —
+   lockout must occur on the **Nth** consecutive wrong attempt, not before or
+   after.
+
+### 10.4. Verify key destruction
+
+Attempt to decrypt the ciphertext from step 10.1:
+
+```bash
+gpg --decrypt /tmp/galdralag_lockout_test.gpg
+```
+
+Expected: decryption **fails** even if the correct User PIN were known — key
+material was zeroised, not merely access-blocked.
+
+### 10.5. Re-provision to clean state
+
+1. Re-flash or follow the product recovery path so the device accepts
+   first-boot provisioning again.
+2. Run `galdralag-provision` as in step 10.1.
+3. Confirm `gpg --card-status` shows a consistent fresh card (no stale key
+   fingerprints, PIN retries at provisioned maximum, no blocked state).
+
+Sign off in `docs/HARDWARE_VERIFICATION.md` under **PIN counter ordering** when
+this procedure passes for all four thresholds.
+
+---
+
+## 11. Zeroisation (hardware) — quick check
+
+For a shorter smoke test (threshold **3** only), trigger zeroisation with wrong
+User PINs and confirm blocked state. The full procedure — including power-cycle
+counter persistence and decrypt-after-lockout — is **section 10**.
+
+See also `docs/HARDWARE_VERIFICATION.md`.
 
 ```bash
 # Attempt PIN block (enter wrong User PIN 3 times)
@@ -315,7 +422,7 @@ After zeroisation, all key slots should report `[none]`.
 
 ---
 
-## 11. Results record
+## 12. Results record
 
 Update `docs/TEST_RESULTS.md` with:
 
@@ -332,7 +439,8 @@ Update `docs/TEST_RESULTS.md` with:
 - **Operator PIN UX:** TRNG-generated first-boot PINs are not displayed on device.
   Workaround for bring-up: use `gpg --card-edit` → `passwd` after provisioning.
   See `docs/future-todo.md` section 0.
-- **Zeroisation:** Hardware verification (section 10) supersedes the simulation
-  results in `docs/TEST_RESULTS.md` section 11.
+- **PIN lockout / zeroisation:** Full manual verification (section 10) supersedes
+  simulation and `docs/TEST_RESULTS.md` section 11; section 11 is a quick smoke
+  test only.
 - **Optional dudect integrations:** `challenge-response HMAC`, `PSRAM tag check`,
   `XMSS/LMS verify` remain `[MISSING]` until those paths are wired.
