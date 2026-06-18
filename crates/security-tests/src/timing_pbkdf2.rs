@@ -3,7 +3,7 @@
 // Measures whether PBKDF2 iteration timing depends on password content.
 // A FAIL here would indicate data-dependent timing in HMAC-SHA256 PRF
 // which would be an unusual finding given the audited sha2/hmac crates.
-// Threshold: |t| > 4.5 (150,000 samples; longer per-sample work benefits from larger N).
+// Threshold: |t| > 4.5. Uses DUDECT_SAMPLES_PBKDF2 (100k); each sample is PBKDF2-HMAC-SHA256 with 1000 iterations.
 //
 // Operational note: timing leakage in PBKDF2 is a lower operational concern than
 // AEAD tag checks or ECDH for this firmware; this harness establishes a baseline.

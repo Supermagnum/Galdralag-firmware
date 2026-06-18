@@ -2,17 +2,17 @@
 
 ## Last full run
 
-- **Date (UTC):** 2026-03-26T20:42:48Z
-- **Commit:** `19384323958b07734241a1383c467075d4a2134a`
+- **Date (UTC):** 2026-03-26T23:02:44Z
+- **Commit:** `5e2d4bc5d6b8d82877306d8a7c1941e043dba61f`
 - **xtask version:** 0.1.0 (fuzz skipped via `--no-fuzz`)
 
-Section 9 dudect figures below were copied from a successful `dudect_galdr` run on this commit (no need to re-execute the ~20 minute timing suite to refresh prose elsewhere).
+**Section 1** unit-test totals were recomputed at this commit with `cargo test --workspace --exclude xtask` (sum of every `test result:` line). **Section 9** matches a successful `cargo run -p xtask -- timing-test` at this commit (host-dependent t-stats). Refresh with the same command after crypto or harness changes.
 
 ## 1. Unit tests
 
 | Scope | Passed | Failed | Ignored (`#[ignore]`) | Status |
 |-------|--------|--------|-------------------------|--------|
-| Workspace (excluding xtask), summed `test result` lines | 372 | 0 | 14 | PASS |
+| Workspace (excluding xtask), summed `test result` lines | 398 | 0 | 14 | PASS |
 
 ## 2. Cryptographic validation detail
 
@@ -87,162 +87,162 @@ Source: `crates/vault/tests/twofish_vectors.json` (Schneier et al. Appendix B st
 - **Variable-key set (128 / 192 / 256-bit key):** 200 / 200 each
 - **Variable-text set (128 / 192 / 256-bit key):** 200 / 200 each
 - **Monte Carlo (10,000 iterations, 256-bit key):** PASS (final ciphertext `a59b573030de1bffffe5c50fb030d847`)
-- **dudect (tag check):** PASS (representative t = -2.31294 for `timing_twofish_tag_check` in Section 9).
+- **dudect (tag check):** PASS (representative t = -1.74366 for `timing_twofish_tag_check` in Section 9).
 ## 8. Key lifecycle tests
 
 Integration tests in `vault/tests/key_lifecycle.rs`. Last run: **PASS**.
 
 ## 9. dudect timing results
 
-**Command:** `cargo run -p xtask -- timing-test` (binary `dudect_galdr`; threshold |t| <= 4.5). t-statistics are host-dependent; values below match a recorded successful run on this commit.
+**Command:** `cargo run -p xtask -- timing-test` (binary `dudect_galdr`; threshold |t| <= 4.5). t-statistics are host-dependent; values below are from the run recorded at [Last full run](#last-full-run).
 
 **Summary:** 24/24 executed harnesses passed threshold (|t| <= 4.5).
 
-**Elapsed (reported by dudect_galdr):** ~1220.6 s.
+**Elapsed (reported by dudect_galdr):** ~909.8 s.
 
 | Harness | Samples | t-statistic | Threshold | Status |
 |---------|---------|-------------|-----------|--------|
-| `timing_subtle_eq_u256` | 100000 | -1.96919 | ±4.5 | PASS |
-| `timing_chacha_tag_check` | 100000 | +1.42753 | ±4.5 | PASS |
-| `timing_aes_gcm_tag_check` | 100000 | -1.70287 | ±4.5 | PASS |
-| `timing_hmac_verify` | 100000 | -3.31892 | ±4.5 | PASS |
-| `timing_hkdf_derive` | 100000 | -2.33201 | ±4.5 | PASS |
-| `timing_ed25519_verify` | 100000 | -1.41628 | ±4.5 | PASS |
-| `timing_x25519_ecdh` | 100000 | +1.25519 | ±4.5 | PASS |
-| `timing_brainpool256_scalar_mult` | 5000 | +1.97772 | ±4.5 | PASS |
-| `timing_brainpool384_scalar_mult` | 5000 | +2.34205 | ±4.5 | PASS |
-| `timing_brainpool512_scalar_mult` | 15000 | -2.14614 | ±4.5 | PASS |
-| `timing_shamir_recover` | 100000 | +1.42197 | ±4.5 | PASS |
-| `timing_serpent_tag_check` | 100000 | -1.66123 | ±4.5 | PASS |
-| `timing_twofish_tag_check` | 100000 | -2.31294 | ±4.5 | PASS |
-| `timing_pin_compare` | 100000 | -1.15680 | ±4.5 | PASS |
-| `timing_rsa_oaep_decrypt` | 100000 | +1.47384 | ±4.5 | PASS |
-| `timing_rsa_pss_verify` | 100000 | -4.08701 | ±4.5 | PASS |
-| `timing_pbkdf2` | 150000 | +1.80555 | ±4.5 | PASS |
-| `timing_sha256` | 100000 | -1.66307 | ±4.5 | PASS |
-| `timing_sha512` | 100000 | -1.95918 | ±4.5 | PASS |
-| `timing_sha3_256` | 200000 | +2.93010 | ±4.5 | PASS |
-| `timing_sha3_512` | 200000 | +2.28332 | ±4.5 | PASS |
-| `timing_blake2b` | 100000 | +1.85087 | ±4.5 | PASS |
-| `timing_blake2s` | 100000 | +1.85495 | ±4.5 | PASS |
-| `timing_blake3` | 100000 | +2.08824 | ±4.5 | PASS |
+| `timing_subtle_eq_u256` | 100000 | -1.37078 | ±4.5 | PASS |
+| `timing_chacha_tag_check` | 100000 | +1.52140 | ±4.5 | PASS |
+| `timing_aes_gcm_tag_check` | 100000 | -0.85914 | ±4.5 | PASS |
+| `timing_hmac_verify` | 100000 | -2.06906 | ±4.5 | PASS |
+| `timing_hkdf_derive` | 100000 | -3.50326 | ±4.5 | PASS |
+| `timing_ed25519_verify` | 100000 | +1.51008 | ±4.5 | PASS |
+| `timing_x25519_ecdh` | 100000 | +1.77939 | ±4.5 | PASS |
+| `timing_brainpool256_scalar_mult` | 5000 | +1.48477 | ±4.5 | PASS |
+| `timing_brainpool384_scalar_mult` | 5000 | -2.67990 | ±4.5 | PASS |
+| `timing_brainpool512_scalar_mult` | 15000 | -1.55175 | ±4.5 | PASS |
+| `timing_shamir_recover` | 100000 | +1.91206 | ±4.5 | PASS |
+| `timing_serpent_tag_check` | 100000 | -2.15022 | ±4.5 | PASS |
+| `timing_twofish_tag_check` | 100000 | -1.74366 | ±4.5 | PASS |
+| `timing_pin_compare` | 100000 | -1.82845 | ±4.5 | PASS |
+| `timing_rsa_oaep_decrypt` | 100000 | -1.68044 | ±4.5 | PASS |
+| `timing_rsa_pss_verify` | 100000 | +2.99207 | ±4.5 | PASS |
+| `timing_pbkdf2` | 100000 | -2.44431 | ±4.5 | PASS |
+| `timing_sha256` | 100000 | -1.31473 | ±4.5 | PASS |
+| `timing_sha512` | 100000 | -1.95467 | ±4.5 | PASS |
+| `timing_sha3_256` | 200000 | -3.89831 | ±4.5 | PASS |
+| `timing_sha3_512` | 200000 | -1.51956 | ±4.5 | PASS |
+| `timing_blake2b` | 100000 | +2.04292 | ±4.5 | PASS |
+| `timing_blake2s` | 100000 | -2.53810 | ±4.5 | PASS |
+| `timing_blake3` | 100000 | -1.47562 | ±4.5 | PASS |
 
 ### timing_subtle_eq_u256
 
 - Samples: 100000
-- t-statistic: -1.96919
+- t-statistic: -1.37078
 - Threshold: ±4.5
 - Status: PASS
 
 ### timing_chacha_tag_check
 
 - Samples: 100000
-- t-statistic: +1.42753
+- t-statistic: +1.52140
 - Threshold: ±4.5
 - Status: PASS
 
 ### timing_aes_gcm_tag_check
 
 - Samples: 100000
-- t-statistic: -1.70287
+- t-statistic: -0.85914
 - Threshold: ±4.5
 - Status: PASS
 
 ### timing_hmac_verify
 
 - Samples: 100000
-- t-statistic: -3.31892
+- t-statistic: -2.06906
 - Threshold: ±4.5
 - Status: PASS
 
 ### timing_hkdf_derive
 
 - Samples: 100000
-- t-statistic: -2.33201
+- t-statistic: -3.50326
 - Threshold: ±4.5
 - Status: PASS
 
 ### timing_ed25519_verify
 
 - Samples: 100000
-- t-statistic: -1.41628
+- t-statistic: +1.51008
 - Threshold: ±4.5
 - Status: PASS
 
 ### timing_x25519_ecdh
 
 - Samples: 100000
-- t-statistic: +1.25519
+- t-statistic: +1.77939
 - Threshold: ±4.5
 - Status: PASS
 
 ### timing_brainpool256_scalar_mult
 
 - Samples: 5000
-- t-statistic: +1.97772
+- t-statistic: +1.48477
 - Threshold: ±4.5
 - Status: PASS
 
 ### timing_brainpool384_scalar_mult
 
 - Samples: 5000
-- t-statistic: +2.34205
+- t-statistic: -2.67990
 - Threshold: ±4.5
 - Status: PASS
 
 ### timing_brainpool512_scalar_mult
 
 - Samples: 15000
-- t-statistic: -2.14614
+- t-statistic: -1.55175
 - Threshold: ±4.5
 - Status: PASS
 
 ### timing_shamir_recover
 
 - Samples: 100000
-- t-statistic: +1.42197
+- t-statistic: +1.91206
 - Threshold: ±4.5
 - Status: PASS
 
 ### timing_serpent_tag_check
 
 - Samples: 100000
-- t-statistic: -1.66123
+- t-statistic: -2.15022
 - Threshold: ±4.5
 - Status: PASS
 
 ### timing_twofish_tag_check
 
 - Samples: 100000
-- t-statistic: -2.31294
+- t-statistic: -1.74366
 - Threshold: ±4.5
 - Status: PASS
 
 ### timing_pin_compare
 
 - Samples: 100000
-- t-statistic: -1.15680
+- t-statistic: -1.82845
 - Threshold: ±4.5
 - Status: PASS
 
 ### timing_rsa_oaep_decrypt
 
 - Samples: 100000
-- t-statistic: +1.47384
+- t-statistic: -1.68044
 - Threshold: ±4.5
 - Status: PASS
 
 ### timing_rsa_pss_verify
 
 - Samples: 100000
-- t-statistic: -4.08701
+- t-statistic: +2.99207
 - Threshold: ±4.5
 - Status: PASS
 
 ### timing_pbkdf2
 
-- Samples: 150000
-- t-statistic: +1.80555
+- Samples: 100000
+- t-statistic: -2.44431
 - Threshold: ±4.5
 - Status: PASS
 - Note: Measures PBKDF2-HMAC-SHA256 with two 16-byte passwords (fixed vs random).
@@ -250,49 +250,49 @@ Integration tests in `vault/tests/key_lifecycle.rs`. Last run: **PASS**.
 ### timing_sha256
 
 - Samples: 100000
-- t-statistic: -1.66307
+- t-statistic: -1.31473
 - Threshold: ±4.5
 - Status: PASS
 
 ### timing_sha512
 
 - Samples: 100000
-- t-statistic: -1.95918
+- t-statistic: -1.95467
 - Threshold: ±4.5
 - Status: PASS
 
 ### timing_sha3_256
 
 - Samples: 200000
-- t-statistic: +2.93010
+- t-statistic: -3.89831
 - Threshold: ±4.5
 - Status: PASS
 
 ### timing_sha3_512
 
 - Samples: 200000
-- t-statistic: +2.28332
+- t-statistic: -1.51956
 - Threshold: ±4.5
 - Status: PASS
 
 ### timing_blake2b
 
 - Samples: 100000
-- t-statistic: +1.85087
+- t-statistic: +2.04292
 - Threshold: ±4.5
 - Status: PASS
 
 ### timing_blake2s
 
 - Samples: 100000
-- t-statistic: +1.85495
+- t-statistic: -2.53810
 - Threshold: ±4.5
 - Status: PASS
 
 ### timing_blake3
 
 - Samples: 100000
-- t-statistic: +2.08824
+- t-statistic: -1.47562
 - Threshold: ±4.5
 - Status: PASS
 - Note: Single-chunk 64-byte message (compression function path).

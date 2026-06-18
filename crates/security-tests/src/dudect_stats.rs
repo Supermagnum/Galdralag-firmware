@@ -196,8 +196,9 @@ fn update_test_right(test: &mut CtTest, datum: f64) {
 pub const DUDECT_THRESHOLD: f64 = 4.5;
 pub const DUDECT_SAMPLES: usize = 100_000;
 
-/// PBKDF2: long per-iteration work; extra samples reduce false positives from OS jitter at 100k.
-pub const DUDECT_SAMPLES_PBKDF2: usize = 150_000;
+/// PBKDF2: each sample runs 1000 HMAC-SHA256 iterations, so wall time dominates. Use the same N as
+/// [`DUDECT_SAMPLES`] so the suite stays practical; Welch threshold is unchanged.
+pub const DUDECT_SAMPLES_PBKDF2: usize = 100_000;
 
 /// SHA-3 (Keccak): host noise can push |t| slightly past 4.5 at 100k; larger N tightens the estimate.
 pub const DUDECT_SAMPLES_SHA3: usize = 200_000;

@@ -235,19 +235,19 @@ You can combine both: establish trust and distribute **public** certificates wit
 | BrainpoolP512r1 ECDH/ECDSA | RFC 5639, BSI TR-03111 | in-tree `vault/src/brainpool512.rs` | Unit · Wycheproof · BSI cross-check JSON · RFC vectors via integration tests · dudect **host** ECDH (`timing-test`, 15k timings) |
 | ChaCha20-Poly1305 AEAD | RFC 8439 | `chacha20poly1305` workspace dep | Unit · Wycheproof · RFC 8439 (unit + integration) · dudect **host** tag check (`timing-test`) |
 | Shamir Secret Sharing (K-of-N) | Shamir 1979, vsss-rs | `vsss-rs` workspace dep | Unit · KAT vectors · dudect **host** recover (`timing-test`) |
-| Twofish-256 AEAD | Schneier et al. 1998 | `twofish` workspace dep | Unit · KAT (`vault/tests/twofish_vectors.json`: zero-key + variable-key + variable-text + Monte Carlo) · dudect host tag check (`timing-test`, representative t-statistic -2.31 on one host run) |
+| Twofish-256 AEAD | Schneier et al. 1998 | `twofish` workspace dep | Unit · KAT (`vault/tests/twofish_vectors.json`: zero-key + variable-key + variable-text + Monte Carlo) · dudect host tag check (`timing-test`, representative t-statistic -1.74 on one host run) |
 | Serpent-256 AEAD | Anderson/Biham/Knudsen 1998 | `serpent` workspace dep | Unit · Spec vectors in `vault/tests/serpent_vectors.json` · dudect **host** tag check (`timing-test`) |
 | RSA-2048/3072/4096 OAEP, PSS | PKCS#1 v2.2, RFC 8017 | `rsa` workspace dep | Unit · Wycheproof · dudect **host** constant-time compare on modulus-sized buffers (`timing-test`; not raw decrypt/verify wall time) |
 | AES-256-GCM | FIPS 197, NIST SP 800-38D | `aes-gcm` workspace dep | galdr-core smoke · vault **Wycheproof partial** (128-bit tag; AES-128/256; IV sizes under [Wycheproof (Google)](#wycheproof-google); skips AES-192, empty IV, 257-byte IV) · dudect **host** tag check (`timing-test`) |
-| HKDF (SHA-256/SHA-512) | RFC 5869 | `hkdf` workspace dep | Unit (galdr-core + vault) · Wycheproof **HKDF-SHA-256** and **HKDF-SHA-512** JSON in vault · RFC 5869 integration vectors · dudect **host** (`timing-test`) |
+| HKDF (SHA-256/SHA-512) | RFC 5869 | `hkdf` workspace dep | Unit (galdr-core + vault) · Wycheproof **HKDF-SHA-256** and **HKDF-SHA-512** JSON in vault · RFC 5869 integration vectors · [`derive_subkey_sha512`](crates/vault/src/kdf_policy.rs) (HKDF-SHA512 + `KeyPurpose` labels) · dudect **host** (`timing-test`) |
 | HMAC (SHA-256/SHA-512) | RFC 2104 | `hmac` workspace dep | Unit (galdr-core + vault: RFC + NIST CAVP subset) · Wycheproof **HMAC-SHA-256** and **HMAC-SHA-512** JSON in vault · dudect **host** (`timing-test`) |
-| PBKDF2 | RFC 8018 | `pbkdf2` workspace dep | Unit (galdr-core) · RFC 8018 integration vectors · dudect host (`timing-test`, representative t +1.81 on one host run) |
+| PBKDF2 | RFC 8018 | `pbkdf2` workspace dep | Unit (galdr-core) · RFC 8018 integration vectors · dudect host (`timing-test`, representative t -2.44 on one host run) |
 | Ed25519 sign/verify | RFC 8032 | `ed25519-dalek` workspace dep | Unit (galdr-core) · Wycheproof **Ed25519 verify** JSON in vault · RFC 8032 integration vectors · dudect **host** verify (`timing-test`) |
 | X25519 ECDH | RFC 7748 | `x25519-dalek` workspace dep | Unit (galdr-core) · Wycheproof **X25519** JSON in vault · RFC 7748 integration vectors · dudect **host** ECDH (`timing-test`) |
-| SHA-2 (224/256/384/512) | FIPS 180-4 | `sha2` workspace dep | Unit (galdr-core + NIST CAVP integration subset) · dudect host SHA-256 / SHA-512 (`timing-test`, representative t -1.66 / -1.96 on one host run) |
-| SHA-3 family | FIPS 202 | `sha3` workspace dep | Unit (galdr-core + NIST CAVP integration subset) · dudect host SHA3-256 / SHA3-512 (`timing-test`, representative t +2.93 / +2.28 on one host run; 200k samples each) |
-| BLAKE2b/BLAKE2s | RFC 7693 | `blake2` workspace dep | Unit (galdr-core + RFC integration) · dudect host BLAKE2b-256 / BLAKE2s-256 (`timing-test`, representative t +1.85 / +1.85 on one host run) |
-| BLAKE3 | BLAKE3 spec | `blake3` workspace dep | Unit (galdr-core + KAT integration) · dudect host single-chunk digest (`timing-test`, representative t +2.09 on one host run) |
+| SHA-2 (224/256/384/512) | FIPS 180-4 | `sha2` workspace dep | Unit (galdr-core + NIST CAVP integration subset) · dudect host SHA-256 / SHA-512 (`timing-test`, representative t -1.31 / -1.95 on one host run) |
+| SHA-3 family | FIPS 202 | `sha3` workspace dep | Unit (galdr-core + NIST CAVP integration subset) · dudect host SHA3-256 / SHA3-512 (`timing-test`, representative t -3.90 / -1.52 on one host run; 200k samples each) |
+| BLAKE2b/BLAKE2s | RFC 7693 | `blake2` workspace dep | Unit (galdr-core + RFC integration) · dudect host BLAKE2b-256 / BLAKE2s-256 (`timing-test`, representative t +2.04 / -2.54 on one host run) |
+| BLAKE3 | BLAKE3 spec | `blake3` workspace dep | Unit (galdr-core + KAT integration) · dudect host single-chunk digest (`timing-test`, representative t -1.48 on one host run) |
 | PIN policy (stateful) | — | in-tree `pin-policy` | Unit · Lifecycle integration tests · dudect **host** compare (`timing-test`) |
 | PSRAM block device (optional) | — | **not present in this workspace** | **MISSING** |
 
@@ -286,6 +286,8 @@ The table above lists **what** is wired and **how** it is tested. This section e
 ### HKDF, HMAC, PBKDF2
 
 **HKDF** (**RFC 5869**) expands a pseudorandom key with optional salt and **info** for multiple independent subkeys. **HMAC** (**RFC 2104**) is the PRF inside HKDF and standalone message authentication. **PBKDF2** (**RFC 8018**) derives keys from passwords using **HMAC** as the iteration primitive; iteration count is policy-driven.
+
+In the vault, every operational subkey uses a distinct **`KeyPurpose`** label as the HKDF **info** string. [`derive_subkey_sha512`](crates/vault/src/kdf_policy.rs) runs **HKDF-SHA512** extract-then-expand with caller-supplied IKM and salt; ChaCha, Serpent, Twofish, and similar modules use **HKDF-SHA256** with composed `info` where documented. An expand request that exceeds RFC limits returns [`GaldrError::KeyDerivation`](crates/galdr-core/src/error.rs) from `galdr-core`.
 
 ### SHA-2, SHA-3, BLAKE2, BLAKE3
 
@@ -377,7 +379,7 @@ Rust's ownership model prevents memory corruption but panics and logic
 errors remain in scope.
 
 #### dudect (timing side-channel analysis)
-`cargo run -p xtask -- timing-test` builds and runs the `dudect_galdr` binary from `crates/security-tests` (Welch t-statistic on timing samples; pass when |t| <= **4.5**). Most harnesses use **100,000** timings; **Brainpool P256 and P384** ECDH use **5,000** each; **Brainpool P512** uses **15,000**; **PBKDF2** uses **150,000**; **SHA3-256 and SHA3-512** use **200,000** each (reduced counts on slow curves; larger N on PBKDF2/SHA3 to reduce host jitter). Harnesses cover constant-time buffer/tag comparisons, AEAD tag checks (ChaCha20-Poly1305, AES-GCM, Serpent, Twofish), HMAC verify, HKDF, Ed25519 verify, X25519 ECDH, Brainpool ECDH, Shamir recover, PBKDF2-HMAC-SHA256, SHA-256/SHA-512, SHA3-256/SHA3-512, BLAKE2b/BLAKE2s, BLAKE3 (single-chunk inputs), PIN compare, and RSA-related **constant-time equality** on modulus-sized ciphertext/signature bytes (not full OAEP decrypt or PSS verify latency). **stderr** prints `[DUDECT] Running …` before each harness; stdout prints per-harness t-statistics and a **Summary**. Wall time is often on the order of **~20 minutes** on a developer machine (one full run recorded ~1220 s). Exit code **0** when all executed harnesses pass; **1** if any |t| exceeds the threshold. The capability table marks primitives exercised by `timing-test` as **dudect host** with representative t-statistics from a recorded run (your machine will differ). Stub APIs in `security-tests` stay `DudectStatus::NotRun` when the `dudect` feature is disabled. Full stdout-oriented results and dates are recorded in **[docs/TEST_RESULTS.md](docs/TEST_RESULTS.md)**; Section 9 can be updated by pasting `dudect_galdr` output without re-running the whole pipeline.
+`cargo run -p xtask -- timing-test` builds and runs the `dudect_galdr` binary from `crates/security-tests` (Welch t-statistic on timing samples; pass when |t| <= **4.5**). Most harnesses use **100,000** timings (including **PBKDF2**, where each sample is expensive); **Brainpool P256 and P384** ECDH use **5,000** each; **Brainpool P512** uses **15,000**; **SHA3-256 and SHA3-512** use **200,000** each (reduced counts on slow Brainpool curves; larger N on SHA3 to reduce host jitter). Harnesses cover constant-time buffer/tag comparisons, AEAD tag checks (ChaCha20-Poly1305, AES-GCM, Serpent, Twofish), HMAC verify, HKDF, Ed25519 verify, X25519 ECDH, Brainpool ECDH, Shamir recover, PBKDF2-HMAC-SHA256, SHA-256/SHA-512, SHA3-256/SHA3-512, BLAKE2b/BLAKE2s, BLAKE3 (single-chunk inputs), PIN compare, and RSA-related **constant-time equality** on modulus-sized ciphertext/signature bytes (not full OAEP decrypt or PSS verify latency). **stderr** prints `[DUDECT] Running …` before each harness; stdout prints per-harness t-statistics and a **Summary**. Wall time is often on the order of **~15 minutes** on a developer machine (one full run recorded ~910 s after PBKDF2 sample count aligned to 100k). Exit code **0** when all executed harnesses pass; **1** if any |t| exceeds the threshold. The capability table marks primitives exercised by `timing-test` as **dudect host** with representative t-statistics from a recorded run (your machine will differ). Stub APIs in `security-tests` stay `DudectStatus::NotRun` when the `dudect` feature is disabled. Full stdout-oriented results and dates are recorded in **[docs/TEST_RESULTS.md](docs/TEST_RESULTS.md)**; Section 9 can be updated by pasting `dudect_galdr` output without re-running the whole pipeline.
 
 ### Coverage summary
 
@@ -506,7 +508,7 @@ hardware verification status in `docs/HARDWARE_VERIFICATION.md`.
 
 | Crate | Role |
 |-------|------|
-| `galdr-core` | HAL traits (`MonotonicCounter`, `HardwareTrng`, `ZeroiseController`, `VaultStorage`), shared errors, `test-hal` fakes |
+| `galdr-core` | HAL traits (`MonotonicCounter`, `HardwareTrng`, `ZeroiseController`, `VaultStorage`), shared [`GaldrError`](crates/galdr-core/src/error.rs) (including `KeyDerivation` for HKDF expand failures), `test-hal` fakes |
 | `bp512` | Brainpool P-512r1 curve support (in-tree; used by `vault` for P512 ECDH/ECDSA) |
 | `vault` | RRAM vault contracts, HKDF **domain separation** labels (`KeyPurpose`), key material types (`zeroize`, no `Clone`/`Copy`) |
 | `pin-policy` | PIN state machine; **counter increment before** `subtle::ConstantTimeEq` PIN check; threshold zeroisation |
@@ -527,7 +529,7 @@ Use this map to jump straight to **modules and files** when reviewing behaviour.
 
 **Runtime (policy labels and intended derivation purposes):**
 
-- [`crates/vault/src/kdf_policy.rs`](crates/vault/src/kdf_policy.rs) — `KeyPurpose` and RFC 5869-style `info` strings for each vault use (storage, USB session, PIN verifier, Shamir recovery, Serpent/Twofish/RSA wrap, etc.); `derive_subkey_sha512` runs HKDF-SHA512 extract/expand with caller-supplied IKM and salt.
+- [`crates/vault/src/kdf_policy.rs`](crates/vault/src/kdf_policy.rs) — `KeyPurpose` and RFC 5869-style `info` strings for each vault use (storage, USB session, PIN verifier, Shamir recovery, Serpent/Twofish/RSA wrap, etc.); `derive_subkey_sha512` runs HKDF-SHA512 extract/expand with caller-supplied IKM and salt (failed expand → `GaldrError::KeyDerivation`).
 - [`crates/vault/src/twofish_cipher.rs`](crates/vault/src/twofish_cipher.rs) — HKDF-SHA256 expand for Twofish + HMAC keys from a `KeyPurpose`.
 
 **Tests and vectors:**
