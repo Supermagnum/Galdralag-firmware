@@ -92,6 +92,7 @@ It is ready for testing by humans. **You** decide whether to build or run any of
   - [Risk assessment and deployment](#risk-assessment-and-deployment)
 - [About the name](#about-the-name)
 - [Documentation](#documentation)
+- [Debugging instructions](docs/DEBUG_INSTRUCTIONS.md)
 - [docs/AUDIT_LOG.md](docs/AUDIT_LOG.md)
 - [docs/BIOMETRIC_API.md](docs/BIOMETRIC_API.md)
 - [docs/KEY_LIFECYCLE.md](docs/KEY_LIFECYCLE.md)
@@ -232,6 +233,8 @@ was only known to those who understood.
 
 **Glossary:** [docs/GLOSSARY.md](docs/GLOSSARY.md) — terms explained in **plain language** (sorted A–Z). Start here if the README or other docs feel jargon-heavy.
 
+**Debugging:** [docs/DEBUG_INSTRUCTIONS.md](docs/DEBUG_INSTRUCTIONS.md) — backtraces, narrowing `cargo test`, `xtask` shortcuts, firmware triple checks, fuzzing, and what to collect before reporting an issue.
+
 **AI assistants (Claude, Cursor):** [CLAUDE.md](CLAUDE.md) — project instructions for coding agents. Cursor-specific rules: [`.cursor/rules/`](.cursor/rules/).
 
 **Browse all files:** [github.com/Supermagnum/Galdralag-firmware — `docs/`](https://github.com/Supermagnum/Galdralag-firmware/tree/main/docs)
@@ -255,6 +258,7 @@ was only known to those who understood.
 | [CLAUDE.md](CLAUDE.md) | Instructions for **Claude** / AI coding agents; points to [`.cursor/rules/`](.cursor/rules/) for **Cursor** |
 | [docs/GALDRALAG_DEV_REFERENCE.md](docs/GALDRALAG_DEV_REFERENCE.md) | Toolchain, `xtask` commands, fuzzing and crypto test entry points |
 | [docs/dev-ref.md](docs/dev-ref.md) | Workspace layout, crates, HAL traits, USB/PSRAM behaviour, security invariants |
+| [docs/DEBUG_INSTRUCTIONS.md](docs/DEBUG_INSTRUCTIONS.md) | Debugging: `RUST_BACKTRACE`, verbose builds, scoped tests, `xtask` recipes, embedded target checks, fuzzing pointers, OpenPGP host checks |
 | [docs/KEY_LIFECYCLE.md](docs/KEY_LIFECYCLE.md) | Key generation, import, export policy, rotation, zeroisation, Shamir (as reflected in `vault` / OpenPGP) |
 | [docs/OPENPGP_CARD.md](docs/OPENPGP_CARD.md) | OpenPGP card application, GnuPG/CCID host setup, key slots, algorithms, udev |
 | [docs/XOUS_CCID_INTEGRATION.md](docs/XOUS_CCID_INTEGRATION.md) | Wiring CCID/OpenPGP USB into Xous on Baochip |

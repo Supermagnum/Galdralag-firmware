@@ -14,6 +14,7 @@
 extern crate alloc;
 
 mod hkdf_blake3;
+mod inner_info;
 mod mode_a;
 mod registry_ids;
 mod wire;
@@ -22,6 +23,10 @@ mod wire;
 mod spec_tests;
 
 pub use hkdf_blake3::{derive_k_outer, hkdf_blake3, hmac_blake3};
+pub use inner_info::{
+    cess_blake3_integrity_info, cess_inner_cascade_etm64_info, cess_inner_cascade_layer_key_info,
+    cess_inner_cascade_layer_nonce_info, CessInnerEtM64Cipher,
+};
 pub use mode_a::{open_mode_a_outer, seal_mode_a_outer, CessCryptoError};
 pub use registry_ids::{is_listed_suite_id, LISTED_SUITE_ID_RANGES};
 pub use wire::{

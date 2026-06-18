@@ -214,7 +214,11 @@ impl EphemeralSharedSecret {
             .map_err(|_| EphemeralSessionError::MalformedHandshake)?;
         hk.expand(crate::domain::MAC_KEY, mac_key.as_mut())
             .map_err(|_| EphemeralSessionError::MalformedHandshake)?;
+        let mut classical_ecdh_ikm_storage = Zeroizing::new([0u8; MAX_SHARED]);
+        classical_ecdh_ikm_storage[..inner.len as usize].copy_from_slice(ikm);
         Ok(SessionKeys {
+            classical_ecdh_ikm_storage,
+            classical_ecdh_ikm_len: inner.len,
             profile_prk_material,
             payload_key_i2r,
             payload_key_r2i,
@@ -270,9 +274,14 @@ fn ordered_epk_salt(
 /// No `Clone`, no `Copy`.
 #[derive(Zeroize, ZeroizeOnDrop)]
 pub struct SessionKeys {
-    /// HKDF-Extract output (SHA-256) from the ephemeral shared secret; used for cipher-profile
-    /// per-layer HKDF-Expand with profile-specific labels (independent domain separation from
-    /// the expanded keys below).
+    /// Raw classical ECDH shared secret (packed `x` coordinate); same IKM as
+    /// [`EphemeralSharedSecret::cess_k_outer_mode_a`]. Retained for CESS §8.3 inner cascade
+    /// HKDF-BLAKE3 (`cipher_profile::cascade_encrypt` / `cascade_decrypt`); not the same bytes as
+    /// [`Self::profile_prk`].
+    classical_ecdh_ikm_storage: Zeroizing<[u8; MAX_SHARED]>,
+    classical_ecdh_ikm_len: u8,
+    /// HKDF-Extract output (SHA-256) from the ephemeral shared secret with EPK-ordered salt;
+    /// used for cipher-profile **custom** profiles (no CESS `suite_id` mapping) only.
     profile_prk_material: Zeroizing<[u8; 32]>,
     /// ChaCha20-Poly1305 payload key initiator to responder.
     pub payload_key_i2r: Zeroizing<[u8; 32]>,
@@ -289,11 +298,15 @@ pub struct SessionKeys {
 }
 
 impl SessionKeys {
-    /// Raw HKDF pseudorandom key (HKDF-Extract output) for cipher-profile cascade key derivation.
-    ///
-    /// This PRK is distinct from the per-purpose keys below: cipher-profile uses separate
-    /// HKDF-Expand labels under this PRK so profile layer keys are independent of GDSS and
-    /// payload keys.
+    /// Classical ECDH output octets for CESS-mapped cipher profiles: pass this slice to
+    /// `cipher_profile::cascade_encrypt` / `cascade_decrypt` as `ikm` (CESS §8.3).
+    pub fn cess_inner_cascade_ikm(&self) -> &[u8] {
+        &self.classical_ecdh_ikm_storage[..self.classical_ecdh_ikm_len as usize]
+    }
+
+    /// Raw HKDF pseudorandom key (HKDF-Extract output) for cipher-profile cascade key derivation
+    /// on **custom** profiles (no built-in CESS `suite_id`). For built-in registry profiles use
+    /// [`Self::cess_inner_cascade_ikm`] instead.
     pub fn profile_prk(&self) -> &[u8; 32] {
         &self.profile_prk_material
     }
@@ -428,6 +441,23 @@ mod tests {
         let _keys = s
             .derive_session_keys(pa.as_slice(), pb.as_slice())
             .expect("derive");
+    }
+
+    #[test]
+    fn cess_inner_cascade_ikm_retains_raw_ecdh() {
+        let mut t1 = FakeTrng::from_seed(0x61);
+        let mut t2 = FakeTrng::from_seed(0x62);
+        let curve = SessionCurve::BrainpoolP384r1;
+        let a = EphemeralKeyPair::generate(curve, &mut t1).expect("a");
+        let b = EphemeralKeyPair::generate(curve, &mut t2).expect("b");
+        let pa = a.public_key_bytes().to_vec();
+        let pb = b.public_key_bytes().to_vec();
+        let s = a.ecdh(pb.as_slice()).expect("ecdh");
+        let raw = s.as_bytes_for_test().to_vec();
+        let keys = s
+            .derive_session_keys(pa.as_slice(), pb.as_slice())
+            .expect("derive");
+        assert_eq!(keys.cess_inner_cascade_ikm(), raw.as_slice());
     }
 
     #[test]

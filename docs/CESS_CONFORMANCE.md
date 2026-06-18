@@ -65,7 +65,7 @@ Therefore this repository is **not** a drop-in **CESS-CORE** implementation for 
 ## Roadmap toward stronger CESS interoperability
 
 1. **Done (this tree):** **HKDF-BLAKE3** for **`K_outer`** (`cess::hkdf_blake3`, `cess::derive_k_outer`); unit tests match CESS `vectors/hkdf_blake3.toml`. **Mode A outer** ChaCha20-Poly1305 (`cess::seal_mode_a_outer`, `open_mode_a_outer`). **`EphemeralSharedSecret::cess_k_outer_mode_a`** before HKDF-SHA256 session derivation.  
-2. **Inner HKDF-BLAKE3** `info` strings for per-suite keys after outer decrypt (CESS §8.3) — not yet wired to cipher-profile inner blobs.  
+2. **Inner HKDF-BLAKE3** `info` strings for per-suite keys (CESS §8.3) — wired in `cipher-profile` for built-in profiles that map to a registry `suite_id` (`cascade.rs`, `cess::inner_info`); IKM is the classical ECDH octets (`ephemeral_session::SessionKeys::cess_inner_cascade_ikm`).  
 3. **CI:** Vendor or submodule CESS `vectors/` and run the official **runner** beyond HKDF unit tests.  
 4. **Publication:** Per CESS [CONFORMANCE.md](https://github.com/Supermagnum/CESS/blob/main/CONFORMANCE.md), publish a conformance statement with CESS version, level (when achieved), and vector commit hash.
 

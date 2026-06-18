@@ -6,6 +6,7 @@ license = "GPL-3.0"
 description = "Named cipher profiles: ECDHE curve, symmetric cascade, Shamir metadata"
 
 [dependencies]
+cess = { path = "../cess" }
 galdr-core = { path = "../galdr-core" }
 vault = { path = "../vault" }
 ephemeral-session = { path = "../ephemeral-session" }

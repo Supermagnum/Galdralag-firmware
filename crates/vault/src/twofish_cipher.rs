@@ -146,12 +146,26 @@ impl TwofishKey {
             .map_err(|_| TwofishError::CipherError)
     }
 
-    #[doc(hidden)]
-    pub fn from_raw_cipher_mac_for_test(cipher: [u8; 32], mac: [u8; 32]) -> Self {
+    /// Build from 32+32 octet cipher and MAC keys (e.g. HKDF-BLAKE3 64-byte expand for CESS inner).
+    pub fn from_cipher_mac_keys(cipher: [u8; 32], mac: [u8; 32]) -> Self {
         Self {
             cipher_key: zeroize::Zeroizing::new(cipher),
             mac_key: zeroize::Zeroizing::new(mac),
         }
+    }
+
+    /// Build from 64 octets of OKM (cipher || MAC), e.g. HKDF-BLAKE3 for CESS inner.
+    pub fn from_okm64(okm: &[u8; 64]) -> Self {
+        let mut c = [0u8; 32];
+        let mut m = [0u8; 32];
+        c.copy_from_slice(&okm[..32]);
+        m.copy_from_slice(&okm[32..]);
+        Self::from_cipher_mac_keys(c, m)
+    }
+
+    #[doc(hidden)]
+    pub fn from_raw_cipher_mac_for_test(cipher: [u8; 32], mac: [u8; 32]) -> Self {
+        Self::from_cipher_mac_keys(cipher, mac)
     }
 
     #[doc(hidden)]
@@ -173,6 +187,13 @@ impl TwofishNonce {
         let mut n = [0u8; 16];
         n.copy_from_slice(&okm[..16]);
         Ok(Self(n))
+    }
+
+    /// First 16 octets of a 32-byte OKM (e.g. HKDF-BLAKE3 expand for deterministic nonce).
+    pub fn from_okm32_prefix(okm: &[u8; 32]) -> Self {
+        let mut n = [0u8; 16];
+        n.copy_from_slice(&okm[..16]);
+        Self(n)
     }
 
     /// Generate a random nonce from the TRNG (128 bits).

@@ -108,6 +108,11 @@ impl ChaChaKey {
         Self(bytes)
     }
 
+    /// Build from 32 octets of key material (e.g. HKDF-BLAKE3 expand output for CESS §8.3 inner).
+    pub fn from_symmetric_key_material(key: [u8; 32]) -> Self {
+        Self(key)
+    }
+
     /// Test-only inspection of raw key bytes (integration tests).
     #[doc(hidden)]
     pub fn as_raw_bytes_for_test(&self) -> [u8; 32] {
@@ -125,6 +130,13 @@ impl ChaChaNonce {
         let mut n = GenericArray::<u8, U12>::default();
         n.copy_from_slice(&okm[..12]);
         Ok(Self(n))
+    }
+
+    /// First 12 octets of a 32-byte OKM (e.g. HKDF-BLAKE3 expand used for deterministic nonce).
+    pub fn from_okm32_prefix(okm: &[u8; 32]) -> Self {
+        let mut n = GenericArray::<u8, U12>::default();
+        n.copy_from_slice(&okm[..12]);
+        Self(n)
     }
 
     /// Generate a random nonce from the TRNG. Preferred construction.

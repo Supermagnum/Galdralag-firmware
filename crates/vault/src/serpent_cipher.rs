@@ -101,6 +101,18 @@ impl SerpentKey {
         })
     }
 
+    /// Build from 64 octets of OKM (first 32 cipher, next 32 MAC), e.g. HKDF-BLAKE3 for CESS inner.
+    pub fn from_okm64(okm: &[u8; 64]) -> Self {
+        let mut cipher_key = [0u8; 32];
+        let mut mac_key = [0u8; 32];
+        cipher_key.copy_from_slice(&okm[..32]);
+        mac_key.copy_from_slice(&okm[32..]);
+        Self {
+            cipher_key: zeroize::Zeroizing::new(cipher_key),
+            mac_key: zeroize::Zeroizing::new(mac_key),
+        }
+    }
+
     /// Derive cipher and MAC keys from HKDF-SHA256 for the given `KeyPurpose` and extra `info`.
     pub fn derive(prk: &[u8], purpose: KeyPurpose, info: &[u8]) -> Result<Self, SerpentError> {
         let mut inf = heapless::Vec::<u8, 256>::new();
@@ -161,6 +173,13 @@ impl SerpentNonce {
         let mut n = [0u8; 16];
         n.copy_from_slice(&okm[..16]);
         Ok(Self(n))
+    }
+
+    /// First 16 octets of a 32-byte OKM (e.g. HKDF-BLAKE3 expand for CESS inner).
+    pub fn from_okm32_prefix(okm: &[u8; 32]) -> Self {
+        let mut n = [0u8; 16];
+        n.copy_from_slice(&okm[..16]);
+        Self(n)
     }
 
     /// Generate a random nonce from the TRNG (128 bits).

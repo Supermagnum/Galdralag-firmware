@@ -1,7 +1,9 @@
 //! Named cipher profiles: ECDHE curve, symmetric cascade, and Shamir metadata.
 //!
-//! Profiles are immutable once built. Cascade encryption uses independent HKDF labels per layer
-//! derived from the session PRK ([`ephemeral_session::SessionKeys::profile_prk`]).
+//! Profiles are immutable once built. Cascade keying: **built-in** names that map to a CESS
+//! `suite_id` use **HKDF-BLAKE3** over the **classical ECDH** shared secret
+//! ([`ephemeral_session::SessionKeys::cess_inner_cascade_ikm`]); **custom** profiles use
+//! **HKDF-SHA256** over a 32-byte PRK ([`ephemeral_session::SessionKeys::profile_prk`]).
 
 #![cfg_attr(not(test), no_std)]
 #![deny(unsafe_code)]
