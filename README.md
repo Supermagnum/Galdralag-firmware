@@ -10,6 +10,7 @@ This project is **registered with the [Open Invention Network (OIN)](https://ope
 
 - [Open Invention Network](#open-invention-network)
 - [What this is](#what-this-is)
+  - [Galdra contact metadata](#galdra-contact-metadata)
   - [What this firmware is (and is not)](#what-this-firmware-is-and-is-not)
   - [Signed firmware (Ed25519, boot0)](#signed-firmware-ed25519-boot0)
 - [Is this AI slop?](#is-this-ai-slop)
@@ -25,6 +26,7 @@ This project is **registered with the [Open Invention Network (OIN)](https://ope
 - [Galdralag for dummies](#galdralag-for-dummies)
   - [What is GnuPG?](#what-is-gnupg)
 - [GnuPG / OpenPGP keys and Galdra keys](#gnupg--openpgp-keys-and-galdra-keys)
+  - [Metadata comparison (GnuPG vs Galdra)](#metadata-comparison-gnupg-vs-galdra)
 - [Skipped and ignored tests](#skipped-and-ignored-tests)
 - [About the name](#about-the-name)
 - [Documentation](#documentation)
@@ -106,7 +108,9 @@ usage are documented in **[Supermagnum/Baochip-1x-firmware](https://github.com/S
 The **Dabao** evaluation board (KiCad, schematics, switches, pinout) is **[baochip/dabao](https://github.com/baochip/dabao)**. To enter **bootloader mode** for flashing, **press SW2** to toggle it (see that repo's schematic).
 Architecture notes for this repository: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
-**Galdra contact metadata.** The **Galdra** host tool keeps a **local SQLite** directory of recipients (contacts). Each stored identity includes public key material plus optional **sidecar labels** (see the table below). These tags live in the host database and, for **Galdra keys**, in the on-chip **contact store** (`crates/contact-store`). They are **not** magically bound to OpenPGP User IDs unless you align them yourself, and they are **not** cryptographically asserted unless you check them **out of band**. Optional **`galdra keyserver push`** can send overlapping fields to a project registry as JSON alongside the exported public key. Per-field provenance on the token uses **SelfAttested**, **HostVerified**, **RegistrySync**, and **OobVerified** (see [GnuPG / OpenPGP keys and Galdra keys](#gnupg--openpgp-keys-and-galdra-keys) and the contact-store layout in [docs/RRAM_LAYOUT.md](docs/RRAM_LAYOUT.md)).
+### Galdra contact metadata
+
+The **Galdra** host tool keeps a **local SQLite** directory of recipients (contacts). Each stored identity includes public key material plus optional **sidecar labels** (see the table below). These tags live in the host database and, for **Galdra keys**, in the on-chip **contact store** (`crates/contact-store`). They are **not** magically bound to OpenPGP User IDs unless you align them yourself, and they are **not** cryptographically asserted unless you check them **out of band**. Optional **`galdra keyserver push`** can send overlapping fields to a project registry as JSON alongside the exported public key. Per-field provenance on the token uses **SelfAttested**, **HostVerified**, **RegistrySync**, and **OobVerified** (see [Metadata comparison (GnuPG vs Galdra)](#metadata-comparison-gnupg-vs-galdra) and the contact-store layout in [docs/RRAM_LAYOUT.md](docs/RRAM_LAYOUT.md)).
 
 | Field | Purpose | Host (`galdra` SQLite) | On-chip contact store | Format / limit |
 |-------|---------|--------------------------|------------------------|----------------|
@@ -255,33 +259,57 @@ My personal recommendation is **BrainpoolP256r1 + ChaCha20-Poly1305 + BLAKE3**. 
 
 ## GnuPG / OpenPGP keys and Galdra keys
 
-Galdralag can work with two different kinds of asymmetric key at once. They answer different questions on the device and on the host, and they are not interchangeable even when they belong to the same person. The sections **OpenPGP and GnuPG compatibility**, **Web of Trust and Key Signing Parties**, and **Galdra contact metadata** (under **What this is**) describe each stack in more detail; here is how they differ in everyday terms.
+Galdralag can work with two different kinds of asymmetric key at once. They answer different questions on the device and on the host, and they are not interchangeable even when they belong to the same person. The sections **OpenPGP and GnuPG compatibility**, **Web of Trust and Key Signing Parties**, [Galdra contact metadata](#galdra-contact-metadata), and [Metadata comparison (GnuPG vs Galdra)](#metadata-comparison-gnupg-vs-galdra) describe each stack in more detail; here is how they differ in everyday terms.
 
 An **OpenPGP key**, in the sense GnuPG generates and uses, is a structured packet, not a bare public number. It bundles the primary key, subkeys for signing and encryption, and one or more **User IDs** — usually a display name and an email address such as `Alice Example <alice@example.org>`. Other people can sign those User IDs to say they believe the identity claim is genuine; that social graph is the basis of the web of trust described in **Web of Trust and Key Signing Parties** later in this README. When Galdralag acts as an OpenPGP smartcard, it holds the **private** key material on chip and performs signing and decryption there. The **public** key, the User IDs, and the signatures from others live on the host and are managed by GnuPG in the usual way. The token does not change the OpenPGP message format on the wire; GnuPG treats it like any other OpenPGP card.
 
-| Field / object | Purpose | Host (GnuPG, `~/.gnupg`) | On token (OpenPGP card app) | Format / limit |
-|----------------|---------|-------------------------|-----------------------------|----------------|
-| **Primary key** | Certificate root; binds subkeys | Public in keyring; private on host or on card | Private only when generated or imported to card | OpenPGP packet (RFC 4880) |
-| **SIG subkey** | Signing (mail, files, certs) | Public in keyring | Private in sealed **SIG** slot | Default **Brainpool P-256 ECDSA**; slot **SIG** |
-| **DEC subkey** | Decryption / ECDH | Public in keyring | Private in sealed **DEC** slot | Default **Brainpool P-256 ECDH**; slot **DEC** |
-| **AUT subkey** | Authentication (e.g. SSH via `gpg-agent`) | Public in keyring | Private in sealed **AUT** slot | Default **Brainpool P-256 ECDSA**; slot **AUT** |
-| **User ID** | Name and e-mail identity claim | Yes (inside the certificate) | No | UTF-8 string, e.g. `Alice Example <alice@example.org>`; self-asserted until signed |
-| **Certification signature** | WoT: "I believe this User ID" | Yes (from other keys) | No | Third-party signatures on User IDs; see **Web of Trust and Key Signing Parties** |
-| **Revocation certificate** | Retire the key | Yes (keyring / keyservers) | No | Host-managed |
-| **Subkey / cert expiry** | Validity end time | Yes | No | Host certificate metadata |
-| **OpenPGP v4 fingerprint** | Unique key identifier | Yes | No (host matches card to cert) | **40 hex** characters; **not** the same as a **`G:`** Galdra device fingerprint |
-| **OpenPGP key ID** | Short id for `gpg` commands | Yes | No | 16- or 32-bit form derived from fingerprint |
-| **Algorithm attributes** | Curve and key type per slot | Read/write via `gpg --card-edit` | Yes (card DOs **0xC1**, **0xC2**, **0xC3**) | Brainpool P-256/P-384/P-512, NIST P-256/P-384, Ed25519, X25519, RSA-2048/3072/4096 ([docs/OPENPGP_CARD.md](docs/OPENPGP_CARD.md)) |
-| **Public key material** | Encrypt-to, verify signatures | Yes (`gpg --export`, keyservers) | Never exported as private | Card returns **public** blobs only; private ops stay on chip |
-| **PW1 (user PIN)** | Unlock signing and decryption | Never stored on host | SHA-256 verifier + policy on chip | Min **5** characters; default **3** attempts then lockout / zeroisation |
-| **PW3 (admin PIN)** | Card administration | Never stored on host | SHA-256 verifier + policy on chip | Min **5** characters; default **3** attempts |
-| **PW status (DO 0xC4)** | PIN lengths and retry counters | Shown in `gpg --card-status` | Yes | OpenPGP card data object |
-| **Cardholder DOs** | Login, language, sex, URL, etc. | Cached by GnuPG as needed | Optional in card DO store | e.g. **0x5E**, **0x5F2D**, **0x5F35**, **0x5F50**; max **254 bytes** per DO in firmware store |
-| **Signature counter** | Monotonic sign count | May be shown by host tools | Yes (in-RAM / card state) | Host-visible via card commands where implemented |
+A **Galdra key** is a bare asymmetric keypair — Ed25519, X25519, or one of the Brainpool or NIST curves the firmware supports. The key bytes themselves carry **no** identity claims: no User ID packets, no email baked in, no web-of-trust signatures attached to the key structure. Identity for a Galdra key comes from the **contact record** stored next to it in the host SQLite database and the on-chip **contact store**, tied to the key by its fingerprint.
 
-Card application version **3.4.1**, CCID transport, and host workflows: [docs/OPENPGP_CARD.md](docs/OPENPGP_CARD.md) and [OpenPGP and GnuPG compatibility](#openpgp-and-gnupg-compatibility). OpenPGP **message** format (encrypted mail and files) is assembled on the host; the card supplies keys and on-card crypto.
+### Metadata comparison (GnuPG vs Galdra)
 
-A **Galdra key** is a bare asymmetric keypair — Ed25519, X25519, or one of the Brainpool or NIST curves the firmware supports. The key bytes themselves carry **no** identity claims: no User ID packets, no email baked in, no web-of-trust signatures attached to the key structure. Identity for a Galdra key comes from the **contact record** stored next to it: callsign, DMR subscriber ID, radio affiliation, badge number, organisation, role, and the other sidecar fields summarised in **Galdra contact metadata**. Those fields live in the on-chip contact store on the device and in the host SQLite database, tied to the key by its fingerprint. They are not part of the key and are not cryptographically asserted by the key format. How much you should trust each field depends on how it was filled in; the field provenance model in `docs/CONTACT_STORE.md` makes that explicit.
+The table below compares **identity and contact metadata** field by field. **OpenPGP / GnuPG** columns describe what you get from a normal certificate and User ID (plus optional host-side contact rows in **Galdra** when you store an OpenPGP public key in the same directory). **Galdra key** columns describe structured sidecar fields for operational contacts (full host and on-chip detail in [Galdra contact metadata](#galdra-contact-metadata)). A dash means that stack has no standard, separate field for that item.
+
+| Metadata field | OpenPGP / GnuPG | Galdra key (host + contact store) |
+|----------------|-----------------|-----------------------------------|
+| **Contact / record id** | No (use key ID or fingerprint) | Yes (SQLite `id` on host; not on chip) |
+| **Display name** | Only inside **User ID** text (`Name <email>`) | Yes (separate UTF-8 field) |
+| **E-mail** | Only inside **User ID** text | Yes (separate field; lookup by e-mail on chip) |
+| **Street address** | No standard field | Yes |
+| **Country** | No standard field | Yes |
+| **Postal / ZIP code** | No standard field | Yes |
+| **Region / state** | No standard field | Yes |
+| **Organisation** | No standard field | Yes |
+| **Department** | No standard field | Yes |
+| **Role / job title** | No standard field | Yes |
+| **Badge / employee id** | No standard field | Yes |
+| **Callsign** | No standard field | Yes (**12** bytes, NUL-padded on chip) |
+| **DMR subscriber ID** | No standard field | Yes (**32-bit**; lookup on chip) |
+| **Radio affiliation** | No standard field | Yes |
+| **Fluxer ID** | No standard field | Yes |
+| **Discord ID** | No standard field | Yes |
+| **IRC id** | No standard field | Yes |
+| **Free-form note** | No standard field | Yes |
+| **OpenPGP v4 fingerprint** | Yes (**40** hex chars) | Optional on host row when linking a cert (`pgp_fingerprint`); **32** bytes on chip for Galdra keys |
+| **`G:` device fingerprint** | No | Yes (BLAKE3-160 over SIG public key; host tool; **not** the OpenPGP v4 value) |
+| **OpenPGP key ID** | Yes (short / long form) | No |
+| **Trust / provenance** | **WoT** signatures on User IDs | Per-field labels: SelfAttested, HostVerified, RegistrySync, OobVerified (on chip) |
+| **Key expiry** | Yes (certificate / subkey) | Host only (`expires_at` in SQLite) |
+| **Last key fetch time** | Host tooling dependent | Yes (`fetched_at` / `last_fetched`) |
+| **Private key on token** | **SIG**, **DEC**, **AUT** card slots | Separate **Galdra** key region (not User ID packets) |
+| **PIN to use private key** | PW1 / PW3 (OpenPGP card) | Optional PIN wrap per Galdra contact record |
+
+OpenPGP puts **name and e-mail in one User ID string**; it does not give you separate, machine-readable callsign, DMR, or postal fields. **Galdra** keeps those as named columns so radio and operations teams can search and display them without parsing certificate text.
+
+| OpenPGP card object (not in table above) | Host (GnuPG) | On token |
+|------------------------------------------|--------------|----------|
+| Primary + **SIG** / **DEC** / **AUT** subkeys | Public in keyring | Private in sealed slots |
+| **Certification signatures** (WoT) | Yes | No |
+| **Revocation certificate** | Yes | No |
+| **Algorithm attributes** (DO **0xC1** / **0xC2** / **0xC3**) | `gpg --card-edit` | Yes |
+| **PW1** / **PW3** | Never stored | Verifier on chip (min **5** chars, **3** tries default) |
+| **Cardholder DOs** (login, language, URL, …) | Cached by GnuPG | Optional (**254** bytes max per DO) |
+
+Card application **3.4.1**, CCID, and GnuPG workflows: [docs/OPENPGP_CARD.md](docs/OPENPGP_CARD.md) and [OpenPGP and GnuPG compatibility](#openpgp-and-gnupg-compatibility).
 
 The split exists because the identity information that matters in the communities Galdralag targets — callsign, DMR ID, radio network affiliation — has no natural home in an OpenPGP User ID. A User ID is meant for name and email. Writing something like `LA5XYZ <la5xyz@example.org> DMR:2345678` into a User ID string is informal, unstructured, and not machine-readable in any standard way. Galdra keys keep the cryptographic material clean and put operational identity in a record format the host tool and on-chip store understand natively.
 
