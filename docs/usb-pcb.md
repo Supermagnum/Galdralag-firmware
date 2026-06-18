@@ -40,6 +40,7 @@ VCC → 3.3V rail (already present).
 GND → GND.
 One 100nF + one 10µF decoupling cap close to the PSRAM VCC pin — same 0201 size already used throughout.
 Keep power planes and power infrastructure components intact, move components to fit on the new pcb only if needed.
+Refill power and copper ground planes.
 
 That is the complete change list. Nothing about the power infrastructure changes. 
 Both MT3406 buck converters, all their passives, the crystal, and all the Baochip-1x BGA decoupling stay exactly where they are. 
