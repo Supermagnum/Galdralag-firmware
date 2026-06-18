@@ -27,7 +27,7 @@ Architecture notes for this repository: [docs/ARCHITECTURE.md](docs/ARCHITECTURE
 
 ### What this firmware is (and is not)
 
-**This firmware is** a **hardware security token** for **Baochip-1x**: an **OpenPGP card application** over **USB CCID**, with an on-device **vault**, **PIN policy**, and repository-specific features (**cipher profiles** — you can stack **up to four** different symmetric ciphers on top of one another, each with its own derived key, including **three**-layer profiles; see [Key capabilities](#key-capabilities)), Shamir-related flows, authenticated ephemeral ECDH where implemented, and **Galdra** host tools). The primary interoperability target is **GnuPG-style** OpenPGP card usage, not every token protocol on the market.
+**This firmware is** a **hardware security token** for **Baochip-1x**: an **OpenPGP card application** over **USB CCID**, with an on-device **vault**, **PIN policy**, and repository-specific features (**cipher profiles** — you can **stack** **up to four** different symmetric ciphers in one cascade, each with its own derived key; see [Key capabilities](#key-capabilities)), Shamir-related flows, authenticated ephemeral ECDH where implemented, and **Galdra** host tools). The primary interoperability target is **GnuPG-style** OpenPGP card usage, not every token protocol on the market.
 
 **This firmware is not:**
 
