@@ -53,6 +53,14 @@ pub struct PushArgs {
     postal_code: Option<String>,
     #[arg(long)]
     region: Option<String>,
+    #[arg(long)]
+    organisation: Option<String>,
+    #[arg(long)]
+    role: Option<String>,
+    #[arg(long)]
+    note: Option<String>,
+    #[arg(long = "badge-number")]
+    badge_number: Option<String>,
     /// Print JSON body and skip the network request.
     #[arg(long)]
     dry_run: bool,
@@ -89,6 +97,19 @@ struct PushPayload<'a> {
     postal_code: Option<&'a str>,
     #[serde(skip_serializing_if = "Option::is_none")]
     region: Option<&'a str>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    organisation: Option<&'a str>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    role: Option<&'a str>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    note: Option<&'a str>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    badge_number: Option<&'a str>,
+}
+
+/// Non-whitespace trimmed string, or [`None`] if missing or blank (omit from outbound JSON).
+fn opt_trim_nonempty(s: Option<&String>) -> Option<&str> {
+    s.map(|x| x.as_str().trim()).filter(|t| !t.is_empty())
 }
 
 /// Collect RFC 5322 normalised emails from certificate user IDs (deduplicated, sorted).
@@ -243,6 +264,10 @@ pub fn run_push(
         country: args.country.as_deref(),
         postal_code: args.postal_code.as_deref(),
         region: args.region.as_deref(),
+        organisation: opt_trim_nonempty(args.organisation.as_ref()),
+        role: opt_trim_nonempty(args.role.as_ref()),
+        note: opt_trim_nonempty(args.note.as_ref()),
+        badge_number: opt_trim_nonempty(args.badge_number.as_ref()),
     };
 
     let json = serde_json::to_string_pretty(&payload)

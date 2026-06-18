@@ -60,3 +60,43 @@ fn keyserver_push_dry_run_fixture_outputs_json() {
         .stdout(predicate::str::contains("\"armored_public_key\""))
         .stdout(predicate::str::contains("BEGIN PGP PUBLIC KEY BLOCK"));
 }
+
+#[test]
+fn keyserver_push_dry_run_includes_fulla_sidecar_fields_when_set() {
+    let dir = TempDir::new().expect("tmp");
+    let db_path = dir.path().join("g.db");
+    fresh_db(&db_path);
+    let pubkey = armored_pubkey_tmp(dir.path());
+
+    Command::cargo_bin("galdra")
+        .expect("galdra")
+        .env("HOME", dir.path())
+        .args([
+            "--db",
+            db_path.to_str().expect("utf8"),
+            "--quiet",
+            "keyserver",
+            "push",
+            "--dry-run",
+            "--email",
+            "test@example.com",
+            "--keyserver-url",
+            "https://keys.example.invalid",
+            "--fixture-armored-key",
+            pubkey.to_str().expect("utf8"),
+            "--organisation",
+            "ACME SAR",
+            "--role",
+            "dispatch",
+            "--note",
+            "Exercise Net",
+            "--badge-number",
+            "RFC-913",
+        ])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("\"organisation\": \"ACME SAR\""))
+        .stdout(predicate::str::contains("\"role\": \"dispatch\""))
+        .stdout(predicate::str::contains("\"note\": \"Exercise Net\""))
+        .stdout(predicate::str::contains("\"badge_number\": \"RFC-913\""));
+}

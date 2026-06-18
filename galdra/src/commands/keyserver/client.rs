@@ -47,6 +47,14 @@ pub struct KeyRecord {
     pub postal_code: Option<String>,
     #[serde(default)]
     pub region: Option<String>,
+    #[serde(default)]
+    pub organisation: Option<String>,
+    #[serde(default)]
+    pub role: Option<String>,
+    #[serde(default)]
+    pub note: Option<String>,
+    #[serde(default)]
+    pub badge_number: Option<String>,
     pub submitted_at: String,
     pub status: String,
     #[serde(default)]
@@ -226,5 +234,25 @@ mod tests {
             push_url("https://keys.example.com/").unwrap(),
             "https://keys.example.com/api/v1/keys"
         );
+    }
+
+    #[test]
+    fn key_record_deserializes_fulla_sidecar_fields() {
+        let j = serde_json::json!({
+            "fingerprint": "0123456789ABCDEF0123456789ABCDEF01234567",
+            "armored_key": "-----BEGIN PGP PUBLIC KEY BLOCK-----\nmQENBF...\n-----END PGP PUBLIC KEY BLOCK-----",
+            "email": "fixture@example.com",
+            "submitted_at": "2026-01-01T00:00:00Z",
+            "status": "accepted",
+            "organisation": "County EM",
+            "role": "net_control",
+            "note": "Field day",
+            "badge_number": "42",
+        });
+        let r: KeyRecord = serde_json::from_value(j).expect("deserialize");
+        assert_eq!(r.organisation.as_deref(), Some("County EM"));
+        assert_eq!(r.role.as_deref(), Some("net_control"));
+        assert_eq!(r.note.as_deref(), Some("Field day"));
+        assert_eq!(r.badge_number.as_deref(), Some("42"));
     }
 }
