@@ -97,12 +97,31 @@ At that point the project will be a complete, tested, open-source hardware secur
 
 ## Documentation
 
-- **[Galdra — Token Management Tool Specification](https://github.com/Supermagnum/Galdralag-firmware/blob/main/docs/GALDRA-TOOL.md)** — host tools (`galdra` CLI, `galdrad` daemon, `galdra-gtk`), contacts, groups, OpenPGP workflows, and operational behaviour.
-- **[Glossary](https://github.com/Supermagnum/Galdralag-firmware/blob/main/docs/GLOSSARY.md)** — short definitions of terms used across this repository.
+**Browse all files:** [github.com/Supermagnum/Galdralag-firmware — `docs/`](https://github.com/Supermagnum/Galdralag-firmware/tree/main/docs)
 
-Same files in a local clone: [docs/GALDRA-TOOL.md](docs/GALDRA-TOOL.md), [docs/GLOSSARY.md](docs/GLOSSARY.md).
+| Document | Description |
+|----------|-------------|
+| [docs/API_REFERENCE.md](docs/API_REFERENCE.md) | Code map + **annex** for IETF/I-D/GnuPG/Sequoia: Shamir GF(256) construction, GALDRA SHARE armour, ephemeral ECDH wire format, HKDF labels, preimages; `galdrad` routes; rustdoc hints |
+| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | High-level firmware architecture and major subsystems |
+| [docs/GALDRA-TOOL.md](docs/GALDRA-TOOL.md) | Host tools (`galdra`, `galdrad`, `galdra-gtk`): workflows, provisioning, PIN policy, operational behaviour |
+| [docs/GLOSSARY.md](docs/GLOSSARY.md) | Definitions of terms used across the repository |
+| [docs/GALDRALAG_DEV_REFERENCE.md](docs/GALDRALAG_DEV_REFERENCE.md) | Toolchain, `xtask` commands, fuzzing and crypto test entry points |
+| [docs/dev-ref.md](docs/dev-ref.md) | Workspace layout, crates, HAL traits, USB/PSRAM behaviour, security invariants |
+| [docs/OPENPGP_CARD.md](docs/OPENPGP_CARD.md) | OpenPGP card application, GnuPG/CCID host setup, key slots, algorithms, udev |
+| [docs/XOUS_CCID_INTEGRATION.md](docs/XOUS_CCID_INTEGRATION.md) | Wiring CCID/OpenPGP USB into Xous on Baochip |
+| [docs/CIPHER_PROFILES.md](docs/CIPHER_PROFILES.md) | Cipher profile system and configuration |
+| [docs/EPHEMERAL_SESSION.md](docs/EPHEMERAL_SESSION.md) | Authenticated ephemeral ECDH session protocol |
+| [docs/PQ_SIGNATURES.md](docs/PQ_SIGNATURES.md) | Post-quantum stateful signatures (XMSS, LMS/HSS), feature gating |
+| [docs/Psram.md](docs/Psram.md) | Optional PSRAM decoy volume and related behaviour |
+| [docs/TEST_RESULTS.md](docs/TEST_RESULTS.md) | Vectors, dudect, cargo-fuzz matrices, key lifecycle checks |
+| [docs/PERFORMANCE.md](docs/PERFORMANCE.md) | Performance notes |
+| [docs/HARDWARE_VERIFICATION.md](docs/HARDWARE_VERIFICATION.md) | Hardware zeroisation: simulation vs silicon verification |
+| [docs/HARDWARE_TEST.md](docs/HARDWARE_TEST.md) | Hardware-oriented testing notes |
+| [docs/NFC_PN532_INTEGRATION.md](docs/NFC_PN532_INTEGRATION.md) | PN532 / NFC: libnfc, Rust options, door passive vs USB panel, quorum with Shamir and PIN |
+| [docs/SDMMC_STORAGE_INTEGRATION.md](docs/SDMMC_STORAGE_INTEGRATION.md) | `embedded-sdmmc` + SPI microSD as optional bulk storage; BOM alternative to PSRAM |
+| [docs/usb-pcb.md](docs/usb-pcb.md) | USB-A dongle PCB (Dabao-derived): KiCad, FreeCAD enclosure, 5 V / 500 mA class vs USB-C PD, QSPI PSRAM routing |
 
-- **[OpenPGP card application and GnuPG](docs/OPENPGP_CARD.md)** — host compatibility (`gpg`, `scdaemon`, CCID), key slots, algorithms, udev, PIN policy, and unsupported features.
+The same paths resolve on GitHub under [`tree/main/docs`](https://github.com/Supermagnum/Galdralag-firmware/tree/main/docs).
 
 ---
 

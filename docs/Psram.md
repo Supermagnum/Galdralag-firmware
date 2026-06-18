@@ -65,6 +65,8 @@ It is volatile (contents lost on power cycle) and has no hardware authentication
 or access control of its own. All access-control and persona-switching logic
 lives entirely in firmware.
 
+**Alternative hardware (same logical role):** An optional **microSD** slot driven by **SPI** and the Rust **`embedded-sdmmc`** stack can **replace** on-board **PSRAM** with a **suitable card reader**, still presenting an optional bulk decoy volume after unlock. See [SDMMC_STORAGE_INTEGRATION.md](SDMMC_STORAGE_INTEGRATION.md) for integration notes; policy (decoy, no vault secrets on bulk path) stays aligned with this document unless product requirements change.
+
 ---
 
 ## Graceful degradation contract
