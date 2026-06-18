@@ -1,6 +1,11 @@
 //! OpenPGP inner payload: profile-bound cascade ciphertext with session PRK and metadata.
+//!
+//! Optional **CESS Mode A** outer wrapping (ChaCha20-Poly1305 over `suite_id || inner_blob`) can be
+//! applied around the GALDRACP bytes before OpenPGP encryption when `K_outer` and a nonce are known
+//! (e.g. from ephemeral ECDH per CESS).
 
 use crate::GaldraError;
+use cess::{assemble_mode_a_outer_plaintext, open_mode_a_outer, parse_mode_a_outer_plaintext, seal_mode_a_outer};
 use cipher_profile::{
     cascade_decrypt, cascade_encrypt, CascadeCiphertext, CipherProfile,
 };
@@ -182,4 +187,95 @@ pub fn open_plaintext_after_openpgp(
 /// True if `data` begins with the Galdra cipher-profile inner magic.
 pub fn is_cipher_profile_envelope(data: &[u8]) -> bool {
     data.len() >= MAGIC.len() && &data[..MAGIC.len()] == MAGIC.as_slice()
+}
+
+/// Parse `s` as exactly `N` bytes of hex (length `2*N`).
+pub fn parse_hex_fixed<const N: usize>(label: &str, s: &str) -> Result<[u8; N], GaldraError> {
+    let s = s.trim();
+    if s.len() != N * 2 {
+        return Err(GaldraError::Config(format!(
+            "{label} must be {} hex characters ({} bytes)",
+            N * 2,
+            N
+        )));
+    }
+    let mut out = [0u8; N];
+    hex::decode_to_slice(s, &mut out)
+        .map_err(|e| GaldraError::Config(format!("{label}: {e}")))?;
+    Ok(out)
+}
+
+/// Wrap a sealed GALDRACP blob with CESS Mode A outer ChaCha20-Poly1305 (`nonce || ct || tag`).
+///
+/// `suite_id` is taken from the provisional registry for `profile_name`. Custom profiles without a
+/// mapping return an error until a suite id is assigned.
+pub fn wrap_inner_with_cess_mode_a(
+    inner_galdra: &[u8],
+    profile_name: &str,
+    k_outer: &[u8; 32],
+    nonce: &[u8; 12],
+) -> Result<Vec<u8>, GaldraError> {
+    let suite_id = cess::provisional::suite_id_for_profile_name(profile_name).ok_or_else(|| {
+        GaldraError::CipherProfile(format!(
+            "no provisional CESS suite_id for profile '{profile_name}' (Mode A supports built-in profiles only)"
+        ))
+    })?;
+    let outer_plain = assemble_mode_a_outer_plaintext(suite_id, inner_galdra).map_err(|e| {
+        GaldraError::CipherProfile(format!("cess outer plaintext: {e}"))
+    })?;
+    seal_mode_a_outer(k_outer, nonce, &outer_plain).map_err(|e| {
+        GaldraError::CipherProfile(format!("cess Mode A seal: {e}"))
+    })
+}
+
+fn open_cess_mode_a_outer_to_inner_blob(
+    wire: &[u8],
+    k_outer: &[u8; 32],
+) -> Result<Vec<u8>, GaldraError> {
+    let plain = open_mode_a_outer(k_outer, wire).map_err(|e| {
+        GaldraError::CipherProfile(format!("cess Mode A open: {e}"))
+    })?;
+    let (_suite_id, inner) = parse_mode_a_outer_plaintext(&plain).map_err(|e| {
+        GaldraError::CipherProfile(format!("cess outer plaintext: {e}"))
+    })?;
+    Ok(inner.to_vec())
+}
+
+/// After OpenPGP yields the symmetric literal payload, recover user plaintext and profile name.
+///
+/// If the literal is not a GALDRACP envelope and `cess_k_outer` is set, the literal is treated as
+/// CESS Mode A wire (`nonce || ct || tag`), opened with `K_outer`, then parsed as GALDRACP.
+pub fn open_plaintext_from_openpgp_literal(
+    inner: &[u8],
+    cess_k_outer: Option<&[u8; 32]>,
+    get_profile: impl FnOnce(&str) -> Option<CipherProfile>,
+) -> Result<(Vec<u8>, String), GaldraError> {
+    if is_cipher_profile_envelope(inner) {
+        return open_plaintext_after_openpgp(inner, get_profile);
+    }
+    if let Some(k) = cess_k_outer {
+        let blob = open_cess_mode_a_outer_to_inner_blob(inner, k)?;
+        if !is_cipher_profile_envelope(&blob) {
+            return Err(GaldraError::CipherProfile(
+                "CESS outer decrypted but inner is not a Galdra cipher-profile envelope".to_string(),
+            ));
+        }
+        return open_plaintext_after_openpgp(&blob, get_profile);
+    }
+    Ok((inner.to_vec(), "legacy-openpgp".to_string()))
+}
+
+#[cfg(test)]
+mod cess_wrap_tests {
+    use super::*;
+
+    #[test]
+    fn cess_mode_a_roundtrip_wraps_galdra_inner() {
+        let k_outer = [9u8; 32];
+        let nonce = [1u8; 12];
+        let inner = b"GALDRACPfake-for-test";
+        let wire = wrap_inner_with_cess_mode_a(inner, "standard", &k_outer, &nonce).expect("wrap");
+        let back = super::open_cess_mode_a_outer_to_inner_blob(&wire, &k_outer).expect("open");
+        assert_eq!(back.as_slice(), inner.as_slice());
+    }
 }

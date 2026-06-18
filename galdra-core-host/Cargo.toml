@@ -10,6 +10,7 @@ anyhow = { workspace = true }
 base64 = { version = "0.22", default-features = false, features = ["std"] }
 chrono = { workspace = true }
 cipher-profile = { path = "../crates/cipher-profile" }
+cess = { path = "../crates/cess" }
 heapless = { workspace = true }
 ephemeral-session = { path = "../crates/ephemeral-session" }
 galdr-core = { path = "../crates/galdr-core", features = ["test-hal"] }

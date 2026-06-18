@@ -6,6 +6,7 @@ license = "GPL-3.0"
 description = "Authenticated ephemeral ECDH session protocol (Brainpool, forward secrecy)"
 
 [dependencies]
+cess = { path = "../cess" }
 galdr-core = { path = "../galdr-core" }
 vault = { path = "../vault" }
 hkdf = { workspace = true }

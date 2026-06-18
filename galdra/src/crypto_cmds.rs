@@ -1,7 +1,10 @@
 //! OpenPGP encrypt / decrypt / sign / verify CLI wiring.
 
 use galdra_core_host::audit::{self, AuditAction, AuditEntry};
-use galdra_core_host::cipher_envelope::{is_cipher_profile_envelope, open_plaintext_after_openpgp, seal_plaintext_with_profile};
+use galdra_core_host::cipher_envelope::{
+    open_plaintext_from_openpgp_literal, parse_hex_fixed, seal_plaintext_with_profile,
+    wrap_inner_with_cess_mode_a,
+};
 use galdra_core_host::contacts::{self, ContactFilter, Identity};
 use galdra_core_host::encrypt::{self, try_decrypt_session_key_from_cert};
 use galdra_core_host::groups;
@@ -74,6 +77,8 @@ pub fn run_encrypt(
     hidden_recipient_cli: bool,
     sign: bool,
     profile: Option<String>,
+    cess_k_outer_hex: Option<String>,
+    cess_nonce_hex: Option<String>,
 ) -> Result<(), GaldraError> {
     let fmt = format.as_deref().unwrap_or("openpgp");
     if fmt == "age" {
@@ -125,16 +130,43 @@ pub fn run_encrypt(
         .get_owned(&profile_name)
         .ok_or_else(|| GaldraError::ProfileNotFound(profile_name.clone()))?;
 
+    let cess_k_outer: Option<[u8; 32]> = match (&cess_k_outer_hex, &cess_nonce_hex) {
+        (None, None) => None,
+        (Some(_), None) | (None, Some(_)) => {
+            return Err(GaldraError::Config(
+                "CESS Mode A requires both --cess-k-outer-hex and --cess-nonce-hex (12-byte nonce)"
+                    .to_string(),
+            ));
+        }
+        (Some(kh), Some(nh)) => {
+            let k = parse_hex_fixed::<32>("--cess-k-outer-hex", kh)?;
+            let _ = parse_hex_fixed::<12>("--cess-nonce-hex", nh)?;
+            Some(k)
+        }
+    };
+
     let ciphertext = if sign {
         return Err(GaldraError::Config(
             "cleartext signing during encrypt requires a connected token (not yet integrated)".to_string(),
         ));
     } else {
-        let sealed = seal_plaintext_with_profile(
+        let mut sealed = seal_plaintext_with_profile(
             &cipher_profile,
             &plaintext,
             PLACEHOLDER_SENDER_FP,
         )?;
+        if let Some(ref k_outer) = cess_k_outer {
+            let nonce = parse_hex_fixed::<12>(
+                "--cess-nonce-hex",
+                cess_nonce_hex.as_ref().expect("paired with k_outer"),
+            )?;
+            sealed = wrap_inner_with_cess_mode_a(
+                &sealed,
+                cipher_profile.name(),
+                k_outer,
+                &nonce,
+            )?;
+        }
         encrypt::encrypt_openpgp(
             &policy,
             &sealed,
@@ -167,13 +199,19 @@ pub fn run_encrypt(
             "bytes": ciphertext.len(),
             "recipients": idents.len(),
             "profile": profile_name,
+            "cess_mode_a": cess_k_outer.is_some(),
         }))?;
     } else if !quiet {
         eprintln!(
-            "Wrote {} bytes for {} recipient(s) (profile {}).",
+            "Wrote {} bytes for {} recipient(s) (profile {}{}).",
             ciphertext.len(),
             idents.len(),
             cipher_profile.name(),
+            if cess_k_outer.is_some() {
+                ", CESS Mode A outer"
+            } else {
+                ""
+            },
         );
     }
     Ok(())
@@ -257,6 +295,7 @@ pub fn run_decrypt(
     input: PathBuf,
     output: PathBuf,
     profile_hint: Option<String>,
+    cess_k_outer_hex: Option<String>,
 ) -> Result<(), GaldraError> {
     let fmt = format.as_deref().unwrap_or("openpgp");
     if fmt == "age" {
@@ -303,37 +342,43 @@ pub fn run_decrypt(
             }
         })?;
 
-    let store = ProfileStore::load(db)?;
-    let (plain, pname) = if is_cipher_profile_envelope(&inner) {
-        match open_plaintext_after_openpgp(&inner, |n| store.get_owned(n)) {
-            Ok(pair) => {
-                if let Some(ref hint) = profile_hint {
-                    if hint != &pair.1 {
-                        eprintln!(
-                            "Warning: --profile {hint} does not match ciphertext profile name {}.",
-                            pair.1
-                        );
-                    }
-                }
-                pair
-            }
-            Err(GaldraError::ProfileNotFound(name)) => {
-                eprintln!(
-                    "Warning: ciphertext was encrypted with profile \"{}\" which is not in the local registry. Add the profile definition before decrypting.",
-                    name
-                );
-                return Err(GaldraError::ProfileNotFound(name));
-            }
-            Err(e) => return Err(e),
-        }
-    } else {
-        if profile_hint.is_some() {
-            eprintln!(
-                "Warning: --profile is ignored for messages without a Galdra cipher-profile inner envelope."
-            );
-        }
-        (inner, "legacy-openpgp".to_string())
+    let cess_k_outer: Option<[u8; 32]> = match cess_k_outer_hex.as_ref() {
+        None => None,
+        Some(s) => Some(parse_hex_fixed::<32>("--cess-k-outer-hex", s)?),
     };
+
+    let store = ProfileStore::load(db)?;
+    let (plain, pname) = match open_plaintext_from_openpgp_literal(
+        &inner,
+        cess_k_outer.as_ref(),
+        |n| store.get_owned(n),
+    ) {
+        Ok(pair) => {
+            if let Some(ref hint) = profile_hint {
+                if hint != &pair.1 {
+                    eprintln!(
+                        "Warning: --profile {hint} does not match ciphertext profile name {}.",
+                        pair.1
+                    );
+                }
+            }
+            pair
+        }
+        Err(GaldraError::ProfileNotFound(name)) => {
+            eprintln!(
+                "Warning: ciphertext was encrypted with profile \"{}\" which is not in the local registry. Add the profile definition before decrypting.",
+                name
+            );
+            return Err(GaldraError::ProfileNotFound(name));
+        }
+        Err(e) => return Err(e),
+    };
+
+    if pname == "legacy-openpgp" && profile_hint.is_some() {
+        eprintln!(
+            "Warning: --profile is ignored for messages without a Galdra cipher-profile inner envelope."
+        );
+    }
 
     std::fs::write(&output, &plain).map_err(GaldraError::Io)?;
 

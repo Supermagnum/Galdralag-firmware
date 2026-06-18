@@ -14,7 +14,8 @@ use galdra_core_host::device::Device;
 use galdra_core_host::groups::{self, GroupSummary, GroupWithMembers};
 use galdra_core_host::cipher_profile::CipherProfileError;
 use galdra_core_host::cipher_envelope::{
-    is_cipher_profile_envelope, open_plaintext_after_openpgp, seal_plaintext_with_profile,
+    open_plaintext_from_openpgp_literal, parse_hex_fixed, seal_plaintext_with_profile,
+    wrap_inner_with_cess_mode_a,
 };
 use galdra_core_host::encrypt::{self, encrypt_openpgp, try_decrypt_session_key_from_cert};
 use galdra_core_host::profiles::{
@@ -376,6 +377,10 @@ pub struct EncryptBody {
     pub plaintext_b64: String,
     pub profile: Option<String>,
     pub sign: Option<bool>,
+    /// 64 hex chars: CESS `K_outer` (32 bytes); requires `cess_nonce_hex`.
+    pub cess_k_outer_hex: Option<String>,
+    /// 24 hex chars: 12-byte nonce for CESS Mode A outer.
+    pub cess_nonce_hex: Option<String>,
 }
 
 async fn encrypt_msg(
@@ -398,19 +403,43 @@ async fn encrypt_msg(
         .profile
         .clone()
         .unwrap_or_else(|| "standard".to_string());
+    let cess_k_outer_hex = body.cess_k_outer_hex.clone();
+    let cess_nonce_hex = body.cess_nonce_hex.clone();
     let out = run_db(&state, move |db| {
         let policy = StandardPolicy::new();
         let store = ProfileStore::load(db)?;
         let cipher_profile = store
             .get_owned(&profile_name)
             .ok_or_else(|| GaldraError::ProfileNotFound(profile_name.clone()))?;
+        let cess_k_outer: Option<[u8; 32]> = match (&cess_k_outer_hex, &cess_nonce_hex) {
+            (None, None) => None,
+            (Some(_), None) | (None, Some(_)) => {
+                return Err(GaldraError::Config(
+                    "CESS Mode A requires both cess_k_outer_hex and cess_nonce_hex".to_string(),
+                ));
+            }
+            (Some(kh), Some(nh)) => {
+                let k = parse_hex_fixed::<32>("cess_k_outer_hex", kh)?;
+                let _ = parse_hex_fixed::<12>("cess_nonce_hex", nh)?;
+                Some(k)
+            }
+        };
         let idents = groups::group_active_members(db, &group)?;
         let mut certs = Vec::new();
         for id in &idents {
             certs.push(identity_to_cert(id)?);
         }
         let g = groups::group_get(db, &group)?;
-        let sealed = seal_plaintext_with_profile(&cipher_profile, &plain, PLACEHOLDER_SENDER_FP)?;
+        let mut sealed = seal_plaintext_with_profile(&cipher_profile, &plain, PLACEHOLDER_SENDER_FP)?;
+        if let Some(ref k_outer) = cess_k_outer {
+            let nonce = parse_hex_fixed::<12>("cess_nonce_hex", cess_nonce_hex.as_ref().expect("paired"))?;
+            sealed = wrap_inner_with_cess_mode_a(
+                &sealed,
+                cipher_profile.name(),
+                k_outer,
+                &nonce,
+            )?;
+        }
         let ct = encrypt_openpgp(
             &policy,
             &sealed,
@@ -601,6 +630,8 @@ pub struct DecryptBody {
     pub recipient: String,
     pub ciphertext_b64: String,
     pub profile: Option<String>,
+    /// 64 hex chars: CESS `K_outer` when the inner literal is Mode A wrapped.
+    pub cess_k_outer_hex: Option<String>,
 }
 
 async fn decrypt_msg(
@@ -614,6 +645,7 @@ async fn decrypt_msg(
     )
     .map_err(|e| GaldraError::Config(format!("base64: {e}")))?;
     let profile_hint = body.profile.clone();
+    let cess_k_outer_hex = body.cess_k_outer_hex.clone();
     let out = run_db(&state, move |db| {
         let policy = StandardPolicy::new();
         let id = resolve_identity(db, &recipient)?;
@@ -632,24 +664,28 @@ async fn decrypt_msg(
                     e
                 }
             })?;
+        let cess_k_outer: Option<[u8; 32]> = match cess_k_outer_hex.as_ref() {
+            None => None,
+            Some(s) => Some(parse_hex_fixed::<32>("cess_k_outer_hex", s)?),
+        };
         let store = ProfileStore::load(db)?;
-        let (plain, pname) = if is_cipher_profile_envelope(&inner) {
-            match open_plaintext_after_openpgp(&inner, |n| store.get_owned(n)) {
-                Ok(pair) => {
-                    if let Some(ref hint) = profile_hint {
-                        if hint != &pair.1 {
-                            // mismatch is informational; ciphertext profile wins
-                        }
+        let (plain, pname) = match open_plaintext_from_openpgp_literal(
+            &inner,
+            cess_k_outer.as_ref(),
+            |n| store.get_owned(n),
+        ) {
+            Ok(pair) => {
+                if let Some(ref hint) = profile_hint {
+                    if hint != &pair.1 {
+                        // mismatch is informational; ciphertext profile wins
                     }
-                    pair
                 }
-                Err(GaldraError::ProfileNotFound(name)) => {
-                    return Err(GaldraError::ProfileNotFound(name));
-                }
-                Err(e) => return Err(e),
+                pair
             }
-        } else {
-            (inner, "legacy-openpgp".to_string())
+            Err(GaldraError::ProfileNotFound(name)) => {
+                return Err(GaldraError::ProfileNotFound(name));
+            }
+            Err(e) => return Err(e),
         };
         let sid = session_id_from_ciphertext(&ciphertext);
         let detail = if let Some(p) = store.get(&pname) {

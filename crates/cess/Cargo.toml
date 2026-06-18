@@ -1,0 +1,17 @@
+[package]
+name = "cess"
+version = "0.1.0"
+edition = "2021"
+license = "GPL-3.0"
+description = "CESS v0.2 Mode A: HKDF-BLAKE3 K_outer, ChaCha outer seal, suite_id wire layout"
+
+[dependencies]
+blake3 = { workspace = true, default-features = false }
+chacha20poly1305 = { workspace = true }
+aead = { workspace = true }
+
+[dev-dependencies]
+hex = { workspace = true }
+
+[lints]
+workspace = true

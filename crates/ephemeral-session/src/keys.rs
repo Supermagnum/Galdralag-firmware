@@ -1,5 +1,6 @@
 //! Ephemeral key pairs and derived session keys.
 
+use cess::derive_k_outer;
 use crate::curve_select::SessionCurve;
 use crate::error::EphemeralSessionError;
 use galdr_core::hal::HardwareTrng;
@@ -168,6 +169,18 @@ struct SharedSecretInner {
 pub struct EphemeralSharedSecret(SharedSecretInner);
 
 impl EphemeralSharedSecret {
+    /// Derive **CESS** Mode A **`K_outer`** from the raw ECDH shared secret (HKDF-BLAKE3,
+    /// `info = cess-outer-envelope-v1`). Call **before** [`derive_session_keys`](Self::derive_session_keys),
+    /// which consumes the shared secret.
+    ///
+    /// For normative **Mode A** outer key agreement, the handshake **must** use **BrainpoolP384r1**
+    /// ephemeral ECDH only (CESS §6.1.1); the IKM length is then the P-384 **x** coordinate encoding
+    /// used by this stack (see `pack_shared` / vault ECDH).
+    pub fn cess_k_outer_mode_a(&self) -> [u8; 32] {
+        let ikm = &self.0.bytes[..self.0.len as usize];
+        derive_k_outer(ikm)
+    }
+
     /// Derive all session keys via HKDF-SHA256.
     /// Salt is `min(epk_initiator, epk_responder) || max(epk_initiator, epk_responder)`.
     /// Consumes `self` — the shared secret is zeroised after derivation.
@@ -397,6 +410,24 @@ mod tests {
                 assert_ne!(v[i], v[j]);
             }
         }
+    }
+
+    #[test]
+    fn cess_k_outer_mode_a_deterministic_before_derive() {
+        let mut t1 = FakeTrng::from_seed(0x41);
+        let mut t2 = FakeTrng::from_seed(0x42);
+        let curve = SessionCurve::BrainpoolP384r1;
+        let a = EphemeralKeyPair::generate(curve, &mut t1).expect("a");
+        let b = EphemeralKeyPair::generate(curve, &mut t2).expect("b");
+        let pa = a.public_key_bytes().to_vec();
+        let pb = b.public_key_bytes().to_vec();
+        let s = a.ecdh(pb.as_slice()).expect("ecdh");
+        let k1 = s.cess_k_outer_mode_a();
+        let k2 = s.cess_k_outer_mode_a();
+        assert_eq!(k1, k2);
+        let _keys = s
+            .derive_session_keys(pa.as_slice(), pb.as_slice())
+            .expect("derive");
     }
 
     #[test]

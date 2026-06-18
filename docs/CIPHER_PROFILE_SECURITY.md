@@ -72,4 +72,5 @@ So the construction separates **“how we agree keys and authenticate the channe
 - [CIPHER_PROFILES.md](CIPHER_PROFILES.md) — profile definition, layers, Shamir, host tool usage  
 - [EPHEMERAL_SESSION.md](EPHEMERAL_SESSION.md) — ephemeral ECDH session protocol and curves  
 - [API_REFERENCE.md](API_REFERENCE.md) — wire layouts and annex for handshake and Shamir  
+- [CESS_CONFORMANCE.md](CESS_CONFORMANCE.md) — CESS v0.2 alignment, deviation register, Mode A helpers (`crates/cess`)  
 - [CESS](https://github.com/Supermagnum/CESS) — related standard for threshold sharing and cipher-agnostic envelopes (separate repository)

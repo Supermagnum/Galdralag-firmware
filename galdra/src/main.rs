@@ -112,6 +112,12 @@ enum Commands {
         sign: bool,
         #[arg(long)]
         profile: Option<String>,
+        /// 64 hex chars: CESS `K_outer` (32 bytes) from ECDH + HKDF; requires `--cess-nonce-hex`.
+        #[arg(long = "cess-k-outer-hex", value_name = "HEX")]
+        cess_k_outer_hex: Option<String>,
+        /// 24 hex chars: 12-byte ChaCha nonce for CESS Mode A outer (must match encrypt).
+        #[arg(long = "cess-nonce-hex", value_name = "HEX")]
+        cess_nonce_hex: Option<String>,
     },
     /// Decrypt an OpenPGP or age message.
     Decrypt {
@@ -127,6 +133,9 @@ enum Commands {
         output: PathBuf,
         #[arg(long)]
         profile: Option<String>,
+        /// 64 hex chars: CESS `K_outer` when the inner payload is Mode A wrapped (before GALDRACP).
+        #[arg(long = "cess-k-outer-hex", value_name = "HEX")]
+        cess_k_outer_hex: Option<String>,
     },
     /// Sign a file (token integration pending).
     Sign {
@@ -521,6 +530,8 @@ fn run(cli: Cli, output_mode: OutputMode) -> Result<(), GaldraError> {
             hidden_recipient,
             sign,
             profile,
+            cess_k_outer_hex,
+            cess_nonce_hex,
         } => crypto_cmds::run_encrypt(
             &mut db,
             output_mode,
@@ -535,6 +546,8 @@ fn run(cli: Cli, output_mode: OutputMode) -> Result<(), GaldraError> {
             hidden_recipient,
             sign,
             profile,
+            cess_k_outer_hex,
+            cess_nonce_hex,
         ),
         Commands::Decrypt {
             format,
@@ -543,6 +556,7 @@ fn run(cli: Cli, output_mode: OutputMode) -> Result<(), GaldraError> {
             input,
             output,
             profile,
+            cess_k_outer_hex,
         } => crypto_cmds::run_decrypt(
             &mut db,
             output_mode,
@@ -553,6 +567,7 @@ fn run(cli: Cli, output_mode: OutputMode) -> Result<(), GaldraError> {
             input,
             output,
             profile,
+            cess_k_outer_hex,
         ),
         Commands::Sign {
             input,

@@ -776,6 +776,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "cess"
+version = "0.1.0"
+dependencies = [
+ "aead",
+ "blake3",
+ "chacha20poly1305",
+ "hex",
+]
+
+[[package]]
 name = "cfb-mode"
 version = "0.8.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1589,6 +1599,7 @@ dependencies = [
 name = "ephemeral-session"
 version = "0.1.0"
 dependencies = [
+ "cess",
  "galdr-core",
  "heapless",
  "hkdf 0.12.4",
@@ -2028,6 +2039,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "base64 0.22.1",
+ "cess",
  "chrono",
  "cipher-profile",
  "ephemeral-session",

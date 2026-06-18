@@ -173,6 +173,8 @@ usage are documented in **[Supermagnum/Baochip-1x-firmware](https://github.com/S
 The **Dabao** evaluation board (KiCad, schematics, switches, pinout) is **[baochip/dabao](https://github.com/baochip/dabao)**. To enter **bootloader mode** for flashing, **press SW2** to toggle it (see that repo’s schematic).
 Architecture notes for this repository: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
+**CESS:** This firmware **conforms to CESS** for the normative constructions implemented in-tree (including **Mode A** outer AEAD, **HKDF-BLAKE3** for **`K_outer`**, and byte-wise GF(2^8) Shamir splitting). The full alignment statement, deviation register, and **certification level** (for example **CESS-CORE** for the full fixed layer) are documented in [docs/CESS_CONFORMANCE.md](docs/CESS_CONFORMANCE.md) and [CESS (related open standard)](#cess-related-open-standard) below.
+
 The only remaining work before physical hardware works is the Xous USB service wiring — and that is documented in [docs/XOUS_CCID_INTEGRATION.md](docs/XOUS_CCID_INTEGRATION.md), waiting for the BSP crates to be available.
 
 At that point the project will be a complete, tested, open-source hardware security token firmware: **OpenPGP card–style behaviour** for GnuPG over CCID (see [OpenPGP and GnuPG compatibility](#openpgp-and-gnupg-compatibility)), plus **additional on-device features** not currently defined by the OpenPGP card standard — ephemeral ECDH with forward secrecy, Shamir K-of-N, cipher-agnostic profiles, PSRAM decoy volume — as summarised in [Standards vs. firmware-specific features](#standards-vs-firmware-specific-features). All on open RTL with a reproducible bootloader.
@@ -202,6 +204,8 @@ Shippable firmware for **Baochip-1x** is **signed** with **Ed25519**. You sign t
 | [docs/XOUS_CCID_INTEGRATION.md](docs/XOUS_CCID_INTEGRATION.md) | Wiring CCID/OpenPGP USB into Xous on Baochip |
 | [docs/CIPHER_PROFILES.md](docs/CIPHER_PROFILES.md) | Cipher profile system and configuration |
 | [docs/CIPHER_PROFILE_SECURITY.md](docs/CIPHER_PROFILE_SECURITY.md) | Security considerations: cleartext profile identifiers, traffic analysis, BrainpoolP384r1 outer-wrapper rationale, encrypted identifiers, wildcard property |
+| [docs/CESS_CONFORMANCE.md](docs/CESS_CONFORMANCE.md) | [CESS](https://github.com/Supermagnum/CESS/tree/main) alignment: Mode A wire layout, provisional `suite_id`s, deviation register (retained AES/SHA-2 vs CESS-CORE), roadmap |
+| [crates/cess](crates/cess) | CESS Mode A: HKDF-BLAKE3 (`derive_k_outer`, `hkdf_blake3`), ChaCha outer seal/open, `suite_id \|\| inner_blob` layout; see [CESS_CONFORMANCE.md](docs/CESS_CONFORMANCE.md) |
 | [docs/EPHEMERAL_SESSION.md](docs/EPHEMERAL_SESSION.md) | Authenticated ephemeral ECDH session protocol |
 | [Supermagnum/CESS](https://github.com/Supermagnum/CESS) | **CESS** (*Cryptologically Enchanted Shamir's Secret*) — open specification (normative text and test vectors) for threshold secret sharing with authenticated encryption, password-based share wrapping, and optional post-quantum hybrid key exchange; separate from this firmware but in the same design space as Shamir and cipher profiles here |
 | [docs/PQ_SIGNATURES.md](docs/PQ_SIGNATURES.md) | Post-quantum stateful signatures (XMSS, LMS/HSS), feature gating |
@@ -361,38 +365,9 @@ When and if the hardware reaches a **consumer-ready** state, people who want **S
 
 ### CESS (related open standard)
 
-**[CESS](https://github.com/Supermagnum/CESS)** — *Cryptologically Enchanted Shamir's Secret* — is an open cryptographic standard for **threshold secret sharing** together with **cipher-agnostic authenticated encryption**, **password-based share wrapping**, and optional **post-quantum hybrid key exchange**. The [CESS repository](https://github.com/Supermagnum/CESS) holds the normative specification, algorithm registry, test vectors, and conformance runner. CESS is **not** this firmware; it defines interoperable share envelopes and policy rules that sit alongside the same **Shamir**, **Brainpool**, and **cipher-profile** themes described elsewhere in this README.
+**[CESS](https://github.com/Supermagnum/CESS)** — *Cryptologically Enchanted Shamir's Secret* — is an open cryptographic standard for **threshold secret sharing** together with **cipher-agnostic authenticated encryption**, **password-based share wrapping**, and optional **post-quantum hybrid key exchange**. The [CESS repository](https://github.com/Supermagnum/CESS) holds the normative specification, algorithm registry, test vectors, and conformance runner.
 
-### IETF (primary venue)
-
-The OpenPGP protocol standard is developed at the **IETF**. The relevant working group:
-
-| Resource | Link or address |
-|----------|-----------------|
-| Working group (charter, chairs) | [OpenPGP WG — datatracker](https://datatracker.ietf.org/wg/openpgp/about/) |
-| Public mailing list | `openpgp@ietf.org` |
-| List archive and subscription | [mailarchive.ietf.org — openpgp](https://mailarchive.ietf.org/arch/browse/openpgp/) |
-
-**Internet-Drafts** are the usual way to propose new functionality: publish a draft, then post to the list with the problem statement and a link to the draft. Working group chairs and participants decide whether a document becomes a **working group item** and eventually an RFC. An email that explains the need and points at a draft is the typical opening step.
-
-### GnuPG
-
-[GnuPG](https://gnupg.org/) maintainers and developers have strong influence on what operators deploy and what gets discussed in the OpenPGP WG.
-
-| Resource | Link or address |
-|----------|-----------------|
-| Developer list | `gnupg-devel@gnupg.org` |
-| Issue tracker / proposals | [dev.gnupg.org](https://dev.gnupg.org) |
-| Project lead | Werner Koch remains the primary author; contact addresses are listed on [gnupg.org](https://gnupg.org/) (e.g. `wk@gnupg.org`). |
-
-### Other OpenPGP implementations
-
-Engaging **multiple** implementations at the same time **strengthens a proposal considerably**: the OpenPGP ecosystem is not only GnuPG, and implementors often share IETF and de facto interoperability work.
-
-| Implementation | Notes |
-|----------------|--------|
-| [OpenPGP.js](https://github.com/openpgpjs/openpgpjs) | Widely deployed in browsers and application stacks |
-| [Sequoia PGP](https://sequoia-pgp.org) | Modern Rust implementation; often sympathetic to Rust-heavy stacks and cross-implementation work |
+**This firmware conforms to CESS** for the constructions implemented here: the specification’s interoperable share and envelope rules sit alongside the same **Shamir**, **Brainpool**, and **cipher-profile** themes described elsewhere in this README. The normative text is separate from this repository; **conformance posture** (what matches the spec, what differs while **retaining** algorithms such as AES and SHA-256 in profiles, and roadmap toward stronger interoperability): [docs/CESS_CONFORMANCE.md](docs/CESS_CONFORMANCE.md).
 
 ### Sequoia PGP (if this repository is unresponsive)
 
@@ -404,7 +379,7 @@ If **maintainers of this GitHub repository** do not answer issues, pull requests
 | **Contribute** (issues, fixes, features, documentation); **contact before large work** | [Contribute](https://sequoia-pgp.org/contribute/), [Contact](https://sequoia-pgp.org/contact) |
 | **Developer docs** — API surface for extending the implementation (`sequoia-openpgp` and related crates) | [Docs](https://sequoia-pgp.org/docs/) — e.g. [sequoia-openpgp on docs.rs](https://docs.rs/sequoia-openpgp/latest/sequoia_openpgp/) |
 | **Source and trackers** | [gitlab.com/sequoia-pgp](https://gitlab.com/sequoia-pgp) (core library and tools); [github.com/sequoia-pgp](https://github.com/sequoia-pgp) (mirrors / selected repos); [Projects](https://sequoia-pgp.org/projects) |
-| **New algorithms in the OpenPGP standard** | Still go through the **[IETF OpenPGP working group](#ietf-primary-venue)**. Sequoia and other implementations implement drafts and RFCs; propose protocol changes there, and coordinate with implementors (including Sequoia) so behaviour matches the spec. |
+| **New algorithms in the OpenPGP standard** | Still go through the **[IETF OpenPGP working group](https://datatracker.ietf.org/wg/openpgp/about/)**. Sequoia and other implementations implement drafts and RFCs; propose protocol changes there, and coordinate with implementors (including Sequoia) so behaviour matches the spec. |
 
 The [Contribute](https://sequoia-pgp.org/contribute/) page describes licensing (LGPL 2.0 or later for most projects), the Developer Certificate of Origin, and that **larger commercial features** may require prior agreement and long-term maintenance arrangements — read that page before investing significant effort.
 
@@ -670,6 +645,7 @@ cargo run -p xtask -- test-all
 | `psram-store` | Optional PSRAM block device; probe-absent short-circuit; mount/unmount access gate |
 | `ephemeral-session` | Authenticated ephemeral ECDH session protocol; forward secrecy |
 | `cipher-profile` | User-configurable cipher cascade profiles; built-in and user-defined |
+| `cess` | HKDF-BLAKE3 `K_outer`, ChaCha outer AEAD, `suite_id \|\| inner_blob`; see [CESS_CONFORMANCE.md](docs/CESS_CONFORMANCE.md) |
 | `security-tests` | dudect timing harnesses for all cryptographic paths |
 | `host-tools` | Host manifest hashing, update verification, `psram-unlock` binary |
 | `xtask` | Build, check, test, fuzz, timing-test orchestration |

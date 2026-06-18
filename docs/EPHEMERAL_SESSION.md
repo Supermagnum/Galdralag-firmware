@@ -70,3 +70,5 @@ See docs/HARDWARE_VERIFICATION.md.
 ## Related: profile metadata and outer layers
 
 For discussion of cleartext profile identifiers, traffic analysis, rationale for a **BrainpoolP384r1** outer wrapper in fixed-curve deployments, **encrypted profile identifiers**, and the **wildcard** (profile-agnostic outer) property, see [CIPHER_PROFILE_SECURITY.md](CIPHER_PROFILE_SECURITY.md).
+
+**CESS Mode A:** After ECDH, [`EphemeralSharedSecret::cess_k_outer_mode_a`](../crates/ephemeral-session/src/keys.rs) derives **`K_outer`** (HKDF-BLAKE3 with `cess-outer-envelope-v1`). Use **BrainpoolP384r1** ephemeral ECDH for that IKM when following CESS §6.1.1. Build `suite_id || inner_blob`, then encrypt with **`cess::seal_mode_a_outer`** (see [CESS_CONFORMANCE.md](CESS_CONFORMANCE.md)).
