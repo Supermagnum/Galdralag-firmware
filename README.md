@@ -401,6 +401,8 @@ If **maintainers of this GitHub repository** do not answer issues, pull requests
 
 The [Contribute](https://sequoia-pgp.org/contribute/) page describes licensing (LGPL 2.0 or later for most projects), the Developer Certificate of Origin, and that **larger commercial features** may require prior agreement and long-term maintenance arrangements — read that page before investing significant effort.
 
+Its also wort keeping a eye on https://autocrypt2.org/#/
+
 ---
 
 ## Build, install, and uninstall
