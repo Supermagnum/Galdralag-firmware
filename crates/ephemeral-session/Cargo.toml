@@ -18,6 +18,9 @@ heapless = { workspace = true }
 
 [dev-dependencies]
 galdr-core = { path = "../galdr-core", features = ["test-hal"] }
+galdr-vault = { path = "../vault" }
+hex.workspace = true
+serde_json.workspace = true
 
 [lints]
 workspace = true
