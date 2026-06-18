@@ -1,0 +1,103 @@
+(footprint "IRIS fiducial 0.4mm"
+	(version 20241229)
+	(generator "pcbnew")
+	(generator_version "9.0")
+	(layer "F.Cu")
+	(property "Reference" "FID1"
+		(at 0.2 -1.875 0)
+		(unlocked yes)
+		(layer "F.SilkS")
+		(hide yes)
+		(uuid "95deafc3-84e6-4751-8451-07953b289463")
+		(effects
+			(font
+				(size 0.6 0.6)
+				(thickness 0.1)
+			)
+		)
+	)
+	(property "Value" "Fiducial"
+		(at 0 0.799999 0)
+		(unlocked yes)
+		(layer "F.Fab")
+		(hide yes)
+		(uuid "6d8a4148-fc12-40ab-b890-2f1994e1b5e2")
+		(effects
+			(font
+				(size 1 1)
+				(thickness 0.15)
+			)
+		)
+	)
+	(property "Datasheet" "~"
+		(at 0 0 0)
+		(unlocked yes)
+		(layer "F.Fab")
+		(hide yes)
+		(uuid "5641aaa6-dff3-40d0-90e5-852405292ef1")
+		(effects
+			(font
+				(size 1 1)
+				(thickness 0.15)
+			)
+		)
+	)
+	(property "Description" "Fiducial Marker"
+		(at 0 0 0)
+		(unlocked yes)
+		(layer "F.Fab")
+		(hide yes)
+		(uuid "bf612bc4-d97c-4aa3-a1cb-2d896e1465e4")
+		(effects
+			(font
+				(size 1 1)
+				(thickness 0.15)
+			)
+		)
+	)
+	(attr exclude_from_bom)
+	(fp_poly
+		(pts
+			(xy -0.2 -0.05) (xy 0.2 -0.05) (xy 0.2 0.05) (xy -0.2 0.05)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(fill yes)
+		(layer "F.Cu")
+		(uuid "f0ba7173-07ac-471a-9c7a-b0bb9f807b3c")
+	)
+	(fp_poly
+		(pts
+			(xy -0.05 -0.2) (xy 0.05 -0.2) (xy 0.05 0.2) (xy -0.05 0.2)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(fill yes)
+		(layer "F.Cu")
+		(uuid "eb3b9f8f-16f9-4bad-87de-3b952a43890d")
+	)
+	(fp_text user "${REFERENCE}"
+		(at 0 0 0)
+		(unlocked yes)
+		(layer "F.Fab")
+		(uuid "74a10876-6518-417c-bb8e-1398d04cb1b2")
+		(effects
+			(font
+				(size 0.1 0.1)
+				(thickness 0.15)
+			)
+		)
+	)
+	(pad "" smd rect
+		(at 0 0)
+		(size 0.4 0.4)
+		(layers "F.Mask")
+		(thermal_bridge_angle 45)
+		(uuid "a8e61e6f-9ece-4788-a8f6-d041e0bf6c39")
+	)
+	(embedded_fonts no)
+)
