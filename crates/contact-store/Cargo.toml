@@ -1,0 +1,36 @@
+[package]
+name = "contact-store"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "On-chip RRAM contact directory, string heap, and AORAM index (Galdr / Baochip-1x)"
+
+[features]
+default = []
+test-hal = ["galdr-core/test-hal"]
+
+[dependencies]
+aes-gcm.workspace = true
+bitflags = { workspace = true }
+blake3.workspace = true
+crc32fast.workspace = true
+galdr-core.workspace = true
+galdr-vault.workspace = true
+hkdf.workspace = true
+pin-policy.workspace = true
+sha2.workspace = true
+subtle.workspace = true
+zeroize.workspace = true
+
+[dev-dependencies]
+galdr-core = { workspace = true, features = ["test-hal"] }
+blake3.workspace = true
+hex.workspace = true
+static_assertions.workspace = true
+
+[[test]]
+name = "store_integration"
+required-features = ["test-hal"]
+
+[lints]
+workspace = true

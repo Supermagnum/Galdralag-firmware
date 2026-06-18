@@ -79,19 +79,21 @@ pub enum PinOutcome {
     Breach,
 }
 
-pub struct PinPolicyMachine<C, Z> {
+/// PIN policy state machine. The [`MonotonicCounter`] is **not** stored here; callers pass
+/// `&mut impl MonotonicCounter` on each [`Self::submit_attempt`] so other subsystems (for example
+/// contact-store timing logs) can share the same counter handle.
+pub struct PinPolicyMachine<Z> {
     pub config: PinPolicyConfig,
     pub state: PinState,
-    counter: C,
     zeroisation: Z,
 }
 
-impl<C: MonotonicCounter, Z: ZeroisationTrigger> PinPolicyMachine<C, Z> {
-    pub fn new(config: PinPolicyConfig, counter: C, zeroisation: Z) -> Self {
+impl<Z: ZeroisationTrigger> PinPolicyMachine<Z> {
+    /// Build policy state without taking ownership of the hardware counter.
+    pub fn new(config: PinPolicyConfig, zeroisation: Z) -> Self {
         Self {
             config,
             state: PinState::BootCold,
-            counter,
             zeroisation,
         }
     }
@@ -102,9 +104,13 @@ impl<C: MonotonicCounter, Z: ZeroisationTrigger> PinPolicyMachine<C, Z> {
         }
     }
 
-    /// **Ordering:** `increment` runs before `verify`. If count exceeds `max_attempts`, zeroises
-    /// without calling `verify`.
-    pub fn submit_attempt<F>(&mut self, verify: F) -> Result<PinOutcome, HalError>
+    /// **Ordering:** `increment` runs on `counter` before `verify`. If count exceeds `max_attempts`,
+    /// zeroises without calling `verify`.
+    pub fn submit_attempt<C: MonotonicCounter, F>(
+        &mut self,
+        counter: &mut C,
+        verify: F,
+    ) -> Result<PinOutcome, HalError>
     where
         F: FnOnce() -> Choice,
     {
@@ -112,7 +118,7 @@ impl<C: MonotonicCounter, Z: ZeroisationTrigger> PinPolicyMachine<C, Z> {
             return Ok(PinOutcome::Breach);
         }
         self.state = PinState::AttemptCharge;
-        let count = self.counter.increment()?;
+        let count = counter.increment()?;
         self.state = PinState::Verifying;
         if count > self.config.max_attempts {
             self.zeroisation.trigger_zeroisation();
@@ -121,7 +127,7 @@ impl<C: MonotonicCounter, Z: ZeroisationTrigger> PinPolicyMachine<C, Z> {
         }
         let ok = bool::from(verify());
         if ok {
-            let _ = self.counter.refund_on_success();
+            let _ = counter.refund_on_success();
             self.state = PinState::Unlocked;
             return Ok(PinOutcome::Success);
         }
@@ -131,7 +137,7 @@ impl<C: MonotonicCounter, Z: ZeroisationTrigger> PinPolicyMachine<C, Z> {
         })
     }
 
-    pub fn into_inner(self) -> (PinPolicyConfig, PinState, C, Z) {
-        (self.config, self.state, self.counter, self.zeroisation)
+    pub fn into_inner(self) -> (PinPolicyConfig, PinState, Z) {
+        (self.config, self.state, self.zeroisation)
     }
 }

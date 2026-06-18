@@ -58,8 +58,10 @@ where
     aid: [u8; 16],
     user_verifier: [u8; 32],
     admin_verifier: [u8; 32],
-    user_machine: PinPolicyMachine<Cu, Zu>,
-    admin_machine: PinPolicyMachine<Ca, Za>,
+    user_machine: PinPolicyMachine<Zu>,
+    admin_machine: PinPolicyMachine<Za>,
+    user_counter: Cu,
+    admin_counter: Ca,
     new_user_counter: fn() -> Cu,
     new_admin_counter: fn() -> Ca,
     sig_key: Option<BrainpoolSigningKey>,
@@ -98,8 +100,10 @@ where
         aid: [u8; 16],
         user_pin: &[u8],
         admin_pin: &[u8],
-        user_machine: PinPolicyMachine<Cu, Zu>,
-        admin_machine: PinPolicyMachine<Ca, Za>,
+        user_machine: PinPolicyMachine<Zu>,
+        admin_machine: PinPolicyMachine<Za>,
+        user_counter: Cu,
+        admin_counter: Ca,
         new_user_counter: fn() -> Cu,
         new_admin_counter: fn() -> Ca,
     ) -> Result<Self, galdr_core::HalError> {
@@ -120,6 +124,8 @@ where
             admin_verifier: av,
             user_machine,
             admin_machine,
+            user_counter,
+            admin_counter,
             new_user_counter,
             new_admin_counter,
             sig_key: None,
@@ -150,8 +156,10 @@ where
         master_key: [u8; 32],
         trng: T,
         aid: [u8; 16],
-        user_machine: PinPolicyMachine<Cu, Zu>,
-        admin_machine: PinPolicyMachine<Ca, Za>,
+        user_machine: PinPolicyMachine<Zu>,
+        admin_machine: PinPolicyMachine<Za>,
+        user_counter: Cu,
+        admin_counter: Ca,
         new_user_counter: fn() -> Cu,
         new_admin_counter: fn() -> Ca,
     ) -> Result<Self, galdr_core::HalError> {
@@ -168,6 +176,8 @@ where
             admin_verifier: [0u8; 32],
             user_machine,
             admin_machine,
+            user_counter,
+            admin_counter,
             new_user_counter,
             new_admin_counter,
             sig_key: None,
@@ -204,9 +214,8 @@ where
         new_user_counter: fn() -> Cu,
         new_admin_counter: fn() -> Ca,
     ) -> Result<Self, galdr_core::HalError> {
-        let user_machine = PinPolicyMachine::new(user_policy, (new_user_counter)(), Zu::default());
-        let admin_machine =
-            PinPolicyMachine::new(admin_policy, (new_admin_counter)(), Za::default());
+        let user_machine = PinPolicyMachine::new(user_policy, Zu::default());
+        let admin_machine = PinPolicyMachine::new(admin_policy, Za::default());
         Self::new(
             do_store,
             pin_storage,
@@ -220,6 +229,8 @@ where
             admin_pin,
             user_machine,
             admin_machine,
+            (new_user_counter)(),
+            (new_admin_counter)(),
             new_user_counter,
             new_admin_counter,
         )
@@ -388,12 +399,14 @@ where
 
     fn reset_user_machine(&mut self) {
         let cfg = self.user_machine.config;
-        self.user_machine = PinPolicyMachine::new(cfg, (self.new_user_counter)(), Zu::default());
+        self.user_machine = PinPolicyMachine::new(cfg, Zu::default());
+        self.user_counter = (self.new_user_counter)();
     }
 
     fn reset_admin_machine(&mut self) {
         let cfg = self.admin_machine.config;
-        self.admin_machine = PinPolicyMachine::new(cfg, (self.new_admin_counter)(), Za::default());
+        self.admin_machine = PinPolicyMachine::new(cfg, Za::default());
+        self.admin_counter = (self.new_admin_counter)();
     }
 
     fn verify_user(&mut self, pin: &[u8]) -> Result<(), OpenPgpBackendError> {
@@ -402,7 +415,7 @@ where
         let exp = self.user_verifier;
         let r = self
             .user_machine
-            .submit_attempt(|| pin_compare(&d, &exp))
+            .submit_attempt(&mut self.user_counter, || pin_compare(&d, &exp))
             .map_err(|_| OpenPgpBackendError::Status(StatusWord::ExecutionError))?;
         match r {
             PinOutcome::Success => Ok(()),
@@ -426,7 +439,7 @@ where
         let exp = self.admin_verifier;
         let r = self
             .admin_machine
-            .submit_attempt(|| pin_compare(&d, &exp))
+            .submit_attempt(&mut self.admin_counter, || pin_compare(&d, &exp))
             .map_err(|_| OpenPgpBackendError::Status(StatusWord::ExecutionError))?;
         match r {
             PinOutcome::Success => Ok(()),
@@ -1096,8 +1109,10 @@ mod tests {
             build_aid(0x0000, [0x01, 0x02, 0x03, 0x04]),
             b"user1",
             b"adminadm",
-            PinPolicyMachine::new(cfg, FakeMonotonicCounter::new(0), Z::default()),
-            PinPolicyMachine::new(cfg, FakeMonotonicCounter::new(0), Z::default()),
+            PinPolicyMachine::new(cfg, Z::default()),
+            PinPolicyMachine::new(cfg, Z::default()),
+            FakeMonotonicCounter::new(0),
+            FakeMonotonicCounter::new(0),
             || FakeMonotonicCounter::new(0),
             || FakeMonotonicCounter::new(0),
         )

@@ -472,6 +472,8 @@ fn run_embedded(sub: &[&str]) {
             "-p",
             "galdr-vault",
             "-p",
+            "contact-store",
+            "-p",
             "biometric-api",
             "-p",
             "biometric-vault",

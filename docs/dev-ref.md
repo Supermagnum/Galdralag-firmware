@@ -601,6 +601,14 @@ These rules apply to all crates in the workspace.
   which invariant the target is checking.
 - All dudect harnesses must print the measured t-statistic to stdout
   regardless of pass/fail so trends can be tracked across commits.
+- **`src/bin/` entries in embedded crates must be feature-gated.** Any binary
+  under `src/bin/` in a crate that is part of the embedded package set
+  (built by `check-fw` for `riscv32imac-unknown-none-elf`) must be gated on a
+  named Cargo feature. That feature must not be activated in the `check-fw`
+  build. Dependencies required only by that binary must be declared as optional
+  and listed under the same feature. The `cascade_kat_gen` binary in
+  `cipher-profile` is the reference example: gated on the `kat-gen` feature,
+  with `serde_json` and `hex` as optional dependencies under that feature.
 
 ---
 

@@ -79,6 +79,10 @@ fn run() -> Result<(), String> {
 
     wait_for_usb_reset_hint(port.as_mut(), Duration::from_secs(args.wait_reset_secs))?;
 
+    // TODO(contact-store): after CCID re-enumeration, send vendor command CONTACT_STORE_STATUS
+    // and require response 0x01 (provisioned + integrity OK). Exit non-zero on 0x00 or 0xFF.
+    // Track: host verification of `ContactStore::provision_fresh` on device.
+
     Ok(())
 }
 

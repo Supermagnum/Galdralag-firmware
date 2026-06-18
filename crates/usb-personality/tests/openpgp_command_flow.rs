@@ -96,8 +96,10 @@ fn mk_openpgp_vault() -> OpenPgpVaultBackend<
         build_aid(0x0000, [0x01, 0x02, 0x03, 0x04]),
         b"user1",
         b"adminadm",
-        PinPolicyMachine::new(cfg, FakeMonotonicCounter::new(0), VaultTestZ::default()),
-        PinPolicyMachine::new(cfg, FakeMonotonicCounter::new(0), VaultTestZ::default()),
+        PinPolicyMachine::new(cfg, VaultTestZ::default()),
+        PinPolicyMachine::new(cfg, VaultTestZ::default()),
+        FakeMonotonicCounter::new(0),
+        FakeMonotonicCounter::new(0),
         || FakeMonotonicCounter::new(0),
         || FakeMonotonicCounter::new(0),
     )
@@ -131,8 +133,10 @@ fn mk_openpgp_vault_user_zeroise(
         build_aid(0x0000, [0x01, 0x02, 0x03, 0x04]),
         b"user1",
         b"adminadm",
-        PinPolicyMachine::new(cfg, FakeMonotonicCounter::new(0), zu),
-        PinPolicyMachine::new(cfg, FakeMonotonicCounter::new(0), VaultTestZ::default()),
+        PinPolicyMachine::new(cfg, zu),
+        PinPolicyMachine::new(cfg, VaultTestZ::default()),
+        FakeMonotonicCounter::new(0),
+        FakeMonotonicCounter::new(0),
         || FakeMonotonicCounter::new(0),
         || FakeMonotonicCounter::new(0),
     )
@@ -166,8 +170,10 @@ fn mk_openpgp_vault_admin_zeroise(
         build_aid(0x0000, [0x01, 0x02, 0x03, 0x04]),
         b"user1",
         b"adminadm",
-        PinPolicyMachine::new(cfg, FakeMonotonicCounter::new(0), VaultTestZ::default()),
-        PinPolicyMachine::new(cfg, FakeMonotonicCounter::new(0), za),
+        PinPolicyMachine::new(cfg, VaultTestZ::default()),
+        PinPolicyMachine::new(cfg, za),
+        FakeMonotonicCounter::new(0),
+        FakeMonotonicCounter::new(0),
         || FakeMonotonicCounter::new(0),
         || FakeMonotonicCounter::new(0),
     )
@@ -239,8 +245,10 @@ struct MockOpenPgp {
     pin_vault: FakeVaultStorage,
     user_verifier: [u8; 32],
     admin_verifier: [u8; 32],
-    user_machine: PinPolicyMachine<FakeMonotonicCounter, ZeroiseFlag>,
-    admin_machine: PinPolicyMachine<FakeMonotonicCounter, ZeroiseFlag>,
+    user_machine: PinPolicyMachine<ZeroiseFlag>,
+    admin_machine: PinPolicyMachine<ZeroiseFlag>,
+    user_counter: FakeMonotonicCounter,
+    admin_counter: FakeMonotonicCounter,
     sig_key: Option<BrainpoolSigningKey>,
     aut_key: Option<BrainpoolSigningKey>,
     dec_key: Option<BrainpoolScalar>,
@@ -265,16 +273,10 @@ impl MockOpenPgp {
             pin_vault,
             user_verifier: uv,
             admin_verifier: av,
-            user_machine: PinPolicyMachine::new(
-                cfg,
-                FakeMonotonicCounter::new(0),
-                ZeroiseFlag::default(),
-            ),
-            admin_machine: PinPolicyMachine::new(
-                cfg,
-                FakeMonotonicCounter::new(0),
-                ZeroiseFlag::default(),
-            ),
+            user_machine: PinPolicyMachine::new(cfg, ZeroiseFlag::default()),
+            admin_machine: PinPolicyMachine::new(cfg, ZeroiseFlag::default()),
+            user_counter: FakeMonotonicCounter::new(0),
+            admin_counter: FakeMonotonicCounter::new(0),
             sig_key: None,
             aut_key: None,
             dec_key: None,
@@ -312,14 +314,14 @@ impl MockOpenPgp {
 
     fn reset_user_machine(&mut self) {
         let cfg = self.user_machine.config;
-        self.user_machine =
-            PinPolicyMachine::new(cfg, FakeMonotonicCounter::new(0), ZeroiseFlag::default());
+        self.user_machine = PinPolicyMachine::new(cfg, ZeroiseFlag::default());
+        self.user_counter = FakeMonotonicCounter::new(0);
     }
 
     fn reset_admin_machine(&mut self) {
         let cfg = self.admin_machine.config;
-        self.admin_machine =
-            PinPolicyMachine::new(cfg, FakeMonotonicCounter::new(0), ZeroiseFlag::default());
+        self.admin_machine = PinPolicyMachine::new(cfg, ZeroiseFlag::default());
+        self.admin_counter = FakeMonotonicCounter::new(0);
     }
 
     fn persist_pin_hashes(&mut self) -> Result<(), OpenPgpBackendError> {
@@ -345,7 +347,7 @@ impl MockOpenPgp {
         let exp = self.user_verifier;
         let r = self
             .user_machine
-            .submit_attempt(|| pin_compare(&d, &exp))
+            .submit_attempt(&mut self.user_counter, || pin_compare(&d, &exp))
             .map_err(|_| OpenPgpBackendError::Status(StatusWord::ExecutionError))?;
         match r {
             PinOutcome::Success => Ok(()),
@@ -369,7 +371,7 @@ impl MockOpenPgp {
         let exp = self.admin_verifier;
         let r = self
             .admin_machine
-            .submit_attempt(|| pin_compare(&d, &exp))
+            .submit_attempt(&mut self.admin_counter, || pin_compare(&d, &exp))
             .map_err(|_| OpenPgpBackendError::Status(StatusWord::ExecutionError))?;
         match r {
             PinOutcome::Success => Ok(()),

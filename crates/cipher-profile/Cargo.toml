@@ -18,12 +18,23 @@ heapless = { workspace = true }
 aes-gcm = { workspace = true }
 aead = { workspace = true }
 chacha20poly1305 = { workspace = true }
-hex = { workspace = true }
-serde_json = { workspace = true }
+
+[features]
+default = []
+kat-gen = ["dep:serde_json", "dep:hex"]
+
+[dependencies.serde_json]
+workspace = true
+optional = true
+
+[dependencies.hex]
+workspace = true
+optional = true
 
 [[bin]]
 name = "cascade-kat-gen"
 path = "src/bin/cascade_kat_gen.rs"
+required-features = ["kat-gen"]
 
 [dev-dependencies]
 galdr-core = { path = "../galdr-core", features = ["test-hal"] }

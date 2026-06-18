@@ -111,6 +111,7 @@ fn galdralag_ccid_main() -> ! {
 
         let aid = build_id_aid();
 
+        let first_pin_bridge = ccid_pin_hashes_unprovisioned(&rram);
         let backend: BaochipVaultBackend = match open_or_provision_backend(
             rram.clone(),
             &xns,
@@ -126,6 +127,12 @@ fn galdralag_ccid_main() -> ! {
                 continue;
             }
         };
+
+        if first_pin_bridge {
+            // TODO(contact-store): map contact-store RRAM + call ContactStore::provision_fresh
+            // after vault open; treat AlreadyProvisioned as non-fatal, other errors as fatal.
+            info!("first PIN bridge complete; contact-store provision_fresh pending HAL wiring");
+        }
 
         info!("vault ready; connecting to USB stack for CCID");
         break 'vault OpenPgpCcidDispatcher::new(backend);

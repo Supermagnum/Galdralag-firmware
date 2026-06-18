@@ -6,6 +6,7 @@ members = [
     "crates/biometric-fingervein",
     "crates/biometric-sweet",
     "crates/cess",
+    "crates/contact-store",
     "crates/galdr-core",
     "crates/bp512",
     "crates/vault",
@@ -38,6 +39,7 @@ galdr-vault = { path = "crates/vault" }
 ephemeral-session = { path = "crates/ephemeral-session" }
 cipher-profile = { path = "crates/cipher-profile" }
 cess = { path = "crates/cess" }
+contact-store = { path = "crates/contact-store" }
 pin-policy = { path = "crates/pin-policy" }
 usb-personality = { path = "crates/usb-personality" }
 biometric-api = { path = "crates/biometric-api" }
@@ -68,6 +70,8 @@ sha2 = { version = "0.10", default-features = false }
 sha3 = { version = "0.10", default-features = false }
 blake2 = { version = "0.10", default-features = false }
 blake3 = { version = "1.5", default-features = false }
+bitflags = { version = "2.11", default-features = false }
+crc32fast = { version = "1.4", default-features = false }
 vsss-rs = { version = "5.3", default-features = false, features = ["zeroize"] }
 zeroize = { version = "1.8", default-features = false, features = ["derive"] }
 subtle = { version = "2.6", default-features = false }

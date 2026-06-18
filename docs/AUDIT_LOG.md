@@ -10,6 +10,7 @@ hypothetical **persistent on-device audit log**.
 - [OpenPGP backend audit hook](#openpgp-backend-audit-hook)
 - [Persistent RRAM audit log](#persistent-rram-audit-log)
 - [Retention and host retrieval](#retention-and-host-retrieval)
+- [Firmware build-gate audit entries](#firmware-build-gate-audit-entries)
 
 ---
 
@@ -69,6 +70,40 @@ future; see [API_REFERENCE.md](API_REFERENCE.md).
 
 **Downgrade / profile forcing:** See [CIPHER_PROFILE_SECURITY.md](CIPHER_PROFILE_SECURITY.md)
 for profile selection threats and mitigations at the protocol and policy layer.
+
+---
+
+## Firmware build-gate audit entries
+
+Recorded events that affected the production firmware build gate
+(`cargo run -p xtask -- check-fw` on `riscv32imac-unknown-none-elf`). These entries
+are distinct from [Profile audit record](#profile-audit-record-host--or-tool-facing-text)
+strings and from the **not implemented** [persistent RRAM audit log](#persistent-rram-audit-log).
+
+### 2026-06-04 — `cipher-profile` embedded `std` dependency leak (resolved)
+
+**Date:** 2026-06-04
+
+**Affected crate:** `cipher-profile`
+
+**Security invariant broken:** Invariant 4 — test-hal never in production, generalised
+here as a `std` dependency leaked into the `riscv32imac-unknown-none-elf` build, which
+broke the `check-fw` gate for the entire embedded package set.
+
+**Root cause:** `serde_json` and `hex` were declared in `cipher-profile`'s main
+`[dependencies]` section because the development binary
+`crates/cipher-profile/src/bin/cascade_kat_gen.rs` generates known-answer test fixture
+JSON and requires those crates. No Cargo feature gate separated host-only tooling from
+the firmware library built by `check-fw`.
+
+**Fix applied:** `serde_json` and `hex` are optional dependencies behind the `kat-gen`
+feature. The `cascade_kat_gen` binary is gated with `required-features = ["kat-gen"]`.
+The `check-fw` build does not activate `kat-gen`.
+
+**Verification:** `cargo run -p xtask -- check-fw` exits 0.
+
+**Classification:** Build-gate regression; no cryptographic material exposed; no
+runtime impact on firmware behaviour.
 
 ---
 

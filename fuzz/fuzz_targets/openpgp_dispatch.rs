@@ -69,16 +69,10 @@ fn mk_backend() -> OpenPgpVaultBackend<
         build_aid(0x0000, [0x01, 0x02, 0x03, 0x04]),
         b"user1",
         b"adminadm",
-        PinPolicyMachine::new(
-            PinPolicyConfig::default(),
-            FakeMonotonicCounter::new(0),
-            NoopZeroise::default(),
-        ),
-        PinPolicyMachine::new(
-            PinPolicyConfig::default(),
-            FakeMonotonicCounter::new(0),
-            NoopZeroise::default(),
-        ),
+        PinPolicyMachine::new(PinPolicyConfig::default(), NoopZeroise::default()),
+        PinPolicyMachine::new(PinPolicyConfig::default(), NoopZeroise::default()),
+        FakeMonotonicCounter::new(0),
+        FakeMonotonicCounter::new(0),
         || FakeMonotonicCounter::new(0),
         || FakeMonotonicCounter::new(0),
     )

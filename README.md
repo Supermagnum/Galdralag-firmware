@@ -24,6 +24,7 @@ This project is **registered with the [Open Invention Network (OIN)](https://ope
   - [Risk assessment and deployment](#risk-assessment-and-deployment)
 - [Galdralag for dummies](#galdralag-for-dummies)
   - [What is GnuPG?](#what-is-gnupg)
+- [GnuPG / OpenPGP keys and Galdra keys](#gnupg--openpgp-keys-and-galdra-keys)
 - [Skipped and ignored tests](#skipped-and-ignored-tests)
 - [About the name](#about-the-name)
 - [Documentation](#documentation)
@@ -218,6 +219,24 @@ My personal recommendation is **BrainpoolP256r1 + ChaCha20-Poly1305 + BLAKE3**. 
 **A wrong PIN locks you out properly.** The token counts failed PIN attempts before it checks whether the PIN is correct, not after. This means a crash or power loss mid-attempt cannot be exploited to reset the counter. After too many wrong attempts the token zeroises sensitive material.
 
 **What it does not do yet.** There is no hardware available yet — this is firmware under active development. End-to-end testing with real USB hardware and GnuPG is a future milestone. **NFC** transport and **door-style access readers** are described in the documentation as **integration targets**, not shipped behaviour yet. The biometric third factor described in the documentation is not yet implemented. Some timing side-channel tests that require real hardware cannot be completed until a device exists.
+
+---
+
+## GnuPG / OpenPGP keys and Galdra keys
+
+Galdralag can work with two different kinds of asymmetric key at once. They answer different questions on the device and on the host, and they are not interchangeable even when they belong to the same person. The sections **OpenPGP and GnuPG compatibility**, **Web of Trust and Key Signing Parties**, and **Galdra contact metadata** (under **What this is**) describe each stack in more detail; here is how they differ in everyday terms.
+
+An **OpenPGP key**, in the sense GnuPG generates and uses, is a structured packet, not a bare public number. It bundles the primary key, subkeys for signing and encryption, and one or more **User IDs** — usually a display name and an email address such as `Alice Example <alice@example.org>`. Other people can sign those User IDs to say they believe the identity claim is genuine; that social graph is the basis of the web of trust described later in this README. When Galdralag acts as an OpenPGP smartcard, it holds the **private** key material on chip and performs signing and decryption there. The **public** key, the User IDs, and the signatures from others live on the host and are managed by GnuPG in the usual way. The token does not change the OpenPGP message format on the wire; GnuPG treats it like any other OpenPGP card.
+
+A **Galdra key** is a bare asymmetric keypair — Ed25519, X25519, or one of the Brainpool or NIST curves the firmware supports. The key bytes themselves carry **no** identity claims: no User ID packets, no email baked in, no web-of-trust signatures attached to the key structure. Identity for a Galdra key comes from the **contact record** stored next to it: callsign, DMR subscriber ID, radio affiliation, badge number, organisation, role, and the other sidecar fields summarised in **Galdra contact metadata**. Those fields live in the on-chip contact store on the device and in the host SQLite database, tied to the key by its fingerprint. They are not part of the key and are not cryptographically asserted by the key format. How much you should trust each field depends on how it was filled in; the field provenance model in `docs/CONTACT_STORE.md` makes that explicit.
+
+The split exists because the identity information that matters in the communities Galdralag targets — callsign, DMR ID, radio network affiliation — has no natural home in an OpenPGP User ID. A User ID is meant for name and email. Writing something like `LA5XYZ <la5xyz@example.org> DMR:2345678` into a User ID string is informal, unstructured, and not machine-readable in any standard way. Galdra keys keep the cryptographic material clean and put operational identity in a record format the host tool and on-chip store understand natively.
+
+In practice, a single device can hold **both** kinds of key without conflict. The OpenPGP card application serves GnuPG through the standard SIG, DEC, and AUT slots. The contact store holds Galdra keys for operational work — for example encrypting to a radio contact by callsign, checking a message against a DMR subscriber ID, or looking up a colleague by badge number. The two paths do not step on each other.
+
+If someone has an OpenPGP certificate managed by GnuPG on the host **and** a Galdra key in the on-chip contact store, those are **two separate keys** with **two separate fingerprints**. The Galdra fingerprint — prefixed `G:` and derived with BLAKE3 from the raw public key bytes — is **not** the same value as the OpenPGP v4 fingerprint of that person's GnuPG certificate. The host tool and the device treat them as independent identities. Do not assume one fingerprint implies the other without checking both.
+
+Neither key type automatically vouches for the labels around it. An OpenPGP User ID is self-asserted until someone else signs it. A callsign or DMR field in a Galdra contact record is only as trustworthy as its source — a keyserver fetch, a manual entry, or an out-of-band check you performed yourself. The provenance labels (SelfAttested, HostVerified, RegistrySync, OobVerified) record **how** a field arrived; they do not replace the work of actually verifying the identity you care about.
 
 ---
 

@@ -33,7 +33,7 @@ MAINTENANCE CONTRACT FOR THIS FILE
 
 | Step | Command | Status |
 |------|---------|--------|
-| Firmware check (default) | `cargo run -p xtask -- check-fw` | PASS |
+| Firmware check (default) | `cargo run -p xtask -- check-fw` | PASS (2026-06-04: `std` leak via `cipher-profile` `serde_json`/`hex` in embedded deps resolved; `kat-gen` gate) |
 | Firmware check (pq-signatures) | `cargo run -p xtask -- check-fw --features pq-signatures` | PASS |
 | Unit tests (workspace) | `cargo test --workspace --exclude xtask` | PASS (677 passed, 0 failed, 20 ignored) |
 | Wycheproof vectors | `cargo test -p galdr-vault wycheproof` | PASS |

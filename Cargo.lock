@@ -1076,6 +1076,25 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3d52eff69cd5e647efe296129160853a42795992097e8af39800e1060caeea9b"
 
 [[package]]
+name = "contact-store"
+version = "0.1.0"
+dependencies = [
+ "aes-gcm",
+ "bitflags 2.11.0",
+ "blake3",
+ "crc32fast",
+ "galdr-core",
+ "galdr-vault",
+ "hex",
+ "hkdf 0.12.4",
+ "pin-policy",
+ "sha2 0.10.9",
+ "static_assertions",
+ "subtle",
+ "zeroize",
+]
+
+[[package]]
 name = "cookie-factory"
 version = "0.3.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"

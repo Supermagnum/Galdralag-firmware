@@ -31,14 +31,16 @@ fn pin_length_5_accepted() {
     let parsed = parse_unlock_pin("abcde");
     assert_eq!(parsed, Ok("abcde"));
     let z = FlagZ(false);
+    let mut counter = FakeMonotonicCounter::new(0);
     let mut m = PinPolicyMachine::new(
         PinPolicyConfig::try_with_max_attempts(5).expect("provisioned policy"),
-        FakeMonotonicCounter::new(0),
         z,
     );
     m.enter_locked_idle();
     let pin = parsed.unwrap().as_bytes();
-    let r = m.submit_attempt(|| pin_compare(pin, pin)).unwrap();
+    let r = m
+        .submit_attempt(&mut counter, || pin_compare(pin, pin))
+        .unwrap();
     assert_eq!(r, PinOutcome::Success);
 }
 
@@ -62,30 +64,32 @@ fn pin_length_100_accepted() {
 
 #[test]
 fn counter_incremented_before_compare_wrong_pin() {
+    let mut counter = FakeMonotonicCounter::new(0);
     let mut m = PinPolicyMachine::new(
         PinPolicyConfig::try_with_max_attempts(5).expect("provisioned policy"),
-        FakeMonotonicCounter::new(0),
         FlagZ(false),
     );
     m.enter_locked_idle();
-    let r = m.submit_attempt(|| Choice::from(0u8)).unwrap();
+    let r = m
+        .submit_attempt(&mut counter, || Choice::from(0u8))
+        .unwrap();
     assert_eq!(r, PinOutcome::Failed { attempts_used: 1 });
-    let (_, _, c, _) = m.into_inner();
-    assert_eq!(c.read().unwrap(), 1);
+    assert_eq!(counter.read().unwrap(), 1);
 }
 
 #[test]
 fn correct_pin_no_counter_increment() {
+    let mut counter = FakeMonotonicCounter::new(0);
     let mut m = PinPolicyMachine::new(
         PinPolicyConfig::try_with_max_attempts(5).expect("provisioned policy"),
-        FakeMonotonicCounter::new(0),
         FlagZ(false),
     );
     m.enter_locked_idle();
-    let r = m.submit_attempt(|| Choice::from(1u8)).unwrap();
+    let r = m
+        .submit_attempt(&mut counter, || Choice::from(1u8))
+        .unwrap();
     assert_eq!(r, PinOutcome::Success);
-    let (_, _, c, _) = m.into_inner();
-    assert_eq!(c.read().unwrap(), 0);
+    assert_eq!(counter.read().unwrap(), 0);
 }
 
 /// Counter persisted to RRAM: increment updates cache then writes; failed write returns `Err` but
@@ -144,27 +148,25 @@ fn counter_incremented_on_rram_flush_failure() {
     )));
     storage.borrow_mut().write(0, &0u32.to_le_bytes()).unwrap();
 
-    let ctr = RramPersistedCounter::new(Rc::clone(&storage), 0);
+    let mut ctr = RramPersistedCounter::new(Rc::clone(&storage), 0);
     storage.borrow_mut().set_fail_next_write(true);
 
     let mut m = PinPolicyMachine::new(
         PinPolicyConfig::try_with_max_attempts(5).expect("provisioned policy"),
-        ctr,
         FlagZ(false),
     );
     m.enter_locked_idle();
-    let r = m.submit_attempt(|| Choice::from(0u8));
+    let r = m.submit_attempt(&mut ctr, || Choice::from(0u8));
     assert!(r.is_err());
 
-    let (_, _, mut c, _) = m.into_inner();
-    assert_eq!(c.read().unwrap(), 1);
+    assert_eq!(ctr.read().unwrap(), 1);
 
     let mut buf = [0u8; 4];
     storage.borrow().read(0, &mut buf).unwrap();
     assert_eq!(u32::from_le_bytes(buf), 0);
 
     storage.borrow_mut().set_fail_next_write(false);
-    c.persist().unwrap();
+    ctr.persist().unwrap();
     let mut buf2 = [0u8; 4];
     storage.borrow().read(0, &mut buf2).unwrap();
     assert_eq!(u32::from_le_bytes(buf2), 1);
@@ -173,22 +175,28 @@ fn counter_incremented_on_rram_flush_failure() {
 #[test]
 fn pin_threshold_minus_one_no_zeroise() {
     let z = FlagZ(false);
-    let mut m = PinPolicyMachine::new(PinPolicyConfig::default(), FakeMonotonicCounter::new(2), z);
+    let mut counter = FakeMonotonicCounter::new(2);
+    let mut m = PinPolicyMachine::new(PinPolicyConfig::default(), z);
     m.enter_locked_idle();
-    let r = m.submit_attempt(|| Choice::from(0u8)).unwrap();
+    let r = m
+        .submit_attempt(&mut counter, || Choice::from(0u8))
+        .unwrap();
     assert_eq!(r, PinOutcome::Failed { attempts_used: 3 });
-    let (_, _, _, z) = m.into_inner();
+    let (_, _, z) = m.into_inner();
     assert!(!z.0);
 }
 
 #[test]
 fn pin_at_threshold_zeroise_triggered() {
     let z = FlagZ(false);
-    let mut m = PinPolicyMachine::new(PinPolicyConfig::default(), FakeMonotonicCounter::new(3), z);
+    let mut counter = FakeMonotonicCounter::new(3);
+    let mut m = PinPolicyMachine::new(PinPolicyConfig::default(), z);
     m.enter_locked_idle();
-    let r = m.submit_attempt(|| Choice::from(0u8)).unwrap();
+    let r = m
+        .submit_attempt(&mut counter, || Choice::from(0u8))
+        .unwrap();
     assert_eq!(r, PinOutcome::Breach);
-    let (_, state, _, z) = m.into_inner();
+    let (_, state, z) = m.into_inner();
     assert!(z.0);
     assert_eq!(state, PinState::Bricked);
 }
@@ -196,12 +204,15 @@ fn pin_at_threshold_zeroise_triggered() {
 #[test]
 fn pin_correct_at_threshold_minus_one() {
     let z = FlagZ(false);
-    let mut m = PinPolicyMachine::new(PinPolicyConfig::default(), FakeMonotonicCounter::new(2), z);
+    let mut counter = FakeMonotonicCounter::new(2);
+    let mut m = PinPolicyMachine::new(PinPolicyConfig::default(), z);
     m.enter_locked_idle();
-    let r = m.submit_attempt(|| Choice::from(1u8)).unwrap();
+    let r = m
+        .submit_attempt(&mut counter, || Choice::from(1u8))
+        .unwrap();
     assert_eq!(r, PinOutcome::Success);
-    let (_, _, c, z) = m.into_inner();
-    assert_eq!(c.read().unwrap(), 2);
+    assert_eq!(counter.read().unwrap(), 2);
+    let (_, _, z) = m.into_inner();
     assert!(!z.0);
 }
 
@@ -223,17 +234,21 @@ fn challenge_response_5_char_accepted() {
 
 #[test]
 fn bricked_returns_device_zeroised_equivalent() {
+    let mut counter = FakeMonotonicCounter::new(0);
     let mut m = PinPolicyMachine::new(
         PinPolicyConfig { max_attempts: 0 },
-        FakeMonotonicCounter::new(0),
         FlagZ(false),
     );
     m.enter_locked_idle();
-    let r = m.submit_attempt(|| Choice::from(0u8)).unwrap();
+    let r = m
+        .submit_attempt(&mut counter, || Choice::from(0u8))
+        .unwrap();
     assert_eq!(r, PinOutcome::Breach);
-    let r2 = m.submit_attempt(|| Choice::from(1u8)).unwrap();
+    let r2 = m
+        .submit_attempt(&mut counter, || Choice::from(1u8))
+        .unwrap();
     assert_eq!(r2, PinOutcome::Breach);
-    let (_, st, _, _) = m.into_inner();
+    let (_, st, _) = m.into_inner();
     assert_eq!(st, PinState::Bricked);
 }
 
@@ -248,12 +263,14 @@ fn outcome_to_galdr(o: PinOutcome) -> Result<(), GaldrError> {
 
 #[test]
 fn breach_maps_to_device_zeroised() {
+    let mut counter = FakeMonotonicCounter::new(0);
     let mut m = PinPolicyMachine::new(
         PinPolicyConfig { max_attempts: 0 },
-        FakeMonotonicCounter::new(0),
         FlagZ(false),
     );
     m.enter_locked_idle();
-    let r = m.submit_attempt(|| Choice::from(0u8)).unwrap();
+    let r = m
+        .submit_attempt(&mut counter, || Choice::from(0u8))
+        .unwrap();
     assert_eq!(outcome_to_galdr(r), Err(GaldrError::DeviceZeroised));
 }

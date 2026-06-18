@@ -52,39 +52,37 @@ fn pin_compare_uses_constant_time_eq() {
 #[test]
 fn increment_before_compare_exhausts_attempts() {
     let z = FlagZ(false);
-    let mut m = PinPolicyMachine::new(
-        PinPolicyConfig { max_attempts: 1 },
-        FakeMonotonicCounter::new(0),
-        z,
-    );
+    let mut counter = FakeMonotonicCounter::new(0);
+    let mut m = PinPolicyMachine::new(PinPolicyConfig { max_attempts: 1 }, z);
     m.enter_locked_idle();
-    let r = m.submit_attempt(|| Choice::from(0u8)).unwrap();
+    let r = m
+        .submit_attempt(&mut counter, || Choice::from(0u8))
+        .unwrap();
     assert_eq!(r, PinOutcome::Failed { attempts_used: 1 });
-    let r = m.submit_attempt(|| Choice::from(1u8)).unwrap();
+    let r = m
+        .submit_attempt(&mut counter, || Choice::from(1u8))
+        .unwrap();
     assert_eq!(r, PinOutcome::Breach);
-    let (_, _, _, z) = m.into_inner();
+    let (_, _, z) = m.into_inner();
     assert!(z.0);
 }
 
 #[test]
 fn verify_skipped_after_threshold() {
     let z = FlagZ(false);
-    let mut m = PinPolicyMachine::new(
-        PinPolicyConfig { max_attempts: 0 },
-        FakeMonotonicCounter::new(0),
-        z,
-    );
+    let mut counter = FakeMonotonicCounter::new(0);
+    let mut m = PinPolicyMachine::new(PinPolicyConfig { max_attempts: 0 }, z);
     m.enter_locked_idle();
     let mut called = false;
     let r = m
-        .submit_attempt(|| {
+        .submit_attempt(&mut counter, || {
             called = true;
             Choice::from(1u8)
         })
         .unwrap();
     assert_eq!(r, PinOutcome::Breach);
     assert!(!called);
-    let (_, _, _, zf) = m.into_inner();
+    let (_, _, zf) = m.into_inner();
     assert!(zf.0);
 }
 

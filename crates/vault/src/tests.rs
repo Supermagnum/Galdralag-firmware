@@ -36,6 +36,8 @@ fn all_key_purposes_have_distinct_hkdf_info() {
         KeyPurpose::OpenPgpAut,
         KeyPurpose::OpenPgpAdminPin,
         KeyPurpose::OpenPgpCcidMaster,
+        KeyPurpose::ContactKeyWrap,
+        KeyPurpose::ContactStoreIntegrity,
     ];
     for i in 0..purposes.len() {
         for j in i + 1..purposes.len() {
@@ -66,6 +68,8 @@ proptest! {
             KeyPurpose::OpenPgpAut,
             KeyPurpose::OpenPgpAdminPin,
             KeyPurpose::OpenPgpCcidMaster,
+            KeyPurpose::ContactKeyWrap,
+            KeyPurpose::ContactStoreIntegrity,
         ] {
             prop_assert!(!p.info().is_empty());
         }
@@ -123,6 +127,46 @@ fn hkdf_sha512_session_long_term_sign_distinct_from_ephemeral_prk_and_others() {
     assert_ne!(a, c);
     assert_ne!(a, d);
     assert_ne!(b, c);
+}
+
+#[test]
+fn contact_key_wrap_hkdf_sha512_fixed_vector() {
+    let mut out = [0u8; 32];
+    crate::derive_subkey_sha512(
+        &[0x11u8; 32],
+        &[0x22u8; 16],
+        KeyPurpose::ContactKeyWrap,
+        &mut out,
+    )
+    .unwrap();
+    assert_eq!(
+        out,
+        [
+            0x19, 0x3a, 0xe5, 0x79, 0x42, 0x9c, 0xbe, 0x62, 0x57, 0xe4, 0xff, 0x51, 0xf9, 0x15,
+            0x21, 0xe2, 0x77, 0x53, 0xc6, 0x1b, 0x96, 0xf3, 0xe1, 0xad, 0xaa, 0x8c, 0x51, 0xe6,
+            0x8d, 0x4a, 0x71, 0x60
+        ]
+    );
+}
+
+#[test]
+fn contact_store_integrity_hkdf_sha512_fixed_vector() {
+    let mut out = [0u8; 32];
+    crate::derive_subkey_sha512(
+        &[0x11u8; 32],
+        &[0x22u8; 16],
+        KeyPurpose::ContactStoreIntegrity,
+        &mut out,
+    )
+    .unwrap();
+    assert_eq!(
+        out,
+        [
+            0x21, 0xb9, 0xa6, 0x96, 0xd2, 0x46, 0x31, 0xb3, 0xc7, 0x6e, 0xa9, 0x70, 0x1e, 0x40,
+            0x78, 0x9d, 0x54, 0xee, 0x7a, 0x5e, 0xaa, 0x7b, 0xf5, 0xe8, 0x04, 0xd2, 0xaf, 0x90,
+            0x68, 0x63, 0xaa, 0x66
+        ]
+    );
 }
 
 #[test]
