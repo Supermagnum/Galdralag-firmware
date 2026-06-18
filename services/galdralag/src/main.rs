@@ -1,18 +1,12 @@
-//! Galdralag USB CCID service entry point.
+//! Galdralag USB CCID service entry point (scaffold).
 //!
-//! This crate wires the CCID class driver to the Xous USB service.
-//! It requires the `xous-bsp` feature and xous-core USB service crates
-//! which are not yet part of this workspace.
-//!
-//! See docs/XOUS_CCID_INTEGRATION.md for the wiring pattern.
+//! Production **Xous** CCID/OpenPGP wiring lives in the **xous-core** tree:
+//! **`services/usb-bao1x`** with feature **`ccid-openpgp`**, using **`baochip-openpgp`**
+//! from this repository (`crates/baochip-openpgp`). RRAM layout: `docs/RRAM_LAYOUT.md`.
+//! README: **Known limitations / open work** (CCID initial PIN UX).
 
 fn main() {
-    // Wiring follows docs/XOUS_CCID_INTEGRATION.md:
-    //
-    // 1. xous_usb::get_allocator()
-    // 2. OpenPgpVaultBackend::new(vault_storage, pin_storage, trng, ...)
-    // 3. CcidClass::new(&alloc, OpenPgpCcidDispatcher::new(backend))
-    // 4. UsbDeviceBuilder::new(..., UsbVidPid(0x20A0, 0x42B3)).build()
-    // 5. poll loop + Xous IPC message handler
-    todo!("wire xous-core USB service — see docs/XOUS_CCID_INTEGRATION.md")
+    // Reference implementation: xous-core/services/usb-bao1x (OpenPgpVaultBackend,
+    // OpenPgpCcidDispatcher, CcidClass, RRAM map, provisioning).
+    todo!("this crate is not the deployed USB server — use usb-bao1x in xous-core; see module rustdoc")
 }

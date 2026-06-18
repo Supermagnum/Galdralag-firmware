@@ -28,7 +28,7 @@ thiserror = { workspace = true }
 tokio = { workspace = true }
 toml = { workspace = true }
 uuid = { workspace = true }
-vault = { path = "../crates/vault" }
+galdr-vault = { path = "../crates/vault" }
 zeroize = { workspace = true }
 
 [dev-dependencies]

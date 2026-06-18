@@ -6,8 +6,8 @@
 
 use galdr_core::fake_hal::FakeTrng;
 use libfuzzer_sys::fuzz_target;
-use vault::kdf_policy::KeyPurpose;
-use vault::twofish_cipher::{
+use galdr_vault::kdf_policy::KeyPurpose;
+use galdr_vault::twofish_cipher::{
     twofish_ctr_unauthenticated, twofish_decrypt, twofish_encrypt, TwofishCiphertext, TwofishKey,
     TwofishNonce,
 };

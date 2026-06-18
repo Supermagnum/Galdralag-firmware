@@ -2,7 +2,7 @@
 
 use galdr_core::fake_hal::FakeVaultStorage;
 use pin_policy::DEFAULT_MAX_PIN_ATTEMPTS;
-use vault::{
+use galdr_vault::{
     vault_read_pin_policy, vault_write_pin_policy, VaultPinPolicyError, VaultPinPolicyRecord,
 };
 

@@ -35,6 +35,7 @@ fn all_key_purposes_have_distinct_hkdf_info() {
         KeyPurpose::OpenPgpDec,
         KeyPurpose::OpenPgpAut,
         KeyPurpose::OpenPgpAdminPin,
+        KeyPurpose::OpenPgpCcidMaster,
     ];
     for i in 0..purposes.len() {
         for j in i + 1..purposes.len() {
@@ -64,6 +65,7 @@ proptest! {
             KeyPurpose::OpenPgpDec,
             KeyPurpose::OpenPgpAut,
             KeyPurpose::OpenPgpAdminPin,
+            KeyPurpose::OpenPgpCcidMaster,
         ] {
             prop_assert!(!p.info().is_empty());
         }

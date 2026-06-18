@@ -328,7 +328,7 @@ fn bench_timing_x25519_ecdh() -> CtSummary {
 
 fn bench_brainpool_ecdh_p256() -> CtSummary {
     use galdr_core::fake_hal::FakeTrng;
-    use vault::brainpool::BrainpoolScalar;
+    use galdr_vault::brainpool::BrainpoolScalar;
     let mut t1 = FakeTrng::from_seed(0x000B_256A);
     let mut t2 = FakeTrng::from_seed(0x000B_256B);
     let mut t3 = FakeTrng::from_seed(0x000B_256C);
@@ -359,7 +359,7 @@ fn bench_brainpool_ecdh_p256() -> CtSummary {
 
 fn bench_brainpool_ecdh_p384() -> CtSummary {
     use galdr_core::fake_hal::FakeTrng;
-    use vault::brainpool384::BrainpoolP384Scalar;
+    use galdr_vault::brainpool384::BrainpoolP384Scalar;
     let mut t1 = FakeTrng::from_seed(0x000B_384A);
     let mut t2 = FakeTrng::from_seed(0x000B_384B);
     let mut t3 = FakeTrng::from_seed(0x000B_384C);
@@ -426,7 +426,7 @@ fn bench_timing_ephemeral_ecdh() -> CtSummary {
 /// [`BrainpoolVerifyingKey::verify_handshake_sha256_prehash`] (same primitive as handshake verification).
 fn bench_timing_signature_verify() -> CtSummary {
     use galdr_core::fake_hal::FakeTrng;
-    use vault::ecdsa_brainpool::{BrainpoolSignature, BrainpoolSigningKey};
+    use galdr_vault::ecdsa_brainpool::{BrainpoolSignature, BrainpoolSigningKey};
     let mut trng = FakeTrng::from_seed(0x534947);
     let sk = BrainpoolSigningKey::generate(&mut trng).expect("sk");
     let vk = sk.verifying_key();
@@ -460,7 +460,7 @@ fn bench_timing_fingerprint_lookup() -> CtSummary {
     use ephemeral_session::{InMemoryTrustStore, LongTermCert, SessionCurve, TrustStore, MAX_SEC1};
     use galdr_core::fake_hal::FakeTrng;
     use heapless::Vec as HVec;
-    use vault::ecdsa_brainpool::BrainpoolSigningKey;
+    use galdr_vault::ecdsa_brainpool::BrainpoolSigningKey;
     // Same absent fingerprint for both classes: full scan, no hit, identical work (Welch null).
     let mut trng = FakeTrng::from_seed(0x545255);
     let sk = BrainpoolSigningKey::generate(&mut trng).expect("sk");
@@ -497,7 +497,7 @@ fn bench_timing_fingerprint_lookup() -> CtSummary {
 
 fn bench_brainpool_ecdh_p512() -> CtSummary {
     use galdr_core::fake_hal::FakeTrng;
-    use vault::brainpool512::BrainpoolP512Scalar;
+    use galdr_vault::brainpool512::BrainpoolP512Scalar;
     let mut t1 = FakeTrng::from_seed(0x000B_512A);
     let mut t2 = FakeTrng::from_seed(0x000B_512B);
     let mut t3 = FakeTrng::from_seed(0x000B_512C);
@@ -529,7 +529,7 @@ fn bench_brainpool_ecdh_p512() -> CtSummary {
 fn bench_timing_shamir_recover() -> CtSummary {
     use galdr_core::fake_hal::FakeTrng;
     use rand::RngCore;
-    use vault::shamir::{shamir_recover, shamir_split, ShamirShare};
+    use galdr_vault::shamir::{shamir_recover, shamir_split, ShamirShare};
 
     // Both classes must use the same share indices (here 1 and 2). Comparing
     // recovery with indices (1,2) vs (1,3) measures different Lagrange terms and
@@ -600,8 +600,8 @@ fn bench_timing_shamir_recover() -> CtSummary {
 }
 
 fn bench_timing_serpent_tag_check() -> CtSummary {
-    use vault::kdf_policy::KeyPurpose;
-    use vault::serpent_cipher::{serpent_encrypt, SerpentKey, SerpentNonce, SERPENT_TAG_LEN};
+    use galdr_vault::kdf_policy::KeyPurpose;
+    use galdr_vault::serpent_cipher::{serpent_encrypt, SerpentKey, SerpentNonce, SERPENT_TAG_LEN};
     let prk = [0x2Eu8; 32];
     let key = SerpentKey::derive(&prk, KeyPurpose::SerpentStorage, b"dudect").expect("key");
     let nonce = SerpentNonce::from_counter(0);
@@ -639,7 +639,7 @@ fn bench_timing_serpent_tag_check() -> CtSummary {
 }
 
 fn bench_timing_camellia_tag_check() -> CtSummary {
-    use vault::camellia_cipher::{camellia_encrypt, CamelliaKey, CamelliaNonce, CAMELLIA_TAG_LEN};
+    use galdr_vault::camellia_cipher::{camellia_encrypt, CamelliaKey, CamelliaNonce, CAMELLIA_TAG_LEN};
     let key = CamelliaKey::from_raw_cipher_mac_for_test([0x2Du8; 32], [0x3Cu8; 32]);
     let nonce = CamelliaNonce::from_counter(0);
     let aad = b"camellia aad";
@@ -678,7 +678,7 @@ fn bench_timing_camellia_tag_check() -> CtSummary {
 fn bench_timing_twofish_tag_check() -> CtSummary {
     use hmac::digest::generic_array::typenum::U32;
     use hmac::digest::generic_array::GenericArray;
-    use vault::twofish_cipher::{
+    use galdr_vault::twofish_cipher::{
         twofish_encrypt, TwofishKey, TwofishNonce, TWOFISH_TAG_LEN,
     };
     let key = TwofishKey::from_raw_cipher_mac_for_test([0x2Fu8; 32], [0x3Eu8; 32]);
@@ -744,7 +744,7 @@ fn bench_timing_pin_compare() -> CtSummary {
 
 fn bench_timing_rsa_oaep_decrypt() -> CtSummary {
     use galdr_core::fake_hal::FakeTrng;
-    use vault::rsa_keys::RsaPrivateKey;
+    use galdr_vault::rsa_keys::RsaPrivateKey;
     static PK8: &[u8] = include_bytes!("../../vault/tests/data/rsa_2048_fuzz.pk8");
     let key = RsaPrivateKey::from_pkcs8_der(PK8).expect("rsa key");
     let mut trng = FakeTrng::from_seed(0x5253);
@@ -781,7 +781,7 @@ fn bench_timing_rsa_oaep_decrypt() -> CtSummary {
 
 fn bench_timing_rsa_pss_verify() -> CtSummary {
     use galdr_core::fake_hal::FakeTrng;
-    use vault::rsa_keys::RsaPrivateKey;
+    use galdr_vault::rsa_keys::RsaPrivateKey;
     static PK8: &[u8] = include_bytes!("../../vault/tests/data/rsa_2048_fuzz.pk8");
     let key = RsaPrivateKey::from_pkcs8_der(PK8).expect("rsa key");
     let mut trng = FakeTrng::from_seed(0x5055);

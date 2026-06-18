@@ -2,8 +2,8 @@
 
 use galdr_core::fake_hal::FakeTrng;
 use libfuzzer_sys::fuzz_target;
-use vault::chacha_aead::{chacha_decrypt, chacha_encrypt, ChaChaKey, ChaChaNonce};
-use vault::kdf_policy::KeyPurpose;
+use galdr_vault::chacha_aead::{chacha_decrypt, chacha_encrypt, ChaChaKey, ChaChaNonce};
+use galdr_vault::kdf_policy::KeyPurpose;
 
 fuzz_target!(|data: &[u8]| {
     if data.len() < 8 {

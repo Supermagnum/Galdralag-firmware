@@ -8,7 +8,7 @@ description = "Authenticated ephemeral ECDH session protocol (Brainpool, forward
 [dependencies]
 cess = { path = "../cess" }
 galdr-core = { path = "../galdr-core" }
-vault = { path = "../vault" }
+galdr-vault = { path = "../vault" }
 hkdf = { workspace = true }
 hmac = { workspace = true }
 sha2 = { workspace = true }

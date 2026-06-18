@@ -6,8 +6,8 @@
 
 use galdr_core::fake_hal::FakeTrng;
 use libfuzzer_sys::fuzz_target;
-use vault::kdf_policy::KeyPurpose;
-use vault::serpent_cipher::{
+use galdr_vault::kdf_policy::KeyPurpose;
+use galdr_vault::serpent_cipher::{
     serpent_ctr_unauthenticated, serpent_decrypt, serpent_encrypt, SerpentCiphertext, SerpentKey,
     SerpentNonce,
 };

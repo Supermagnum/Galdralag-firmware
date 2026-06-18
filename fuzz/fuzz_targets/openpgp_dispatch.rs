@@ -21,7 +21,7 @@ use usb_personality::openpgp::{
     OpenPgpVaultBackend,
     DO_STORE_REGION_BYTES,
 };
-use vault::SEALED_KEY_REGION_END;
+use galdr_vault::SEALED_KEY_REGION_END;
 
 fn init_default_dos<S: VaultStorage>(do_store: &mut DoStore<S>) {
     let mut oid = HVec::<u8, 16>::new();

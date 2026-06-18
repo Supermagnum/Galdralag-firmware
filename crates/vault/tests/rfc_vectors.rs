@@ -1,6 +1,6 @@
 //! RFC JSON vectors under `tests/rfc_vectors/` (loaded at test time).
 
-use vault::brainpool::BrainpoolPublicKey;
+use galdr_vault::brainpool::BrainpoolPublicKey;
 use chacha20poly1305::aead::{Aead, KeyInit, Payload};
 use chacha20poly1305::{ChaCha20Poly1305, Key, Nonce};
 use ed25519_dalek::{Signer, Verifier, VerifyingKey};

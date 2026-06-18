@@ -102,9 +102,9 @@ Crate-level exclusions aligned with the same constraints are listed under **[Cra
 
 **CESS:** This firmware **conforms to CESS** for the normative constructions implemented in-tree (including **Mode A** outer AEAD, **HKDF-BLAKE3** for **`K_outer`**, and byte-wise GF(2^8) Shamir splitting). The full alignment statement, deviation register, and **certification level** (for example **CESS-CORE** for the full fixed layer) are documented in [docs/CESS_CONFORMANCE.md](docs/CESS_CONFORMANCE.md) and [CESS (related open standard)](#cess-related-open-standard) below.
 
-The only remaining work before physical hardware works is the Xous USB service wiring — and that is documented in [docs/XOUS_CCID_INTEGRATION.md](docs/XOUS_CCID_INTEGRATION.md), waiting for the BSP crates to be available.
+The **OpenPGP / CCID** application logic is in **`crates/usb-personality`**. On **Xous**, the USB service that exposes CCID is **`usb-bao1x`** (in your **xous-core** checkout), built with feature **`ccid-openpgp`**, using **`crates/baochip-openpgp`** for the OpenPGP RRAM window and provisioning. Layout: [docs/RRAM_LAYOUT.md](docs/RRAM_LAYOUT.md). Pre-production gaps (operator PIN UX, platform map sign-off): [Known limitations / open work](#known-limitations--open-work).
 
-At that point the project will be a complete, tested, open-source hardware security token firmware: **OpenPGP card–style behaviour** for GnuPG over CCID (see [OpenPGP and GnuPG compatibility](#openpgp-and-gnupg-compatibility)), plus **additional on-device features** not currently defined by the OpenPGP card standard — ephemeral ECDH with forward secrecy, Shamir K-of-N, cipher-agnostic profiles, microSD decoy volume — as summarised in [Standards vs. firmware-specific features](#standards-vs-firmware-specific-features). All on open RTL with a reproducible bootloader.
+The overall goal remains a complete, tested, open-source hardware security token firmware: **OpenPGP card–style behaviour** for GnuPG over CCID (see [OpenPGP and GnuPG compatibility](#openpgp-and-gnupg-compatibility)), plus **additional on-device features** not currently defined by the OpenPGP card standard — ephemeral ECDH with forward secrecy, Shamir K-of-N, cipher-agnostic profiles, microSD decoy volume — as summarised in [Standards vs. firmware-specific features](#standards-vs-firmware-specific-features). All on open RTL with a reproducible bootloader.
 
 ### Signed firmware (Ed25519, boot0)
 
@@ -326,7 +326,6 @@ was only known to those who understood.
 | [docs/DEBUG_INSTRUCTIONS.md](docs/DEBUG_INSTRUCTIONS.md) | Debugging: `RUST_BACKTRACE`, verbose builds, scoped tests, `xtask` recipes, embedded target checks, fuzzing pointers, OpenPGP host checks |
 | [docs/KEY_LIFECYCLE.md](docs/KEY_LIFECYCLE.md) | Key generation, import, export policy, rotation, zeroisation, Shamir (as reflected in `vault` / OpenPGP) |
 | [docs/OPENPGP_CARD.md](docs/OPENPGP_CARD.md) | OpenPGP card application, GnuPG/CCID host setup, key slots, algorithms, udev |
-| [docs/XOUS_CCID_INTEGRATION.md](docs/XOUS_CCID_INTEGRATION.md) | Wiring CCID/OpenPGP USB into Xous on Baochip |
 | [docs/CIPHER_PROFILES.md](docs/CIPHER_PROFILES.md) | Cipher profile system and configuration |
 | [docs/CIPHER_PROFILE_SECURITY.md](docs/CIPHER_PROFILE_SECURITY.md) | Security considerations: cleartext profile identifiers, traffic analysis, BrainpoolP384r1 outer-wrapper rationale, encrypted identifiers, wildcard property |
 | [docs/CESS_CONFORMANCE.md](docs/CESS_CONFORMANCE.md) | [CESS](https://github.com/Supermagnum/CESS/tree/main) alignment: Mode A wire layout, `suite_id` from [ALGORITHM-REGISTRY.md — lookup table](https://github.com/Supermagnum/CESS/blob/main/ALGORITHM-REGISTRY.md#cipher-suite-identifier-lookup-table), deviation register (retained AES/SHA-2 vs CESS-CORE), roadmap |
@@ -369,7 +368,7 @@ The firmware implements the **OpenPGP card application** (documented as version 
 
 **OpenPGP card vs. OpenPGP messages:** The **card** specification defines how the token exposes PINs, key slots, and on-card operations over CCID. **GnuPG** uses that through `scdaemon`. The **OpenPGP message format** for files and mail (RFC 4880 and successors) is a **host-side** layer: the card supplies keys; GnuPG still applies the message format on the PC. Neither the card spec nor RFC 4880 defines **Shamir splitting**, **ephemeral ECDH sessions**, or **cipher profiles** — those are [firmware-specific](#standards-vs-firmware-specific-features).
 
-**Integration status:** The OpenPGP and CCID logic lives in **`usb-personality`** and is covered by unit tests, integration tests, and the **`openpgp_dispatch`** fuzz target (see [TEST_RESULTS — Section 6](docs/TEST_RESULTS.md#6-cargo-fuzz-libfuzzer)). Wiring the USB **CCID** service into the running **Xous** image is still **integration work**; follow [docs/XOUS_CCID_INTEGRATION.md](docs/XOUS_CCID_INTEGRATION.md). Until that is done, **end-to-end GnuPG against real hardware** is not available, even though the card application behaviour is implemented in firmware sources.
+**Integration status:** The OpenPGP and CCID logic lives in **`usb-personality`**, **`baochip-openpgp`**, and the **Xous** **`usb-bao1x`** service (see **xous-core**). Memory layout: [docs/RRAM_LAYOUT.md](docs/RRAM_LAYOUT.md). **End-to-end GnuPG on real hardware** still needs a full Xous image (with **`ccid-openpgp`**), a working host CCID stack (`pcscd`, driver), and items under [Known limitations / open work](#known-limitations--open-work) addressed where they apply to your ship target.
 
 ## Token session and key export
 
@@ -872,6 +871,34 @@ cargo run -p xtask -- timing-test
 
 Enable `galdr-core` feature `test-hal` **only** in tests or host tools.
 Never enable it in production firmware images — enforced by `check-fw`.
+
+---
+
+## Known limitations / open work
+
+### CCID initial PIN: operator UX (pre-production blocker)
+
+On first boot, `usb-bao1x` generates a random 8-digit numeric User PIN and
+Admin PIN via TRNG and stores them in RRAM (provision slots `PNU1` / `PNA1`,
+cleared after `OpenPgpVaultBackend::new` succeeds).
+
+These PINs are **not surfaced to the operator**. Before production shipment,
+a provisioning path is required — options include:
+
+- Secure display on device at first boot
+- One-time USB provisioning personality (separate from CCID)
+- PDDB export or equivalent
+
+**Sequencing constraint:** the provision slots are cleared after `new`
+completes. Any out-of-band provisioning that writes a PIN must do so
+*after* first boot via OpenPGP `CHANGE REFERENCE DATA` over USB, not
+by writing into the provision band directly.
+
+PIN cap: 32 bytes (firmware limit; OpenPGP spec allows 127). Raising
+the cap requires a layout change in `baochip-openpgp` and an update to
+`openpgp_vault_logical_span_end()`. See
+`CCID_PIN_PROVISION_PAYLOAD_MAX_BYTES` in
+`crates/baochip-openpgp/src/xous_impl.rs`.
 
 ---
 

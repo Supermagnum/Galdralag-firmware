@@ -112,7 +112,7 @@ Capability classes only — **no** named commercial products.
 
 | Capability | Typical commercial token | Galdralag (design / repo state) |
 |------------|--------------------------|----------------------------------|
-| OpenPGP card / CCID | Often | Yes (firmware sources; Xous USB wiring pending — [XOUS_CCID_INTEGRATION.md](XOUS_CCID_INTEGRATION.md)) |
+| OpenPGP card / CCID | Often | Yes (`usb-personality`, `baochip-openpgp`, Xous `usb-bao1x`; layout [RRAM_LAYOUT.md](RRAM_LAYOUT.md)) |
 | PIN on-token | Often | Yes (`pin-policy`) |
 | Biometric pre-gate | Uncommon; often fingerprint if present | Optional — **open** finger vein or sweet-class stack ([BIOMETRIC_API.md](BIOMETRIC_API.md)); wiring incomplete |
 | Biometric template on-token | Rare | Intended — encrypted in **RRAM** |

@@ -2,10 +2,10 @@
 
 use galdr_core::fake_hal::FakeTrng;
 use serde_json::Value;
-use vault::camellia_cipher::{camellia_decrypt, camellia_encrypt, CamelliaKey, CamelliaNonce};
-use vault::kdf_policy::KeyPurpose;
-use vault::serpent_cipher::{serpent_decrypt, serpent_encrypt, SerpentKey, SerpentNonce};
-use vault::twofish_cipher::{twofish_decrypt, twofish_encrypt, TwofishKey, TwofishNonce};
+use galdr_vault::camellia_cipher::{camellia_decrypt, camellia_encrypt, CamelliaKey, CamelliaNonce};
+use galdr_vault::kdf_policy::KeyPurpose;
+use galdr_vault::serpent_cipher::{serpent_decrypt, serpent_encrypt, SerpentKey, SerpentNonce};
+use galdr_vault::twofish_cipher::{twofish_decrypt, twofish_encrypt, TwofishKey, TwofishNonce};
 
 #[test]
 fn kat_blake3_from_json() {

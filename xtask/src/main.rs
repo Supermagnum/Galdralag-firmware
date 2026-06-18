@@ -81,7 +81,7 @@ fn main() {
                 .args([
                     "test",
                     "-p",
-                    "vault",
+                    "galdr-vault",
                     "-p",
                     "security-tests",
                     "--",
@@ -96,7 +96,7 @@ fn main() {
         }
         Some("wycheproof") => {
             let st = Command::new("cargo")
-                .args(["test", "-p", "vault", "wycheproof"])
+                .args(["test", "-p", "galdr-vault", "wycheproof"])
                 .stdin(Stdio::inherit())
                 .stdout(Stdio::inherit())
                 .stderr(Stdio::inherit())
@@ -139,7 +139,7 @@ fn main() {
                 .args([
                     "test",
                     "-p",
-                    "vault",
+                    "galdr-vault",
                     "rsa_perf_baseline",
                     "--",
                     "--ignored",
@@ -254,7 +254,7 @@ fn run_embedded(sub: &[&str]) {
             "-p",
             "galdr-core",
             "-p",
-            "vault",
+            "galdr-vault",
             "-p",
             "biometric-api",
             "-p",

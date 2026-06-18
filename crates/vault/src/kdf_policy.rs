@@ -54,6 +54,9 @@ pub enum KeyPurpose {
     /// OpenPGP admin PIN (PW3) verifier / wrapping label.
     /// info: `b"galdralag/openpgp/pw3/v1"`
     OpenPgpAdminPin,
+    /// USB CCID OpenPGP slot wrap master (HKDF from persisted salt + device binding).
+    /// info: `b"galdralag/openpgp/ccid-master/v1"`
+    OpenPgpCcidMaster,
 }
 
 impl KeyPurpose {
@@ -78,6 +81,7 @@ impl KeyPurpose {
             KeyPurpose::OpenPgpDec => b"galdralag/openpgp/dec/v1",
             KeyPurpose::OpenPgpAut => b"galdralag/openpgp/aut/v1",
             KeyPurpose::OpenPgpAdminPin => b"galdralag/openpgp/pw3/v1",
+            KeyPurpose::OpenPgpCcidMaster => b"galdralag/openpgp/ccid-master/v1",
         }
     }
 }

@@ -1,0 +1,28 @@
+[package]
+name = "baochip-openpgp"
+version = "0.1.0"
+edition = "2021"
+license = "GPL-3.0"
+description = "Xous Baochip RRAM + TRNG wiring for OpenPgpVaultBackend / CCID (Galdralag)"
+
+[dependencies]
+galdr-core = { path = "../galdr-core" }
+galdr-vault = { path = "../vault" }
+pin-policy = { path = "../pin-policy" }
+usb-personality = { path = "../usb-personality" }
+rand_core = { version = "0.6", default-features = false }
+
+[target.'cfg(target_os = "xous")'.dependencies]
+xous = "0.9.70"
+xous-names = { package = "xous-api-names", version = "0.9.71" }
+utralib = { version = "0.1.27", default-features = false, features = ["std", "bao1x"] }
+bao1x-hal = { path = "../../xous-core/libs/bao1x-hal", features = ["std"] }
+bao1x-api = { path = "../../xous-core/libs/bao1x-api", features = ["std"] }
+trng = { path = "../../xous-core/services/trng" }
+
+[features]
+default = []
+dev-provisioning = []
+
+[lints.rust]
+unsafe_code = "allow"

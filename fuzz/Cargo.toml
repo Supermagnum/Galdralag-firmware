@@ -11,7 +11,7 @@ cargo-fuzz = true
 libfuzzer-sys = "0.4"
 galdr-core = { path = "../crates/galdr-core", features = ["test-hal"] }
 rand_core = { version = "0.6", default-features = false }
-vault = { path = "../crates/vault" }
+galdr-vault = { path = "../crates/vault" }
 ephemeral-session = { path = "../crates/ephemeral-session" }
 cipher-profile = { path = "../crates/cipher-profile" }
 ed25519-dalek = { version = "2", default-features = false, features = ["rand_core"] }

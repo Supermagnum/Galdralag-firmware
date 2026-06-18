@@ -3,7 +3,7 @@
 use galdr_core::fake_hal::FakeTrng;
 use libfuzzer_sys::fuzz_target;
 use rand_core::RngCore;
-use vault::shamir::{shamir_recover, shamir_split};
+use galdr_vault::shamir::{shamir_recover, shamir_split};
 
 fuzz_target!(|data: &[u8]| {
     if data.len() < 8 {

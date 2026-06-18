@@ -113,7 +113,7 @@ cargo check -p <crate-name> --target riscv32imac-unknown-none-elf
 
 (Only crates that declare that target in their build will succeed; host-only crates are checked on the host triple instead.)
 
-Integration status for **USB CCID on Xous** is described in [XOUS_CCID_INTEGRATION.md](XOUS_CCID_INTEGRATION.md); until that wiring lands, **GnuPG against real hardware** may still fail at the OS/USB layer even when unit tests pass.
+For **USB CCID on Xous**, see **`crates/baochip-openpgp`**, **`xous-core/services/usb-bao1x`** (feature **`ccid-openpgp`**), [docs/RRAM_LAYOUT.md](docs/RRAM_LAYOUT.md), and the [README — Known limitations / open work](../README.md#known-limitations--open-work). **GnuPG against real hardware** can still fail at the OS or provisioning layer even when unit tests pass.
 
 ---
 

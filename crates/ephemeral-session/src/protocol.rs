@@ -15,8 +15,8 @@ use crate::keys::{EphemeralKeyPair, SessionKeys};
 use crate::trust::LongTermCert;
 use galdr_core::hal::{HardwareTrng, VaultStorage};
 use subtle::ConstantTimeEq;
-use vault::rsa_vault::KeySlot;
-use vault::session_long_term_signing::{
+use galdr_vault::rsa_vault::KeySlot;
+use galdr_vault::session_long_term_signing::{
     vault_load_session_long_term_signing_key, SessionLongTermSigningKey,
 };
 
@@ -399,7 +399,7 @@ fn verify_with_cert(
 ) -> Result<(), EphemeralSessionError> {
     match cert.curve {
         SessionCurve::BrainpoolP256r1 => {
-            use vault::ecdsa_brainpool::{BrainpoolSignature, BrainpoolVerifyingKey};
+            use galdr_vault::ecdsa_brainpool::{BrainpoolSignature, BrainpoolVerifyingKey};
             let vk = BrainpoolVerifyingKey::from_sec1(cert.verifying_key.as_slice())
                 .map_err(|_| EphemeralSessionError::InvalidPeerPublicKey)?;
             let sig = BrainpoolSignature::from_der_bytes(der_sig)
@@ -408,7 +408,7 @@ fn verify_with_cert(
                 .map_err(|_| EphemeralSessionError::InvalidPeerSignature)
         }
         SessionCurve::BrainpoolP384r1 => {
-            use vault::brainpool384::{BrainpoolP384Signature, BrainpoolP384VerifyingKey};
+            use galdr_vault::brainpool384::{BrainpoolP384Signature, BrainpoolP384VerifyingKey};
             let vk = BrainpoolP384VerifyingKey::from_sec1(cert.verifying_key.as_slice())
                 .map_err(|_| EphemeralSessionError::InvalidPeerPublicKey)?;
             let sig = BrainpoolP384Signature::from_der_bytes(der_sig)
@@ -417,7 +417,7 @@ fn verify_with_cert(
                 .map_err(|_| EphemeralSessionError::InvalidPeerSignature)
         }
         SessionCurve::BrainpoolP512r1 => {
-            use vault::brainpool512::{BrainpoolP512Signature, BrainpoolP512VerifyingKey};
+            use galdr_vault::brainpool512::{BrainpoolP512Signature, BrainpoolP512VerifyingKey};
             let vk = BrainpoolP512VerifyingKey::from_sec1(cert.verifying_key.as_slice())
                 .map_err(|_| EphemeralSessionError::InvalidPeerPublicKey)?;
             let sig = BrainpoolP512Signature::from_der_bytes(der_sig)

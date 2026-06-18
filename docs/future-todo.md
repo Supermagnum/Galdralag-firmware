@@ -80,6 +80,36 @@ existing host-side tooling.
 
 ## Planned Additions
 
+### When hardware arrives — bring-up sequence
+
+Hardware bring-up sequence (Q2)
+
+Run in this order on first hardware:
+
+- gpg --card-status — confirms CCID enumeration, AID, and key slots
+- gpg --card-edit → passwd — exercises PIN change; this is also the operator's only current path to replace the TRNG-generated first-boot PIN (see section 0)
+- RRAM map sign-off — manual review of the authoritative Baochip-1x memory map against the layout in docs/RRAM_LAYOUT.md; gate for production
+
+---
+
+### 0. First-boot operator PIN UX (pre-production blocker)
+
+On first boot, usb-bao1x generates a random 8-digit numeric User PIN and Admin PIN via TRNG and stores them in RRAM (provision slots PNU1 / PNA1). These slots are cleared after OpenPgpVaultBackend::new succeeds.
+
+The PINs are not surfaced to the operator. The only current path to change them is gpg --card-edit → passwd over USB after the device enumerates — but this requires the operator to already know the current PIN.
+
+This is a pre-production blocker. Options for resolution:
+
+- Secure display on device at first boot
+- One-time USB provisioning personality (separate from CCID)
+- PDDB export or equivalent
+
+Sequencing constraint: any provisioning path that writes a new PIN must do so via OpenPGP CHANGE REFERENCE DATA after first boot — not by writing directly into the provision band, which is cleared during new.
+
+PIN cap: 32 bytes (firmware limit; OpenPGP spec allows 127). See CCID_PIN_PROVISION_PAYLOAD_MAX_BYTES in crates/baochip-openpgp/src/xous_impl.rs. Raising the cap requires a layout change and update to openpgp_vault_logical_span_end().
+
+---
+
 ### 1. Password Vault
 
 Store per-site credentials encrypted in RRAM behind the existing PIN policy.
@@ -117,7 +147,7 @@ No standalone Rust PKINIT client crate suitable for `no_std` embedded use exists
 at time of writing. The firmware only performs the signing operation; PKINIT
 protocol handling lives entirely in host-side tooling.
 
-Planned: Q2 hardware availability.
+Planned: after Q2 bring-up and CCID smoke test. Defer x509-cert / cms integration until independent audits are available; these crates handle untrusted input.
 
 ---
 
@@ -132,6 +162,8 @@ profile system once independently audited crates are available.
 | `ml-dsa` (RustCrypto) | `no_std` compatible, tested against NIST KAT vectors. No independent audit as of 2025. Same caveat. |
 | `slh-dsa` (RustCrypto) | `no_std` compatible, tested against NIST KAT vectors. No independent audit as of 2025. Same caveat. |
 | `libcrux-ml-kem` (Cryspen) | Formally verified using hax/F* framework; used in production by Mozilla. Most rigorous verification story currently available. Uncovered the KyberSlash timing bug in other implementations. Watch for formal audit availability. |
+
+For first deployment, prefer libcrux-ml-kem over ml-kem (RustCrypto); Cryspen's formal verification uncovered the KyberSlash timing vulnerability in other implementations.
 
 Hybrid classical+PQC profiles (e.g. X25519 + ML-KEM-768) should be the first
 deployment target. The existing cipher-agnostic profile system accommodates this

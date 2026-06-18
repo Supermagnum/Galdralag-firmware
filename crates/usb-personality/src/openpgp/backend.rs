@@ -6,7 +6,7 @@ use heapless::Vec;
 
 use super::dos::AlgorithmAttributes;
 use galdr_core::HalError;
-use vault::KeyPurpose;
+use galdr_vault::KeyPurpose;
 
 /// Slot identifiers for OpenPGP key operations (SIG / DEC / AUT).
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]

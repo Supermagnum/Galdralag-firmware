@@ -6,11 +6,11 @@
 
 use galdr_core::fake_hal::FakeTrng;
 use libfuzzer_sys::fuzz_target;
-use vault::camellia_cipher::{
+use galdr_vault::camellia_cipher::{
     camellia_ctr_unauthenticated, camellia_decrypt, camellia_encrypt, CamelliaCiphertext,
     CamelliaKey, CamelliaNonce,
 };
-use vault::kdf_policy::KeyPurpose;
+use galdr_vault::kdf_policy::KeyPurpose;
 
 fuzz_target!(|data: &[u8]| {
     let prk: [u8; 32] = if data.len() >= 32 {

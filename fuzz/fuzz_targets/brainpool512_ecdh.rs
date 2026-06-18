@@ -5,7 +5,7 @@
 
 use galdr_core::fake_hal::FakeTrng;
 use libfuzzer_sys::fuzz_target;
-use vault::brainpool512::{BrainpoolP512PublicKey, BrainpoolP512Scalar};
+use galdr_vault::brainpool512::{BrainpoolP512PublicKey, BrainpoolP512Scalar};
 
 fuzz_target!(|data: &[u8]| {
     let _ = BrainpoolP512PublicKey::from_sec1(data);

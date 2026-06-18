@@ -8,12 +8,12 @@ use heapless::Vec;
 use hkdf::Hkdf;
 use hmac::{Hmac, Mac};
 use sha2::Sha256;
-use vault::brainpool::BrainpoolPublicKey;
-use vault::brainpool384::BrainpoolP384PublicKey;
-use vault::brainpool512::BrainpoolP512PublicKey;
-use vault::brainpool::BrainpoolScalar;
-use vault::brainpool384::BrainpoolP384Scalar;
-use vault::brainpool512::BrainpoolP512Scalar;
+use galdr_vault::brainpool::BrainpoolPublicKey;
+use galdr_vault::brainpool384::BrainpoolP384PublicKey;
+use galdr_vault::brainpool512::BrainpoolP512PublicKey;
+use galdr_vault::brainpool::BrainpoolScalar;
+use galdr_vault::brainpool384::BrainpoolP384Scalar;
+use galdr_vault::brainpool512::BrainpoolP512Scalar;
 use zeroize::{Zeroize, ZeroizeOnDrop, Zeroizing};
 
 /// Maximum length of a Brainpool P-512r1 ECDH shared secret (x-coordinate).

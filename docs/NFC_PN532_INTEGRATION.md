@@ -1,6 +1,6 @@
 # PN532 / NFC integration (door access and quorum)
 
-This document describes **how to add NFC support** around a **PN532**-class front end, typical **host software** options (**libnfc** and Rust-facing paths), and how that fits a **physical presence + Shamir + identity + PIN/biometric** quorum model for **drive key reconstruction** and **door access**. Nothing in this file is implemented in the firmware tree yet; it is an **integration guide** for hardware and software that will sit **beside** the token firmware ([vault](ARCHITECTURE.md), [Shamir](API_REFERENCE.md), [USB/CCID](XOUS_CCID_INTEGRATION.md)).
+This document describes **how to add NFC support** around a **PN532**-class front end, typical **host software** options (**libnfc** and Rust-facing paths), and how that fits a **physical presence + Shamir + identity + PIN/biometric** quorum model for **drive key reconstruction** and **door access**. Nothing in this file is implemented in the firmware tree yet; it is an **integration guide** for hardware and software that will sit **beside** the token firmware ([vault](ARCHITECTURE.md), [Shamir](API_REFERENCE.md), USB/CCID: [RRAM_LAYOUT.md](RRAM_LAYOUT.md), `usb-personality`, `baochip-openpgp`, Xous `usb-bao1x`).
 
 ---
 
@@ -86,7 +86,7 @@ To support the scenarios above, a future design would likely include:
 3. **Policy engine hook:** require **NFC session active** **and** **PIN verified** **and** **k-of-n Shamir** (or Brainpool-signed assertion) before releasing **drive unwrap** or **door credential**.
 4. **Passive operation:** antenna and PN532 in **low-power listen** or **card emulation** mode per datasheet; **RF field** from the reader powers or wakes the analog front end — **hardware design** must match **NFC forum** requirements for the chosen mode.
 
-Coordinate with [XOUS_CCID_INTEGRATION.md](XOUS_CCID_INTEGRATION.md) for **USB** at the door: a panel might expose **HID** for **button-less PIN** entry on host software, while the token uses **CCID** or **vendor HID** reports for **challenge-response**. Exact **USB HID** report layout would be a **separate specification** (not defined here).
+Coordinate with the token’s **USB/CCID** integration ([RRAM_LAYOUT.md](RRAM_LAYOUT.md), `usb-bao1x` / `baochip-openpgp` in the main repo and xous-core) for **USB** at the door: a panel might expose **HID** for **button-less PIN** entry on host software, while the token uses **CCID** or **vendor HID** reports for **challenge-response**. Exact **USB HID** report layout would be a **separate specification** (not defined here).
 
 ---
 
@@ -139,7 +139,7 @@ Mapping each factor to **concrete APIs** (vault slots, `KeyPurpose`, [cipher pro
 - [API_REFERENCE.md](API_REFERENCE.md) — Shamir and host export formats.
 - [ARCHITECTURE.md](ARCHITECTURE.md) — Vault and subsystems.
 - [SDMMC_STORAGE_INTEGRATION.md](SDMMC_STORAGE_INTEGRATION.md) — Optional **microSD** via **`embedded-sdmmc`** as an alternative to **PSRAM** for bulk decoy storage.
-- [XOUS_CCID_INTEGRATION.md](XOUS_CCID_INTEGRATION.md) — USB service wiring on Xous.
+- [RRAM_LAYOUT.md](RRAM_LAYOUT.md) — OpenPGP/CCID RRAM band on Baochip; `baochip-openpgp`, `usb-bao1x`
 - [GALDRA-TOOL.md](GALDRA-TOOL.md) — Host tooling and provisioning.
 
 ---

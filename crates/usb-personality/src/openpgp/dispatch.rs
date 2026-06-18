@@ -3,7 +3,7 @@
 #![deny(unsafe_code)]
 
 use heapless::Vec;
-use vault::KeyPurpose;
+use galdr_vault::KeyPurpose;
 
 use crate::ccid::{
     atr_openpgp_profile, rdr_to_pc_data_block, rdr_to_pc_parameters, rdr_to_pc_slot_status,

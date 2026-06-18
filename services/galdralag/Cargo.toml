@@ -18,7 +18,7 @@ xous-bsp = []
 [dependencies]
 galdr-core = { path = "../../crates/galdr-core" }
 usb-personality = { path = "../../crates/usb-personality" }
-vault = { path = "../../crates/vault" }
+galdr-vault = { path = "../../crates/vault" }
 
 [dev-dependencies]
 galdr-core = { path = "../../crates/galdr-core", features = ["test-hal"] }

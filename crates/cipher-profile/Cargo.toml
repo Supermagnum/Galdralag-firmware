@@ -8,7 +8,7 @@ description = "Named cipher profiles: ECDHE curve, symmetric cascade, Shamir met
 [dependencies]
 cess = { path = "../cess" }
 galdr-core = { path = "../galdr-core" }
-vault = { path = "../vault" }
+galdr-vault = { path = "../vault" }
 ephemeral-session = { path = "../ephemeral-session" }
 hkdf = { workspace = true }
 sha2 = { workspace = true }
@@ -28,7 +28,7 @@ path = "src/bin/cascade_kat_gen.rs"
 [dev-dependencies]
 galdr-core = { path = "../galdr-core", features = ["test-hal"] }
 ephemeral-session = { path = "../ephemeral-session" }
-vault = { path = "../vault" }
+galdr-vault = { path = "../vault" }
 hex = { workspace = true }
 serde_json = { workspace = true }
 

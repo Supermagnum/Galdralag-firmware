@@ -2,16 +2,16 @@
 
 use galdr_core::fake_hal::FakeTrng;
 use serde_json::Value;
-use vault::brainpool::{BrainpoolPublicKey, BrainpoolScalar};
-use vault::brainpool384::{
+use galdr_vault::brainpool::{BrainpoolPublicKey, BrainpoolScalar};
+use galdr_vault::brainpool384::{
     BrainpoolP384PublicKey, BrainpoolP384Scalar, BrainpoolP384Signature, BrainpoolP384SigningKey,
     BrainpoolP384VerifyingKey,
 };
-use vault::brainpool512::{
+use galdr_vault::brainpool512::{
     BrainpoolP512PublicKey, BrainpoolP512Scalar, BrainpoolP512Signature, BrainpoolP512SigningKey,
     BrainpoolP512VerifyingKey,
 };
-use vault::ecdsa_brainpool::{BrainpoolSignature, BrainpoolSigningKey, BrainpoolVerifyingKey};
+use galdr_vault::ecdsa_brainpool::{BrainpoolSignature, BrainpoolSigningKey, BrainpoolVerifyingKey};
 
 fn ecdh_rows(v: &Value) -> &[Value] {
     v.get("vectors")

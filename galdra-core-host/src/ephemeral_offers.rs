@@ -37,7 +37,7 @@ use rusqlite::{params, OptionalExtension};
 use serde::{Deserialize, Serialize};
 use std::io::Write as _;
 use std::process::Command;
-use vault::brainpool::BrainpoolScalar;
+use galdr_vault::brainpool::BrainpoolScalar;
 
 const OFFER_SCHEMA_VERSION: u64 = 1;
 

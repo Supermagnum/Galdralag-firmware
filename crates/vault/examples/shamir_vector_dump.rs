@@ -2,7 +2,7 @@
 //! prints share hex lines for embedding in `tests/data/shamir_vectors.json`.
 
 use galdr_core::fake_hal::FakeTrng;
-use vault::shamir::shamir_split;
+use galdr_vault::shamir::shamir_split;
 
 fn main() {
     let secret = [0x11u8; 32];

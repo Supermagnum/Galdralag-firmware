@@ -1,7 +1,7 @@
 //! JSON vectors in `tests/data/shamir_vectors.json`.
 
 use serde_json::Value;
-use vault::shamir::{shamir_recover, ShamirError, ShamirShare};
+use galdr_vault::shamir::{shamir_recover, ShamirError, ShamirShare};
 
 #[test]
 fn shamir_vectors_json_recover() -> Result<(), ShamirError> {

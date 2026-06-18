@@ -963,13 +963,13 @@ dependencies = [
  "chacha20poly1305",
  "ephemeral-session",
  "galdr-core",
+ "galdr-vault",
  "heapless",
  "hex",
  "hkdf 0.12.4",
  "serde_json",
  "sha2 0.10.9",
  "subtle",
- "vault",
  "zeroize",
 ]
 
@@ -1669,12 +1669,12 @@ version = "0.1.0"
 dependencies = [
  "cess",
  "galdr-core",
+ "galdr-vault",
  "heapless",
  "hkdf 0.12.4",
  "hmac 0.12.1",
  "sha2 0.10.9",
  "subtle",
- "vault",
  "zeroize",
 ]
 
@@ -2079,6 +2079,47 @@ dependencies = [
 ]
 
 [[package]]
+name = "galdr-vault"
+version = "0.1.0"
+dependencies = [
+ "aead",
+ "aes-gcm",
+ "blake3",
+ "bp256",
+ "bp384",
+ "bp512",
+ "camellia 0.2.0",
+ "chacha20poly1305",
+ "ecdsa 0.17.0-rc.16",
+ "ed25519-dalek",
+ "elliptic-curve 0.14.0-rc.29",
+ "ff",
+ "galdr-core",
+ "heapless",
+ "hex",
+ "hkdf 0.12.4",
+ "hmac 0.12.1",
+ "paste",
+ "pbkdf2",
+ "pin-policy",
+ "proptest",
+ "rand_core 0.6.4",
+ "rsa",
+ "serde_json",
+ "serpent",
+ "sha1",
+ "sha2 0.10.9",
+ "sha3",
+ "signature 3.0.0-rc.10",
+ "static_assertions",
+ "subtle",
+ "twofish 0.8.0-rc.1",
+ "vsss-rs",
+ "x25519-dalek",
+ "zeroize",
+]
+
+[[package]]
 name = "galdra"
 version = "0.1.0"
 dependencies = [
@@ -2112,6 +2153,7 @@ dependencies = [
  "cipher-profile",
  "ephemeral-session",
  "galdr-core",
+ "galdr-vault",
  "heapless",
  "hex",
  "ldap3",
@@ -2127,7 +2169,6 @@ dependencies = [
  "tokio",
  "toml 0.8.23",
  "uuid",
- "vault",
  "zeroize",
 ]
 
@@ -2173,8 +2214,8 @@ name = "galdralag-service"
 version = "0.1.0"
 dependencies = [
  "galdr-core",
+ "galdr-vault",
  "usb-personality",
- "vault",
 ]
 
 [[package]]
@@ -5155,6 +5196,7 @@ dependencies = [
  "ed25519-dalek",
  "ephemeral-session",
  "galdr-core",
+ "galdr-vault",
  "heapless",
  "hex",
  "hkdf 0.12.4",
@@ -5166,7 +5208,6 @@ dependencies = [
  "sha2 0.10.9",
  "sha3",
  "subtle",
- "vault",
  "x25519-dalek",
 ]
 
@@ -6256,6 +6297,7 @@ dependencies = [
  "ecdsa 0.17.0-rc.16",
  "ed25519-dalek",
  "galdr-core",
+ "galdr-vault",
  "heapless",
  "pin-policy",
  "proptest",
@@ -6263,7 +6305,6 @@ dependencies = [
  "sha1",
  "sha2 0.10.9",
  "usb-device",
- "vault",
  "x25519-dalek",
  "zeroize",
 ]
@@ -6349,47 +6390,6 @@ name = "valuable"
 version = "0.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ba73ea9cf16a25df0c8caa16c51acb937d5712a8429db78a3ee29d5dcacd3a65"
-
-[[package]]
-name = "vault"
-version = "0.1.0"
-dependencies = [
- "aead",
- "aes-gcm",
- "blake3",
- "bp256",
- "bp384",
- "bp512",
- "camellia 0.2.0",
- "chacha20poly1305",
- "ecdsa 0.17.0-rc.16",
- "ed25519-dalek",
- "elliptic-curve 0.14.0-rc.29",
- "ff",
- "galdr-core",
- "heapless",
- "hex",
- "hkdf 0.12.4",
- "hmac 0.12.1",
- "paste",
- "pbkdf2",
- "pin-policy",
- "proptest",
- "rand_core 0.6.4",
- "rsa",
- "serde_json",
- "serpent",
- "sha1",
- "sha2 0.10.9",
- "sha3",
- "signature 3.0.0-rc.10",
- "static_assertions",
- "subtle",
- "twofish 0.8.0-rc.1",
- "vsss-rs",
- "x25519-dalek",
- "zeroize",
-]
 
 [[package]]
 name = "vcpkg"

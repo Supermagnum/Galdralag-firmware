@@ -24,10 +24,10 @@ use usb_personality::openpgp::{
     OpenPgpVaultBackend,
     DO_STORE_REGION_BYTES,
 };
-use vault::brainpool::{BrainpoolPublicKey, BrainpoolScalar};
-use vault::ecdsa_brainpool::{BrainpoolSignature, BrainpoolSigningKey, BrainpoolVerifyingKey};
-use vault::KeyPurpose;
-use vault::SEALED_KEY_REGION_END;
+use galdr_vault::brainpool::{BrainpoolPublicKey, BrainpoolScalar};
+use galdr_vault::ecdsa_brainpool::{BrainpoolSignature, BrainpoolSigningKey, BrainpoolVerifyingKey};
+use galdr_vault::KeyPurpose;
+use galdr_vault::SEALED_KEY_REGION_END;
 
 #[derive(Default)]
 struct ZeroiseFlag(pub bool);

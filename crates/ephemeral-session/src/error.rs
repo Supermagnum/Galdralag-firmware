@@ -52,16 +52,16 @@ impl From<HalError> for EphemeralSessionError {
     }
 }
 
-impl From<vault::brainpool::BrainpoolError> for EphemeralSessionError {
-    fn from(_: vault::brainpool::BrainpoolError) -> Self {
+impl From<galdr_vault::brainpool::BrainpoolError> for EphemeralSessionError {
+    fn from(_: galdr_vault::brainpool::BrainpoolError) -> Self {
         EphemeralSessionError::Brainpool
     }
 }
 
-impl From<vault::session_long_term_signing::SessionLongTermSigningVaultError> for EphemeralSessionError {
-    fn from(e: vault::session_long_term_signing::SessionLongTermSigningVaultError) -> Self {
+impl From<galdr_vault::session_long_term_signing::SessionLongTermSigningVaultError> for EphemeralSessionError {
+    fn from(e: galdr_vault::session_long_term_signing::SessionLongTermSigningVaultError) -> Self {
         match e {
-            vault::session_long_term_signing::SessionLongTermSigningVaultError::StorageError => {
+            galdr_vault::session_long_term_signing::SessionLongTermSigningVaultError::StorageError => {
                 EphemeralSessionError::Storage
             }
             _ => EphemeralSessionError::MalformedHandshake,

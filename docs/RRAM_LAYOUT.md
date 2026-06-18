@@ -10,6 +10,7 @@ integrators must reconcile sketches here with that map before shipping firmware.
 
 - [Capacity and HAL](#capacity-and-hal)
 - [Documented regions from source](#documented-regions-from-source)
+- [Platform reconciliation](#platform-reconciliation)
 - [Wear and write frequency](#wear-and-write-frequency)
 - [Power-off and zeroisation](#power-off-and-zeroisation)
 
@@ -43,12 +44,19 @@ allocation through 4 MiB is **not** enumerated in one place in this tree.
 | **Prefix / policy header** | Bytes **0..256** implied before public-key table | First **public-key** slot starts at offset **256** (`PUBLIC_KEY_REGION_BASE`) |
 | **Public-key DER table** | Base **256**, reserved span **65,536** bytes (`PUBLIC_KEY_TABLE_BYTES`) | **2,048** bytes per [`PublicKeySlot`](https://github.com/Supermagnum/Galdralag-firmware/blob/main/crates/vault/src/public_key_vault.rs); payloads are **public**, unencrypted |
 | **Sealed OpenPGP private blobs** | **SIG** at `256 + 65536` = **65,792**; **DEC** and **AUT** follow | **93** bytes each (`SEALED_BLOB_BYTES`); AEAD-wrapped scalars; end = **66,071** (`SEALED_KEY_REGION_END`) |
+| **USB CCID OpenPGP (`baochip-openpgp`, Xous)** | **DO store** at **67,072**; PIN verifier digests + monotonic counters; **CCID master record** at **75,376** (36 B: `OGMK` + salt); **PIN provision slots** at **75,412** and **75,449** (37 B each: `PNU1` / `PNA1` + 1-byte length + up to **32** B PIN payload); exclusive end **75,486** | OpenPGP allows PW1/PW3 up to **127** bytes each; this firmware caps persisted provision PINs at **32** bytes (`CCID_PIN_PROVISION_PAYLOAD_MAX_BYTES` in `crates/baochip-openpgp`). Longer PINs are rejected (`HalError::Denied`), not truncated. Physical base = **`vault_phys_base()`** (`BOOT1_START - HW_RERAM_MEM`). **Not** cross-checked in Rust against [Baochip-1x-firmware](https://github.com/Supermagnum/Baochip-1x-firmware); see [Platform reconciliation](#platform-reconciliation). |
 | **Session long-term Brainpool keys** | Base **1,048,576** (`0x100_000`); **512** bytes × slot | Plaintext scalars in tree today — see module rustdoc **“production should wrap”** warning |
 | **RSA wrapped key slots** | **Slot-relative:** `slot_index × 8,192` bytes | [`rsa_vault.rs`](../crates/vault/src/rsa_vault.rs) does **not** embed a global base; the integrator’s `VaultStorage` view must not overlap other regions |
 | **PIN policy record** | **Layout-defined offset** (parameter to read/write APIs) | **64** bytes (`VAULT_PIN_POLICY_RECORD_BYTES`); magic `GPPL` — exact RRAM offset **not** fixed in Rust sources here |
 | **Stateful PQ signature state (XMSS / LMS)** | — | **Not implemented** in this repository yet; [`PQ_SIGNATURES.md`](PQ_SIGNATURES.md) documents placeholder feature only. **No** RRAM slot layout for state indices exists in source. |
 
 **Not in RRAM as dedicated layout:** Shamir **share** payloads for distribution are built on the **host** in current tooling; shares are not described as stored in named RRAM slots in this codebase.
+
+---
+
+## Platform reconciliation
+
+Sketches above (including the **USB CCID** band ending at logical offset **75,486**) must be reconciled with the **authoritative** on-chip layout published or maintained in [Supermagnum/Baochip-1x-firmware](https://github.com/Supermagnum/Baochip-1x-firmware). Until that review is recorded here or in platform docs, treat the CCID RRAM placement as **unverified for production** from a memory-map perspective (overlap and reservation rules are silicon/product specific).
 
 ---
 

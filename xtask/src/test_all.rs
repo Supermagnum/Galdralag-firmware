@@ -215,38 +215,38 @@ pub fn run(workspace_root: &Path, skip_fuzz: bool) -> i32 {
         "wycheproof",
         cargo_ok(
             workspace_root,
-            &["test", "-p", "vault", "wycheproof", "-q"],
+            &["test", "-p", "galdr-vault", "wycheproof", "-q"],
         ),
     );
 
     eprintln!("test-all: 5/15 rfc_vectors");
     log.push_step(
         "rfc_vectors",
-        cargo_ok(workspace_root, &["test", "-p", "vault", "--test", "rfc_vectors", "-q"]),
+        cargo_ok(workspace_root, &["test", "-p", "galdr-vault", "--test", "rfc_vectors", "-q"]),
     );
 
     eprintln!("test-all: 6/15 bsi_brainpool");
     log.push_step(
         "bsi_brainpool",
-        cargo_ok(workspace_root, &["test", "-p", "vault", "--test", "bsi_brainpool", "-q"]),
+        cargo_ok(workspace_root, &["test", "-p", "galdr-vault", "--test", "bsi_brainpool", "-q"]),
     );
 
     eprintln!("test-all: 7/15 nist_cavp");
     log.push_step(
         "nist_cavp",
-        cargo_ok(workspace_root, &["test", "-p", "vault", "--test", "nist_cavp", "-q"]),
+        cargo_ok(workspace_root, &["test", "-p", "galdr-vault", "--test", "nist_cavp", "-q"]),
     );
 
     eprintln!("test-all: 8/15 kat_vectors");
     log.push_step(
         "kat_vectors",
-        cargo_ok(workspace_root, &["test", "-p", "vault", "--test", "kat_vectors", "-q"]),
+        cargo_ok(workspace_root, &["test", "-p", "galdr-vault", "--test", "kat_vectors", "-q"]),
     );
 
     eprintln!("test-all: 9/15 key_lifecycle");
     log.push_step(
         "key_lifecycle",
-        cargo_ok(workspace_root, &["test", "-p", "vault", "--test", "key_lifecycle", "-q"]),
+        cargo_ok(workspace_root, &["test", "-p", "galdr-vault", "--test", "key_lifecycle", "-q"]),
     );
 
     eprintln!("test-all: 10/15 pin_lifecycle");
@@ -486,7 +486,7 @@ fn run_embedded_check(root: &Path, sub: &[&str], pq: bool) -> bool {
         "-p",
         "galdr-core",
         "-p",
-        "vault",
+        "galdr-vault",
         "-p",
         "biometric-api",
         "-p",
@@ -503,7 +503,7 @@ fn run_embedded_check(root: &Path, sub: &[&str], pq: bool) -> bool {
     if pq {
         cmd.args([
             "--features",
-            "galdr-core/pq-signatures,vault/pq-signatures,pin-policy/pq-signatures,usb-personality/pq-signatures",
+            "galdr-core/pq-signatures,galdr-vault/pq-signatures,pin-policy/pq-signatures,usb-personality/pq-signatures",
         ]);
     }
     cmd.stdin(Stdio::inherit())
@@ -740,27 +740,27 @@ fn build_markdown(
         "| Unit tests (workspace) | `cargo test --workspace --exclude xtask` | {unit_row} |\n"
     ));
     s.push_str(&format!(
-        "| Wycheproof vectors | `cargo test -p vault wycheproof` | {} |\n",
+        "| Wycheproof vectors | `cargo test -p galdr-vault wycheproof` | {} |\n",
         pf(step_ok(steps, "wycheproof"))
     ));
     s.push_str(&format!(
-        "| RFC vectors | `cargo test -p vault rfc_vectors` | {} |\n",
+        "| RFC vectors | `cargo test -p galdr-vault rfc_vectors` | {} |\n",
         pf(step_ok(steps, "rfc_vectors"))
     ));
     s.push_str(&format!(
-        "| BSI Brainpool vectors | `cargo test -p vault bsi_brainpool` | {} |\n",
+        "| BSI Brainpool vectors | `cargo test -p galdr-vault bsi_brainpool` | {} |\n",
         pf(step_ok(steps, "bsi_brainpool"))
     ));
     s.push_str(&format!(
-        "| NIST CAVP subset | `cargo test -p vault nist_cavp` | {} |\n",
+        "| NIST CAVP subset | `cargo test -p galdr-vault nist_cavp` | {} |\n",
         pf(step_ok(steps, "nist_cavp"))
     ));
     s.push_str(&format!(
-        "| KAT vectors | `cargo test -p vault kat_vectors` | {} |\n",
+        "| KAT vectors | `cargo test -p galdr-vault kat_vectors` | {} |\n",
         pf(step_ok(steps, "kat_vectors"))
     ));
     s.push_str(&format!(
-        "| Key lifecycle | `cargo test -p vault key_lifecycle` | {} |\n",
+        "| Key lifecycle | `cargo test -p galdr-vault key_lifecycle` | {} |\n",
         pf(step_ok(steps, "key_lifecycle"))
     ));
     s.push_str(&format!(
@@ -859,13 +859,13 @@ fn build_markdown(
 
     s.push_str("### 2.4 RFC, BSI, Wycheproof, and KAT asset paths\n\n");
     s.push_str("| Asset | Runner |\n|-------|--------|\n");
-    s.push_str("| `crates/vault/tests/data/` | `cargo test -p vault wycheproof` |\n");
+    s.push_str("| `crates/vault/tests/data/` | `cargo test -p galdr-vault wycheproof` |\n");
     s.push_str("| `tests/data/wycheproof/` | same |\n");
     s.push_str("| `crates/vault/tests/rfc_vectors/` | `vault/tests/rfc_vectors.rs` |\n");
     s.push_str("| `crates/vault/tests/bsi_vectors/` | `vault/tests/bsi_brainpool.rs` |\n");
     s.push_str("| `crates/vault/tests/nist_cavp_vectors/` | `vault/tests/nist_cavp.rs` |\n");
     s.push_str("| `crates/vault/tests/blake3_vectors.json` (and related KAT JSON) | `crates/vault/tests/kat_vectors.rs` |\n");
-    s.push_str("| `crates/vault/tests/twofish_vectors.json` | `cargo test -p vault twofish_vectors_json_kat` (`twofish_vectors_json_kat` in `crates/vault/src/twofish_cipher.rs`) |\n\n");
+    s.push_str("| `crates/vault/tests/twofish_vectors.json` | `cargo test -p galdr-vault twofish_vectors_json_kat` (`twofish_vectors_json_kat` in `crates/vault/src/twofish_cipher.rs`) |\n\n");
     s.push_str("---\n\n");
 
     s.push_str("## 3. Timing tests (dudect)\n\n");

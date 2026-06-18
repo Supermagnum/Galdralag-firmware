@@ -28,17 +28,17 @@ use cess::{
 };
 use heapless::Vec;
 use subtle::ConstantTimeEq;
-use vault::chacha_aead::{
+use galdr_vault::chacha_aead::{
     chacha_decrypt, chacha_encrypt, ChaChaCiphertext, ChaChaKey, ChaChaNonce, ChaChaPlaintext,
 };
-use vault::camellia_cipher::{
+use galdr_vault::camellia_cipher::{
     camellia_decrypt, camellia_encrypt, CamelliaCiphertext, CamelliaKey, CamelliaNonce,
     CamelliaPlaintext,
 };
-use vault::serpent_cipher::{
+use galdr_vault::serpent_cipher::{
     serpent_decrypt, serpent_encrypt, SerpentCiphertext, SerpentKey, SerpentNonce, SerpentPlaintext,
 };
-use vault::twofish_cipher::{
+use galdr_vault::twofish_cipher::{
     twofish_decrypt, twofish_encrypt, TwofishCiphertext, TwofishKey, TwofishNonce, TwofishPlaintext,
 };
 use zeroize::Zeroize;
@@ -700,25 +700,25 @@ fn copy_pt_serpent(pt: &SerpentPlaintext) -> Result<Vec<u8, MAX_CT>, CipherProfi
 }
 
 fn map_cipher_encrypt_err(
-    e: vault::chacha_aead::ChaChaError,
+    e: galdr_vault::chacha_aead::ChaChaError,
     layer: u8,
 ) -> CipherProfileError {
     match e {
-        vault::chacha_aead::ChaChaError::AuthenticationFailed => CipherProfileError::CipherError { layer },
+        galdr_vault::chacha_aead::ChaChaError::AuthenticationFailed => CipherProfileError::CipherError { layer },
         _ => CipherProfileError::CipherError { layer },
     }
 }
 
-fn map_twofish_encrypt_err(e: vault::twofish_cipher::TwofishError, layer: u8) -> CipherProfileError {
+fn map_twofish_encrypt_err(e: galdr_vault::twofish_cipher::TwofishError, layer: u8) -> CipherProfileError {
     match e {
-        vault::twofish_cipher::TwofishError::AuthenticationFailed => CipherProfileError::CipherError { layer },
+        galdr_vault::twofish_cipher::TwofishError::AuthenticationFailed => CipherProfileError::CipherError { layer },
         _ => CipherProfileError::CipherError { layer },
     }
 }
 
-fn map_serpent_encrypt_err(e: vault::serpent_cipher::SerpentError, layer: u8) -> CipherProfileError {
+fn map_serpent_encrypt_err(e: galdr_vault::serpent_cipher::SerpentError, layer: u8) -> CipherProfileError {
     match e {
-        vault::serpent_cipher::SerpentError::AuthenticationFailed => CipherProfileError::CipherError { layer },
+        galdr_vault::serpent_cipher::SerpentError::AuthenticationFailed => CipherProfileError::CipherError { layer },
         _ => CipherProfileError::CipherError { layer },
     }
 }
@@ -739,9 +739,9 @@ fn copy_pt_camellia(pt: &CamelliaPlaintext) -> Result<Vec<u8, MAX_CT>, CipherPro
     Ok(out)
 }
 
-fn map_camellia_encrypt_err(e: vault::camellia_cipher::CamelliaError, layer: u8) -> CipherProfileError {
+fn map_camellia_encrypt_err(e: galdr_vault::camellia_cipher::CamelliaError, layer: u8) -> CipherProfileError {
     match e {
-        vault::camellia_cipher::CamelliaError::AuthenticationFailed => CipherProfileError::CipherError { layer },
+        galdr_vault::camellia_cipher::CamelliaError::AuthenticationFailed => CipherProfileError::CipherError { layer },
         _ => CipherProfileError::CipherError { layer },
     }
 }

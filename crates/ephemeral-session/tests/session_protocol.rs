@@ -5,11 +5,11 @@ use ephemeral_session::{
 };
 use galdr_core::fake_hal::{FakeTrng, FakeVaultStorage};
 use subtle::ConstantTimeEq;
-use vault::brainpool384::BrainpoolP384SigningKey;
-use vault::brainpool512::BrainpoolP512SigningKey;
-use vault::ecdsa_brainpool::BrainpoolSigningKey;
-use vault::rsa_vault::KeySlot;
-use vault::session_long_term_signing::{
+use galdr_vault::brainpool384::BrainpoolP384SigningKey;
+use galdr_vault::brainpool512::BrainpoolP512SigningKey;
+use galdr_vault::ecdsa_brainpool::BrainpoolSigningKey;
+use galdr_vault::rsa_vault::KeySlot;
+use galdr_vault::session_long_term_signing::{
     vault_store_session_long_term_signing_key, SessionLongTermSigningKey,
 };
 

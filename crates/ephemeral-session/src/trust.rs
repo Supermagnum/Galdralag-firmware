@@ -113,7 +113,7 @@ impl<const N: usize> TrustStore for InMemoryTrustStore<N> {
 mod tests {
     use super::*;
     use crate::curve_select::SessionCurve;
-    use vault::ecdsa_brainpool::BrainpoolSigningKey;
+    use galdr_vault::ecdsa_brainpool::BrainpoolSigningKey;
     use galdr_core::fake_hal::FakeTrng;
 
     fn sample_cert() -> LongTermCert {

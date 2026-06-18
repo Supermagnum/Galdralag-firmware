@@ -1,7 +1,7 @@
 //! Integration: public keys can be added, read back, and removed from vault storage.
 
 use galdr_core::fake_hal::FakeVaultStorage;
-use vault::{
+use galdr_vault::{
     vault_delete_public_key, vault_load_public_key_der, vault_store_public_key_der, PublicKeySlot,
     PublicKeyVaultError,
 };

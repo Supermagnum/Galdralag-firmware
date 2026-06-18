@@ -7,20 +7,20 @@ use galdr_core::HalError;
 use paste::paste;
 use static_assertions::assert_not_impl_any;
 use std::vec::Vec;
-use vault::brainpool::BrainpoolScalar;
-use vault::brainpool384::{BrainpoolP384Scalar, BrainpoolP384SigningKey};
-use vault::brainpool512::{BrainpoolP512Scalar, BrainpoolP512SigningKey};
-use vault::chacha_aead::{chacha_decrypt, chacha_encrypt, ChaChaKey, ChaChaNonce};
-use vault::ecdsa_brainpool::BrainpoolSigningKey;
-use vault::kdf_policy::KeyPurpose;
-use vault::rsa_keys::RsaPrivateKey;
-use vault::rsa_vault::{
+use galdr_vault::brainpool::BrainpoolScalar;
+use galdr_vault::brainpool384::{BrainpoolP384Scalar, BrainpoolP384SigningKey};
+use galdr_vault::brainpool512::{BrainpoolP512Scalar, BrainpoolP512SigningKey};
+use galdr_vault::chacha_aead::{chacha_decrypt, chacha_encrypt, ChaChaKey, ChaChaNonce};
+use galdr_vault::ecdsa_brainpool::BrainpoolSigningKey;
+use galdr_vault::kdf_policy::KeyPurpose;
+use galdr_vault::rsa_keys::RsaPrivateKey;
+use galdr_vault::rsa_vault::{
     vault_delete_rsa_key, vault_load_rsa_key, vault_store_rsa_key, KeySlot, RsaVaultError,
     RsaVaultStoreContext,
 };
-use vault::serpent_cipher::{serpent_decrypt, serpent_encrypt, SerpentKey, SerpentNonce};
-use vault::twofish_cipher::{twofish_decrypt, twofish_encrypt, TwofishKey, TwofishNonce};
-use vault::shamir::{shamir_recover, shamir_split, ShamirShare};
+use galdr_vault::serpent_cipher::{serpent_decrypt, serpent_encrypt, SerpentKey, SerpentNonce};
+use galdr_vault::twofish_cipher::{twofish_decrypt, twofish_encrypt, TwofishKey, TwofishNonce};
+use galdr_vault::shamir::{shamir_recover, shamir_split, ShamirShare};
 
 const SLOT_STRIDE: u64 = 8192;
 const MAGIC: &[u8; 4] = b"KVLT";
@@ -850,9 +850,9 @@ fn shamir_share_bytes(s: &ShamirShare) -> Vec<u8> {
     v
 }
 
-fn shamir_share_from_bytes(v: &[u8]) -> Result<ShamirShare, vault::shamir::ShamirError> {
+fn shamir_share_from_bytes(v: &[u8]) -> Result<ShamirShare, galdr_vault::shamir::ShamirError> {
     if v.is_empty() {
-        return Err(vault::shamir::ShamirError::InvalidShare { index: 0 });
+        return Err(galdr_vault::shamir::ShamirError::InvalidShare { index: 0 });
     }
     ShamirShare::try_from_index_value(v[0], &v[1..])
 }

@@ -12,11 +12,11 @@ use heapless::Vec;
 use pin_policy::{
     pin_compare, PinOutcome, PinPolicyConfig, PinPolicyMachine, ZeroisationTrigger,
 };
-use vault::brainpool::{BrainpoolPublicKey, BrainpoolScalar};
-use vault::ecdsa_brainpool::BrainpoolSigningKey;
-use vault::sealed_key::SealedKeyBlob;
+use galdr_vault::brainpool::{BrainpoolPublicKey, BrainpoolScalar};
+use galdr_vault::ecdsa_brainpool::BrainpoolSigningKey;
+use galdr_vault::sealed_key::SealedKeyBlob;
 use x25519_dalek::{PublicKey as X25519PublicKey, StaticSecret};
-use vault::{
+use galdr_vault::{
     KeyPurpose, SEALED_AUT_OFFSET, SEALED_BLOB_BYTES, SEALED_DEC_OFFSET, SEALED_SIG_OFFSET,
 };
 
@@ -134,6 +134,55 @@ where
             termination: false,
             audit: 0,
         };
+        s.load_private_keys()?;
+        Ok(s)
+    }
+
+    /// Open an already-provisioned card: read PIN verifier digests and sealed keys from storage.
+    ///
+    /// Unlike [`Self::new`], this does **not** write PIN hashes; use [`Self::new`] for first-time
+    /// provisioning when firmware supplies initial PINs.
+    #[allow(clippy::too_many_arguments)]
+    pub fn open(
+        do_store: DoStore<S>,
+        pin_storage: Sp,
+        pin_user_off: u64,
+        pin_admin_off: u64,
+        key_storage: Sk,
+        master_key: [u8; 32],
+        trng: T,
+        aid: [u8; 16],
+        user_machine: PinPolicyMachine<Cu, Zu>,
+        admin_machine: PinPolicyMachine<Ca, Za>,
+        new_user_counter: fn() -> Cu,
+        new_admin_counter: fn() -> Ca,
+    ) -> Result<Self, galdr_core::HalError> {
+        let mut s = Self {
+            do_store,
+            pin_storage,
+            pin_user_off,
+            pin_admin_off,
+            key_storage,
+            master_key,
+            trng,
+            aid,
+            user_verifier: [0u8; 32],
+            admin_verifier: [0u8; 32],
+            user_machine,
+            admin_machine,
+            new_user_counter,
+            new_admin_counter,
+            sig_key: None,
+            sig_ed25519: None,
+            aut_key: None,
+            aut_ed25519: None,
+            dec_key: None,
+            dec_x25519: None,
+            sig_counter: 0,
+            termination: false,
+            audit: 0,
+        };
+        s.load_pin_verifiers_from_storage()?;
         s.load_private_keys()?;
         Ok(s)
     }
@@ -957,7 +1006,7 @@ mod tests {
     use galdr_core::fake_hal::{FakeMonotonicCounter, FakeTrng, FakeVaultStorage};
     use galdr_core::VaultStorage;
     use pin_policy::PinPolicyConfig;
-    use vault::brainpool::BrainpoolScalar;
+    use galdr_vault::brainpool::BrainpoolScalar;
 
     #[derive(Default)]
     struct Z;
@@ -1030,7 +1079,7 @@ mod tests {
         let cfg = PinPolicyConfig::default();
         let do_store = DoStore::new(FakeVaultStorage::new(DO_STORE_REGION_BYTES), 0);
         let pin_store = FakeVaultStorage::new(64);
-        let key_store = FakeVaultStorage::new(vault::SEALED_KEY_REGION_END);
+        let key_store = FakeVaultStorage::new(galdr_vault::SEALED_KEY_REGION_END);
         OpenPgpVaultBackend::new(
             do_store,
             pin_store,
