@@ -1,7 +1,7 @@
 # Galdr — Galdralag Firmware
 
 > **Status:** Ready for testing by humans — no production-ready release exists.
-> Its written in rust using validated and audited crypto crates. 
+> It's written in Rust using validated and audited crypto crates. 
 > Cryptographic primitives are drawn exclusively from audited workspace
 > dependencies. Post-quantum algorithms are feature-gated and marked
 > **PENDING INDEPENDENT AUDIT**. See [Post-quantum status](#post-quantum-status).
@@ -14,8 +14,79 @@
 
 It is ready for testing by humans; using a **virtual machine** for that is suggested. There may be bugs that automated tests have not discovered.
 
+## Why Rust?
+
+This firmware is written in Rust, a systems programming language designed
+to be as fast and low-level as C or C++, but with a fundamentally different
+approach to safety.
+
+### Memory Safety
+
+The majority of serious security vulnerabilities and system-damaging bugs in
+firmware and operating systems — estimated at around 70% by Microsoft and
+Google — are caused by memory errors: buffer overflows, use-after-free,
+null pointer dereferences, and similar mistakes. In C and C++ these errors
+are silent and often only discovered after damage is done.
+
+Rust eliminates this entire class of bugs at compile time. If the code
+compiles, these errors cannot occur. This is enforced by the compiler,
+not by programmer discipline or runtime checks.
+
+### System Damage Prevention
+
+Beyond security vulnerabilities, Rust's ownership model prevents classes
+of bugs that can cause physical or unrecoverable damage to embedded hardware:
+
+- **Flash/storage wear** — uncontrolled write loops that exhaust
+  finite-cycle storage are prevented by type-enforced write paths
+- **Hardware register corruption** — wild pointer writes that can
+  damage peripheral configuration are confined to explicitly marked
+  and auditable `unsafe` blocks
+- **Memory exhaustion** — memory is freed deterministically when it
+  leaves scope, preventing silent leaks that crash resource-constrained
+  devices
+- **Stack corruption** — bounds checking prevents overflows that can
+  overwrite return addresses and cause unpredictable hardware behavior
+- **Deadlocks** — Rust's concurrency model makes deadlocks that could
+  starve hardware watchdogs significantly harder to produce
+
+### Key Material Protection
+
+Sensitive cryptographic key material in this firmware:
+
+- Is zeroed from memory automatically and unconditionally on drop,
+  even if a panic occurs mid-operation
+- Cannot be accidentally copied or cloned — the compiler enforces this
+- Is compared in constant time, preventing timing side-channel attacks
+- Is domain-separated by type, preventing keys for one purpose from
+  being accidentally used for another
+
+### Auditable by Design
+
+All code that interacts directly with hardware or bypasses safety
+guarantees must be explicitly marked `unsafe`. This makes the
+complete audit surface searchable and bounded — reviewers know
+exactly where to focus scrutiny. Dependencies are drawn exclusively
+from the audited RustCrypto ecosystem, inheriting their published
+audit history.
+
+### What Rust Does Not Prevent
+
+In the interest of transparency: Rust does not prevent logic bugs,
+incorrect protocol design, physical hardware attacks (power analysis,
+fault injection), or damage caused by a correct but wrong firmware
+image. Those risks are addressed by the project's cryptographic
+design, reproducible builds, and manifest verification — described
+in the sections below.
+
 ## Table of contents
 
+- [Why Rust?](#why-rust)
+  - [Memory safety](#memory-safety)
+  - [System damage prevention](#system-damage-prevention)
+  - [Key material protection](#key-material-protection)
+  - [Auditable by design](#auditable-by-design)
+  - [What Rust does not prevent](#what-rust-does-not-prevent)
 - [About the name](#about-the-name)
 - [What this is](#what-this-is)
 - [Documentation](#documentation)
