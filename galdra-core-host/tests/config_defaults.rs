@@ -7,4 +7,5 @@ fn missing_config_file_uses_defaults() {
     let c = load_config(p).expect("defaults");
     assert!(!c.keyservers.servers.is_empty());
     assert_eq!(c.key_expiry_warn_days, 30);
+    assert!(c.keyserver.is_none());
 }

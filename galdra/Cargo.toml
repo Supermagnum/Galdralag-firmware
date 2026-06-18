@@ -19,6 +19,8 @@ sequoia-openpgp = { workspace = true }
 clap = { workspace = true }
 rpassword = { workspace = true }
 serde = { workspace = true }
+tracing = { workspace = true }
+reqwest = { workspace = true, default-features = false, features = ["blocking", "rustls-tls"] }
 serde_json = { workspace = true }
 chrono = { workspace = true }
 hex = { workspace = true }

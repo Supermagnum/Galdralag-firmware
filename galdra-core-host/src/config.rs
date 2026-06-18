@@ -1,7 +1,7 @@
 //! Configuration file loading with safe defaults.
 
 use crate::GaldraError;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
 /// Top-level configuration loaded from `config.toml`.
@@ -13,6 +13,10 @@ pub struct Config {
     /// HKP / WKD related settings.
     #[serde(default)]
     pub keyservers: KeyserverConfig,
+    /// Optional Fulla-compatible HTTP registry base URL (`[keyserver]`).
+    ///
+    /// Distinct from [`Config::keyservers`], which lists HKP `hkps://` servers.
+    pub keyserver: Option<RegistryKeyserverConfig>,
     /// Optional LDAP directory settings.
     pub ldap: Option<LdapConfig>,
     /// When set, the database passphrase is read from this environment variable (never from the config file).
@@ -65,11 +69,19 @@ impl Default for Config {
         Config {
             database_path: None,
             keyservers: KeyserverConfig::default(),
+            keyserver: None,
             ldap: None,
             database_key_env: None,
             key_expiry_warn_days: default_key_expiry_warn_days(),
         }
     }
+}
+
+/// HTTP key registry (`[keyserver]` in config.toml): Fulla-compatible JSON API.
+#[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Eq)]
+pub struct RegistryKeyserverConfig {
+    /// Base URL, e.g. `https://keys.example.com` (no trailing path required).
+    pub url: String,
 }
 
 /// LDAP / Active Directory settings (password is never stored).

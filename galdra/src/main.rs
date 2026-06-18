@@ -2,6 +2,7 @@
 //! identity (Galdralag fingerprint), Shamir, ephemeral-key offers, OpenPGP/age crypto
 //! (`encrypt` / `decrypt` / `sign` / `verify`), and JSON/`--emit` where supported.
 
+mod commands;
 mod common;
 mod crypto_cmds;
 mod epk_cmds;
@@ -11,6 +12,7 @@ mod qr;
 mod shamir_cmds;
 
 use clap::{Parser, Subcommand};
+use commands::keyserver::{KeyserverCmd, run_keyserver};
 use common::{
     exit_code, flush_stderr, load_app_config, open_database, print_expiry_warnings, print_json,
     prompt_pin, resolve_identity, OutputMode,
@@ -101,6 +103,11 @@ enum Commands {
     Epk {
         #[command(subcommand)]
         cmd: EpkCmd,
+    },
+    /// HTTP key registry uploads and lookups (`[keyserver]` config; Fulla-compatible API).
+    Keyserver {
+        #[command(subcommand)]
+        cmd: KeyserverCmd,
     },
     /// Encrypt a file to a group or explicit contacts (OpenPGP or age).
     Encrypt {
@@ -625,6 +632,7 @@ fn run(cli: Cli, output_mode: OutputMode) -> Result<(), GaldraError> {
         Commands::Identity { cmd } => identity_cmds::run_identity(cmd, output_mode, quiet, &mut db),
         Commands::Shamir { cmd } => shamir_cmds::run_shamir(cmd, output_mode, quiet, &mut db),
         Commands::Epk { cmd } => epk_cmds::run_epk(cmd, output_mode, quiet, &mut db),
+        Commands::Keyserver { cmd } => run_keyserver(cmd, &config, quiet),
         Commands::Encrypt {
             format,
             age_recipient,
