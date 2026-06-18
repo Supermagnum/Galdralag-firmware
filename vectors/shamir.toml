@@ -1,0 +1,41 @@
+# Shamir over GF(2^8): deterministic split via seed (same as crypto-verify reference).
+
+[[ok]]
+id = "hello_t2_n3"
+secret_hex = "48656c6c6f"
+threshold = 2
+seed_hex = "c0ffee"
+
+[[ok.shares]]
+x = 1
+y_hex = "8a68570f49"
+
+[[ok.shares]]
+x = 2
+y_hex = "d77f1aaa23"
+
+[[ok.shares]]
+x = 3
+y_hex = "157221c905"
+
+[[reject]]
+id = "below_threshold"
+op = "reconstruct"
+threshold = 3
+expected_error = "below threshold"
+
+[[reject.shares]]
+x = 1
+y_hex = "00"
+
+[[reject.shares]]
+x = 2
+y_hex = "00"
+
+[[reject]]
+id = "threshold_gt_total"
+op = "split"
+secret_hex = "ff"
+threshold = 4
+total = 3
+expected_error = "threshold greater than total shares"
