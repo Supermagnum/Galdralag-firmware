@@ -216,11 +216,11 @@ Shippable firmware for **Baochip-1x** is **signed** with **Ed25519**. You sign t
 
 **Browse all files:** [github.com/Supermagnum/Galdralag-firmware — `docs/`](https://github.com/Supermagnum/Galdralag-firmware/tree/main/docs)
 
-**Hardware (USB dongle and related):** [Hardware/](Hardware/) — KiCad project (`dabao_v3c`), gerbers, BOM, production outputs, and [pinout docs](Hardware/docs/pinout/README.md). The USB-A dongle PCB layout (minimal token vs Pico-format eval) is described in [docs/USB_DONGLE_PCB.md](docs/USB_DONGLE_PCB.md).
+**Hardware (USB dongle and related):** [Hardware/kicad-sd-card/](Hardware/kicad-sd-card/) — KiCad project (`dabao_v3c`), gerbers, BOM, production outputs, and [pinout docs](Hardware/kicad-sd-card/docs/pinout/README.md). The USB-A dongle PCB layout (minimal token vs Pico-format eval) is described in [docs/USB_DONGLE_PCB.md](docs/USB_DONGLE_PCB.md).
 
 | Document | Description |
 |----------|-------------|
-| [Hardware/](Hardware/) | **USB dongle** design files and related outputs: KiCad, gerbers, BOM, pinout; complements [USB_DONGLE_PCB.md](docs/USB_DONGLE_PCB.md) |
+| [Hardware/kicad-sd-card/](Hardware/kicad-sd-card/) | **USB dongle** design files and related outputs: KiCad, gerbers, BOM, pinout; complements [USB_DONGLE_PCB.md](docs/USB_DONGLE_PCB.md) |
 | [docs/API_REFERENCE.md](docs/API_REFERENCE.md) | Code map + **annex** for IETF/I-D/GnuPG/Sequoia: Shamir GF(256) construction, GALDRA SHARE armour, ephemeral ECDH wire format, HKDF labels, preimages; `galdrad` routes; rustdoc hints |
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | High-level firmware architecture and major subsystems |
 | [docs/GALDRA-TOOL.md](docs/GALDRA-TOOL.md) | Host tools (`galdra`, `galdrad`, `galdra-gtk`): workflows, provisioning, PIN policy, operational behaviour |
