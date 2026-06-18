@@ -66,3 +66,7 @@ ephemeral private key never exists in host memory. It is generated in
 SRAM on the token and zeroised there after ECDH. On-token zeroise
 behaviour on physical silicon has not yet been hardware-verified.
 See docs/HARDWARE_VERIFICATION.md.
+
+## Related: profile metadata and outer layers
+
+For discussion of cleartext profile identifiers, traffic analysis, rationale for a **BrainpoolP384r1** outer wrapper in fixed-curve deployments, **encrypted profile identifiers**, and the **wildcard** (profile-agnostic outer) property, see [CIPHER_PROFILE_SECURITY.md](CIPHER_PROFILE_SECURITY.md).

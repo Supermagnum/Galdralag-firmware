@@ -201,6 +201,7 @@ Shippable firmware for **Baochip-1x** is **signed** with **Ed25519**. You sign t
 | [docs/OPENPGP_CARD.md](docs/OPENPGP_CARD.md) | OpenPGP card application, GnuPG/CCID host setup, key slots, algorithms, udev |
 | [docs/XOUS_CCID_INTEGRATION.md](docs/XOUS_CCID_INTEGRATION.md) | Wiring CCID/OpenPGP USB into Xous on Baochip |
 | [docs/CIPHER_PROFILES.md](docs/CIPHER_PROFILES.md) | Cipher profile system and configuration |
+| [docs/CIPHER_PROFILE_SECURITY.md](docs/CIPHER_PROFILE_SECURITY.md) | Security considerations: cleartext profile identifiers, traffic analysis, BrainpoolP384r1 outer-wrapper rationale, encrypted identifiers, wildcard property |
 | [docs/EPHEMERAL_SESSION.md](docs/EPHEMERAL_SESSION.md) | Authenticated ephemeral ECDH session protocol |
 | [Supermagnum/CESS](https://github.com/Supermagnum/CESS) | **CESS** (*Cryptologically Enchanted Shamir's Secret*) — open specification (normative text and test vectors) for threshold secret sharing with authenticated encryption, password-based share wrapping, and optional post-quantum hybrid key exchange; separate from this firmware but in the same design space as Shamir and cipher profiles here |
 | [docs/PQ_SIGNATURES.md](docs/PQ_SIGNATURES.md) | Post-quantum stateful signatures (XMSS, LMS/HSS), feature gating |

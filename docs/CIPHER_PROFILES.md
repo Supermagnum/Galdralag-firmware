@@ -4,6 +4,8 @@ Galdralag is cipher-agnostic. A cipher profile specifies which symmetric
 ciphers are applied, in which order, combined with the ECDHE curve for
 key agreement and the Shamir configuration for long-term key recovery.
 
+**Security considerations** (policy metadata, traffic analysis, outer-wrapper rationale, encrypted identifiers, wildcard property): [CIPHER_PROFILE_SECURITY.md](CIPHER_PROFILE_SECURITY.md).
+
 ## Built-in profiles
 
 | Name | Curve | Layers | Shamir | Use case |
