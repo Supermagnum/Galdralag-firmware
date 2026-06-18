@@ -426,7 +426,7 @@ Use a **stable Rust** toolchain as pinned in [rust-toolchain.toml](rust-toolchai
 
 ### Flashing
 
-This repository does **not** ship a one-command flasher. Programming the **Baochip-1x** (JTAG, ROM/USB boot, or vendor tools) follows the board and silicon documentation. Start from **[Supermagnum/Baochip-1x-firmware](https://github.com/Supermagnum/Baochip-1x-firmware)**; **eval board hardware** is in **[baochip/dabao](https://github.com/baochip/dabao)** — on the Dabao board, **SW2** toggles **bootloader mode** (see that schematic).
+This repository does **not** ship a one-command flasher yet. Programming the **Baochip-1x** (JTAG, ROM/USB boot, or vendor tools) follows the board and silicon documentation. Start from **[Supermagnum/Baochip-1x-firmware](https://github.com/Supermagnum/Baochip-1x-firmware)**; **eval board hardware** is in **[baochip/dabao](https://github.com/baochip/dabao)** — on the Dabao board, **SW2** toggles **bootloader mode** (see that schematic).
 
 **Committing UF2 without the physical boot button:** After copying **`loader.uf2`**, **`xous.uf2`**, and **`apps.uf2`** to the **BAOCHIP** volume, you can either press the physical **boot** button **or** type **`boot`** in the **boot1** USB serial console (1 000 000 baud, e.g. `screen /dev/ttyACM0 1000000`). That avoids relying on the **boot** button for this step only. The console **disconnects** when you type **`boot`**; that is **expected** (the system reboots into the next stage). On Linux, `dmesg --follow` helps confirm USB re-enumeration. This is distinct from **PROG** (hold while connecting USB to enter the **BAOCHIP** mass-storage bootloader). See **[baochip/dabao#2](https://github.com/baochip/dabao/issues/2)** (closed).
 
