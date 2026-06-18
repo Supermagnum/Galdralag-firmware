@@ -65,6 +65,8 @@ This project is **registered with the [Open Invention Network (OIN)](https://ope
 - [Workspace layout](#workspace-layout)
 - [Cryptographic dependency policy](#cryptographic-dependency-policy)
 - [Quick start](#quick-start)
+- [Known limitations / open work](#known-limitations--open-work)
+  - [CCID initial PIN: operator UX (pre-production blocker)](#ccid-initial-pin-operator-ux-pre-production-blocker)
 - [License](#license)
 
 ---
