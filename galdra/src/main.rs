@@ -1,8 +1,11 @@
-//! Galdra command-line interface (Phase 1: device, contacts, groups, audit, sync stub).
+//! Galdra command-line interface: device, keys, contacts, groups, sync, audit, profiles,
+//! identity (Galdralag fingerprint), Shamir, ephemeral-key offers, OpenPGP/age crypto
+//! (`encrypt` / `decrypt` / `sign` / `verify`), and JSON/`--emit` where supported.
 
 mod common;
 mod crypto_cmds;
 mod epk_cmds;
+mod identity_cmds;
 mod profile_cmds;
 mod qr;
 mod shamir_cmds;
@@ -69,7 +72,7 @@ enum Commands {
         #[command(subcommand)]
         cmd: GroupCmd,
     },
-    /// Offline database import/export (Phase 3 wires the implementation).
+    /// Offline database export/import (`galdra-core-host::sync`).
     Sync {
         #[command(subcommand)]
         cmd: SyncCmd,
@@ -83,6 +86,11 @@ enum Commands {
     Profile {
         #[command(subcommand)]
         cmd: ProfileCmd,
+    },
+    /// Long-term identity helpers (Galdralag fingerprint, etc.).
+    Identity {
+        #[command(subcommand)]
+        cmd: IdentityCmd,
     },
     /// Shamir share export and recovery (requires unlocked token when implemented).
     Shamir {
@@ -122,6 +130,9 @@ enum Commands {
         /// 24 hex chars: 12-byte ChaCha nonce for CESS Mode A outer (must match encrypt).
         #[arg(long = "cess-nonce-hex", value_name = "HEX")]
         cess_nonce_hex: Option<String>,
+        /// Print the Galdralag `G:` fingerprint after encrypt (requires PC/SC; forbidden when profile has ephemeral ECDH on).
+        #[arg(long)]
+        emit_fingerprint: bool,
     },
     /// Decrypt an OpenPGP or age message.
     Decrypt {
@@ -397,6 +408,15 @@ enum SyncCmd {
 }
 
 #[derive(Subcommand)]
+pub enum IdentityCmd {
+    /// Show Galdralag fingerprint (`G:`) for the token SIG key (PC/SC).
+    Fingerprint {
+        #[arg(long)]
+        profile: Option<String>,
+    },
+}
+
+#[derive(Subcommand)]
 enum AuditCmd {
     Show {
         #[arg(long)]
@@ -436,6 +456,9 @@ pub enum ProfileCmd {
         shamir_threshold: Option<u8>,
         #[arg(long)]
         shamir_total: Option<u8>,
+        /// Disable authenticated ephemeral ECDH in this profile (allows Galdralag `G:` fingerprints).
+        #[arg(long)]
+        no_ephemeral_ecdh: bool,
     },
     /// Remove a user-defined profile.
     Remove {
@@ -588,6 +611,7 @@ fn run(cli: Cli, output_mode: OutputMode) -> Result<(), GaldraError> {
         Commands::Sync { cmd } => run_sync(cmd, output_mode, quiet, &mut db),
         Commands::Audit { cmd } => run_audit(cmd, output_mode, quiet, &mut db),
         Commands::Profile { cmd } => profile_cmds::run_profile(cmd, output_mode, quiet, &mut db),
+        Commands::Identity { cmd } => identity_cmds::run_identity(cmd, output_mode, quiet, &mut db),
         Commands::Shamir { cmd } => shamir_cmds::run_shamir(cmd, output_mode, quiet, &mut db),
         Commands::Epk { cmd } => epk_cmds::run_epk(cmd, output_mode, quiet, &mut db),
         Commands::Encrypt {
@@ -603,6 +627,7 @@ fn run(cli: Cli, output_mode: OutputMode) -> Result<(), GaldraError> {
             profile,
             cess_k_outer_hex,
             cess_nonce_hex,
+            emit_fingerprint,
         } => crypto_cmds::run_encrypt(
             &mut db,
             output_mode,
@@ -619,6 +644,7 @@ fn run(cli: Cli, output_mode: OutputMode) -> Result<(), GaldraError> {
             profile,
             cess_k_outer_hex,
             cess_nonce_hex,
+            emit_fingerprint,
         ),
         Commands::Decrypt {
             format,

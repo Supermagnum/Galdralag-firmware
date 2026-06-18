@@ -5,12 +5,16 @@ edition = "2021"
 license = "GPL-3.0"
 description = "Galdra command-line interface"
 
+[features]
+default = ["pcsc"]
+pcsc = ["galdra-core-host/pcsc"]
+
 [[bin]]
 name = "galdra"
 path = "src/main.rs"
 
 [dependencies]
-galdra-core-host = { path = "../galdra-core-host" }
+galdra-core-host = { path = "../galdra-core-host", default-features = false }
 sequoia-openpgp = { workspace = true }
 clap = { workspace = true }
 rpassword = { workspace = true }

@@ -122,4 +122,8 @@ pub enum GaldraError {
     /// No ephemeral key offer found for the given session ID.
     #[error("ephemeral offer not found: {0}")]
     EpkNotFound(String),
+
+    /// Smart card / PC/SC failure.
+    #[error("smart card: {0}")]
+    SmartCard(String),
 }

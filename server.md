@@ -1,6 +1,14 @@
+# Galdralag Web of Trust key registry server
+
+> **Status: not implemented.**  
+> This document is a specification and design record only.  
+> The `galdralag-keyserver` server does not exist yet.  
+> The `galdra keyserver push` and `galdra keyserver fetch` commands are not implemented. No client code wires against this API.  
+> This file records intended design for future implementation.
+
 ## 1. Purpose and scope
 
-This document specifies a **Galdralag Web of Trust key registry server**: a standalone Rust HTTP service that stores OpenPGP public keys contributed by maintainers and users of Galdralag hardware, plus **sidecar metadata** (name, optional amateur-radio fields, optional **national society / club affiliation**, and optional **postal-location hints**) not defined by the OpenPGP User ID packet itself. The server anchors **claimed identity** to a fingerprint and validated email; it does **not** assign OpenPGP ownertrust, does **not** replace a general-purpose federated keyserver, and performs **no** secret-key or signing operations beyond verifying what submitters supply (certificate structure, algorithms, revocation signatures). Users extend trust through in-person verification and certificate signatures as described in the [Web of Trust and Key Signing Parties](README.md#web-of-trust-and-key-signing-parties) section of this repository’s README.
+This document specifies a **Galdralag Web of Trust key registry server**: a standalone Rust HTTP service that **would** store OpenPGP public keys contributed by maintainers and users of Galdralag hardware, plus **sidecar metadata** (name, optional amateur-radio fields, optional **national society / club affiliation**, and optional **postal-location hints**) not defined by the OpenPGP User ID packet itself. In the intended design, the server **would** anchor **claimed identity** to a fingerprint and validated email; it **would** **not** assign OpenPGP ownertrust, **would** **not** replace a general-purpose federated keyserver, and **would** perform **no** secret-key or signing operations beyond verifying what submitters supply (certificate structure, algorithms, revocation signatures). Users extend trust through in-person verification and certificate signatures as described in the [Web of Trust and Key Signing Parties](README.md#web-of-trust-and-key-signing-parties) section of this repository’s README.
 
 The first registry identity is intended to be the **hardware maintainer**, registered after Baochip-1x hardware is available for on-device key generation.
 
@@ -32,7 +40,7 @@ This Galdralag server is specified to **reuse Hagrid’s OpenPGP and mail-valida
 
 ## 3. Identity fields
 
-Every submission is tied to one OpenPGP certificate (public key material only) and a **metadata record** keyed by primary **fingerprint**. The following fields apply. **Amateur radio callsign**, **DMR ID**, **radio affiliation**, and **postal hint** columns are **optional**; identity name and email behave as stated below (**email** ties to validated mailbox consent).
+Every submission **would be** tied to one OpenPGP certificate (public key material only) and a **metadata record** keyed by primary **fingerprint**. The following fields **would** apply. **Amateur radio callsign**, **DMR ID**, **radio affiliation**, and **postal hint** columns are **optional**; identity name and email **would** behave as stated below (**email** **would** tie to validated mailbox consent).
 
 | Field | Required | Validation |
 |-------|----------|------------|
@@ -198,21 +206,21 @@ ALTER TABLE pending_submissions ADD COLUMN region TEXT;
 
 ### 7a. Web form (`POST /submit`)
 
-The site serves **`GET /submit`** with an HTML form. Fields: mandatory name and email, optional **callsign**, **DMR ID**, **radio affiliation**, optional **street / country / postal code / region** (leave blank when unused), plus a `<textarea>` for the ASCII-armored public key block. **`POST /submit`** runs:
+The site **would** serve **`GET /submit`** with an HTML form. Fields: mandatory name and email, optional **callsign**, **DMR ID**, **radio affiliation**, optional **street / country / postal code / region** (leave blank when unused), plus a `<textarea>` for the ASCII-armored public key block. **`POST /submit`** **would**:
 
-1. `validator`-based checks on typed fields (lengths, optional **DMR id** numeric range aligned with §3, optional **affiliation** and **postal** column bounds, email format).
-2. Parse armored data in `openpgp.rs` with Sequoia; reject malformed packets or cryptographic validation failures surfaced by the library.
-3. Require that the submitted email matches **at least one** `UserID::email()` in the certificate (case-insensitive normalisation).
-4. Enforce the algorithm allowlist (section 9).
-5. If the fingerprint exists in `keys` with `status = 'active'` and material is an exact duplicate policy allows: treat as **idempotent success** (no duplicate rows), show confirmation.
-6. If the email exists on an **`active`** row with a **different** fingerprint: run the duplicate-identity workflow (section 8); **do not** insert into `keys` yet.
-7. Otherwise: insert a new `keys` row and show confirmation.
+1. Run `validator`-based checks on typed fields (lengths, optional **DMR id** numeric range aligned with §3, optional **affiliation** and **postal** column bounds, email format).
+2. Parse armored data in `openpgp.rs` with Sequoia; **would** reject malformed packets or cryptographic validation failures surfaced by the library.
+3. **Would** require that the submitted email matches **at least one** `UserID::email()` in the certificate (case-insensitive normalisation).
+4. **Would** enforce the algorithm allowlist (section 9).
+5. **If** the fingerprint exists in `keys` with `status = 'active'` and material matches an exact duplicate as policy allows: **would** treat as **idempotent success** (no duplicate rows), show confirmation.
+6. **If** the email exists on an **`active`** row with a **different** fingerprint: **would** run the duplicate-identity workflow (section 8); **would** **not** insert into `keys` yet.
+7. **Otherwise:** **would** insert a new `keys` row and show confirmation.
 
 Implementation note: tighten “exact duplicate” to mean **same fingerprint and same stored armored text** (or normalised armour) so accidental re-upload does not churn metadata.
 
 ### 7b. JSON API (`POST /api/v1/keys`)
 
-Supports automation (e.g. **`galdra keyserver push`**). Same validation and branching as §7a.
+**Would** support automation (e.g. a future **`galdra keyserver push`**). The same validation and branching as §7a **would** apply.
 
 Request body:
 
@@ -234,7 +242,7 @@ Request body:
 
 Optional sidecar columns **`callsign`**, **`dmr_id`**, **`radio_affiliation`**, **`street`**, **`country`**, **`postal_code`**, and **`region`** may be omitted or JSON `null`.
 
-Responses:
+Intended responses (semantics fixed at implementation time):
 
 Success (`200 OK`):
 
@@ -256,7 +264,7 @@ Validation error (`422 Unprocessable Entity`):
 
 ### 7c. Revocation — web form (`POST /revoke`)
 
-User pastes an ASCII-armored **revocation certificate** (or armored artefact carrying a verified revocation Sequoia accepts—exact armour type is fixed in implementation). Handler:
+The user **would** paste an ASCII-armored **revocation certificate** (or armored artefact carrying a verified revocation that Sequoia **would** accept—exact armour type is fixed in implementation). The handler **would**:
 
 1. Parse with Sequoia.
 2. Resolve issuer fingerprint; look up matching row in `keys`.
@@ -272,13 +280,13 @@ User pastes an ASCII-armored **revocation certificate** (or armored artefact car
 }
 ```
 
-The **`email`** field ties the submission to operational logging and abuse monitoring; revocation validity is still cryptographic. Pipeline matches §7c.
+The **`email`** field **would** tie the submission to operational logging and abuse monitoring; revocation validity **would** still be cryptographic. The pipeline **would** match §7c.
 
 ---
 
 ## 8. Duplicate identity flow
 
-When **`email`** matches an existing **`active`** key but **`fingerprint`** differs:
+When **`email`** matches an existing **`active`** key but **`fingerprint`** differs, the server **would**:
 
 1. Generate a cryptographically secure **256-bit** random value; encode as **64 hex digits**; use as **`token`** in **`pending_submissions`** with **`expires_at = now + 72 hours`** (ISO8601).
 2. Email the **currently registered address** (`lettre`): show old fingerprint, new fingerprint, submitted **radio affiliation** and **postal hints** when present (if any), and links `{KEYSERVER_BASE_URL}/confirm/{token}` and `{KEYSERVER_BASE_URL}/reject/{token}`.
@@ -286,32 +294,34 @@ When **`email`** matches an existing **`active`** key but **`fingerprint`** diff
 
 Confirmation:
 
-- **`GET /confirm/{token}`**: valid, non-expired row → revoke old key (`revoked_at`, **`revocation_reason = 'superseded'`**), insert new **`active`** key with submitted metadata and armour, delete pending row, render **`confirm.html`**.
+- **`GET /confirm/{token}`**: a valid, non-expired row **would** revoke the old key (`revoked_at`, **`revocation_reason = 'superseded'`**), insert the new **`active`** key with submitted metadata and armour, delete the pending row, render **`confirm.html`**.
 
 Rejection:
 
-- **`GET /reject/{token}`**: delete pending row, render **`rejected.html`**; registered key unchanged.
+- **`GET /reject/{token}`**: **would** delete the pending row, render **`rejected.html`**; registered key unchanged.
 
 Housekeeping:
 
-- On startup spawn `tokio::spawn` periodic task (**hourly**): `DELETE FROM pending_submissions WHERE expires_at < datetime('now')` (SQLite) or equivalent.
+- On startup **the implementation would** spawn `tokio::spawn` periodic task (**hourly**): `DELETE FROM pending_submissions WHERE expires_at < datetime('now')` (SQLite) or equivalent.
 
-If the registrant **no longer controls** the mailbox, replacement under the same email is blocked until the **old** key is revoked with a valid revocation certificate; the duplicate flow intentionally sends mail **only** to the address already on file.
+If the registrant **no longer controls** the mailbox, replacement under the same email **would** remain blocked until the **old** key is revoked with a valid revocation certificate; the duplicate flow **is specified to** send mail **only** to the address already on file.
 
 ---
 
 ## 9. Key validation rules
 
-- Armour decodes to a parseable **`sequoia_openpgp::Cert`**.
-- At least one User ID with **`UserID::email()`** matching the submitted email (case-insensitive).
-- **Algorithm allowlist** (reject others with explicit reason): Ed25519, X25519, Brainpool **P-256r1 / P-384r1 / P-512r1**, NIST **P-256 / P-384**, RSA **≥ 2048** bit keys. Inspect primary key and relevant subkeys per policy written in code (mirror Galdralag device capabilities where practical).
-- Reject certs that already carry a verified **self-revocation** affecting the submitted key material.
+- Armour **must** decode to a parseable **`sequoia_openpgp::Cert`**.
+- At least one User ID with **`UserID::email()`** **must** match the submitted email (case-insensitive).
+- **Algorithm allowlist** (**would** reject others with explicit reason): Ed25519, X25519, Brainpool **P-256r1 / P-384r1 / P-512r1**, NIST **P-256 / P-384**, RSA **≥ 2048** bit keys. Inspect primary key and relevant subkeys per policy written in code (mirror Galdralag device capabilities where practical).
+- **Would** reject certs that already carry a verified **self-revocation** affecting the submitted key material.
 - **Exact fingerprint duplicate**: idempotent acceptance (§7a step 5).
-- **Maximum** armoured upload size **128 KiB**; enforce in Axum body limit before parsing.
+- **Maximum** armoured upload size **128 KiB**; **would** enforce in Axum body limit before parsing.
 
 ---
 
 ## 10. Web interface routes
+
+**Intended** HTTP surface:
 
 | Method | Path | Description |
 |--------|------|-------------|
@@ -327,15 +337,15 @@ If the registrant **no longer controls** the mailbox, replacement under the same
 | `POST` | `/api/v1/keys` | JSON submit |
 | `POST` | `/api/v1/keys/revoke` | JSON revoke |
 
-Fingerprint in paths is **normalized** uppercase hex **without spaces** for stability.
+Fingerprint in paths **would be** **normalized** uppercase hex **without spaces** for stability.
 
 ---
 
-## 11. `galdra keyserver push` integration
+## 11. `galdra keyserver push` / `fetch` integration
 
-**Status.** This section is specification only: the **`keyserver`** config table and **`galdra keyserver push`** CLI are **not** implemented in the current **`galdra`** / **`galdra-core-host`** tree. Today's host config (`galdra-core-host/src/config.rs`) exposes **`[keyservers]`** (`servers`, `timeout_seconds`) for **HKP fetch** (`galdra contact fetch --source keyserver`), which is unrelated to the registry **`url`** below.
+**Status.** This section is specification only: the **`keyserver`** config table and **`galdra keyserver push`** / **`galdra keyserver fetch`** CLI subcommands are **not** implemented in the current **`galdra`** / **`galdra-core-host`** tree. Today’s host config (`galdra-core-host/src/config.rs`) exposes **`[keyservers]`** (`servers`, `timeout_seconds`) for **HKP fetch** (`galdra contact fetch --source keyserver`), which is unrelated to the registry **`url`** below.
 
-Once implemented, **`galdra keyserver push`** should:
+Once implemented, **`galdra keyserver push`** **would**:
 
 1. Resolve the registry **`url`** from, in order: environment **`GALDRA_KEYSERVER_URL`**, then **`[keyserver].url`** in the same **`config.toml`** file **`galdra` already loads** (`--config PATH` overrides; otherwise **`galdra_core_host::config::default_config_path()`**: **Linux / generic Unix** → **`~/.config/galdra/config.toml`**; **macOS** → **`~/Library/Application Support/galdra/config.toml`**; **Windows** → **`%APPDATA%\galdra\config.toml`**).
 2. Export the **public** OpenPGP certificate from the connected token using the documented card export paths in [docs/GALDRA-TOOL.md](docs/GALDRA-TOOL.md).
@@ -343,14 +353,16 @@ Once implemented, **`galdra keyserver push`** should:
 4. **`POST`** to **`{base_url}/api/v1/keys`** with JSON as in §7b (`Content-Type: application/json`).
 5. Print server JSON (**stdout**) for scripting; non-zero exit on **`4xx`** / **`5xx`**.
 
-Implementers extend **`serde`** deserialization in **`Config`** with an optional **`[keyserver]`** section so existing installs without it keep working.
+A companion **`galdra keyserver fetch`** (not implemented) **would** be specified against the same registry base URL, to retrieve public keys or metadata exposed by the future HTTP API—exact paths and query parameters remain to be fixed when the server and client are implemented.
+
+Implementers **would** extend **`serde`** deserialization in **`Config`** with an optional **`[keyserver]`** section so existing installs without it keep working.
 
 ```toml
 [keyserver]
 url = "https://keys.example.com"
 ```
 
-Landing this subcommand is expected **after** the standalone **`galdralag-keyserver`** binary crate exists (**not** a member of the firmware workspace **`Cargo.toml` until added).
+Landing this subcommand **would be** expected **after** the standalone **`galdralag-keyserver`** binary crate exists (**not** a member of the firmware workspace **`Cargo.toml` until added).
 
 ---
 
@@ -370,31 +382,31 @@ KEYSERVER_SMTP_FROM=keyserver@example.com
 KEYSERVER_RATE_LIMIT_SUBMISSIONS=5          # max submissions per IP per hour
 ```
 
-Load at startup via **`dotenvy::dotenv()`** (optional `.env`), then hydrate a **`serde`-deserializable `Config`** (stringly-typed env with `Deserialize` derives or explicit mapping).
+**Would** load at startup via **`dotenvy::dotenv()`** (optional `.env`), then hydrate a **`serde`-deserializable `Config`** (stringly-typed env with `Deserialize` derives or explicit mapping).
 
 ---
 
 ## 13. Deployment
 
-The service listens with **HTTPS** using **`axum-server`** + **rustls** and PEM paths from **`KEYSERVER_TLS_*`**. A **`tower-http`** redirect layer forces **HTTP → HTTPS** for cleartext listeners if any auxiliary socket exists.
+The service **would** listen with **HTTPS** using **`axum-server`** + **rustls** and PEM paths from **`KEYSERVER_TLS_*`**. A **`tower-http`** redirect layer **would** force **HTTP → HTTPS** for cleartext listeners if any auxiliary socket exists.
 
-This registry **does not** participate in **`keys.openpgp.org`** federation or SKS gossip; operators run it as **project-local** infrastructure.
+This registry **is not planned to** participate in **`keys.openpgp.org`** federation or SKS gossip; operators **would** run it as **project-local** infrastructure.
 
-The deployable artefact is a **single Rust binary**. **SQLite** is a normal file beside the binary or under a writable data directory—no separate database daemon.
+The deployable artefact **would be** a **single Rust binary**. **SQLite** **would be** a normal file beside the binary or under a writable data directory—no separate database daemon.
 
-Alternatively terminate TLS at **nginx** or **Caddy** and proxy to **Axum bound to localhost**; drop `axum-server` rustls paths in that mode.
+Alternatively **would** terminate TLS at **nginx** or **Caddy** and proxy to **Axum bound to localhost**; drop `axum-server` rustls paths in that mode.
 
-Operational logs use **`tracing-subscriber`** (**JSON** output recommended for ingestion). **`governor`** enforces **`KEYSERVER_RATE_LIMIT_SUBMISSIONS`** per source IP per hour on **`POST /submit`** and **`POST /api/v1/keys`** (and optionally revocation POST endpoints if abuse warrants).
+Operational logs **would** use **`tracing-subscriber`** (**JSON** output recommended for ingestion). **`governor`** **would** enforce **`KEYSERVER_RATE_LIMIT_SUBMISSIONS`** per source IP per hour on **`POST /submit`** and **`POST /api/v1/keys`** (and optionally revocation POST endpoints if abuse warrants).
 
 ### SQLite storage estimate
 
-Disk use is dominated by **`armored_key`** (ASCII public keys vary with algorithm and packet count); sidecar columns and indexes add a smaller baseline per row plus **SQLite** internals, **WAL**, and backups.
+Disk use **would be** dominated by **`armored_key`** (ASCII public keys vary with algorithm and packet count); sidecar columns and indexes add a smaller baseline per row plus **SQLite** internals, **WAL**, and backups.
 
 Rough model (not a promise): **`total ≈ N × (avg_armoured_length + ~1–2 KiB metadata) × (1.3–2.0)`** where the trailing factor stands in for indexes, page overhead, WAL, and headroom.
 
-**Illustrative order of magnitude:** if **`N ≈ 5×10⁶`** registered rows and **~10 KiB** average armoured key material (plus metadata), the **database file alone** lands in the **~65–100 GiB** band before backups; RSA-heavy certs with large User ID sets push toward the **upper** end or beyond. Operators should **`VACUUM`**, monitor **`PRAGMA page_count`**, and provision **additional** disk for copies and WAL (often **≈0.5×–2×** reserve). Decimal **GB** vs binary **GiB** differ (**100 GiB ≈ 107 GB**).
+**Illustrative order of magnitude:** if **`N ≈ 5×10⁶`** registered rows and **~10 KiB** average armoured key material (plus metadata), the **database file alone** lands in the **~65–100 GiB** band before backups; RSA-heavy certs with large User ID sets push toward the **upper** end or beyond. Operators **would** **`VACUUM`**, monitor **`PRAGMA page_count`**, and provision **additional** disk for copies and WAL (often **≈0.5×–2×** reserve). Decimal **GB** vs binary **GiB** differ (**100 GiB ≈ 107 GB**).
 
-This project-local registry expects **far fewer** submissions than worldwide licensee counts unless scope changes.
+This project-local registry **would** expect **far fewer** submissions than worldwide licensee counts unless scope changes.
 
 ---
 
@@ -408,3 +420,15 @@ This project-local registry expects **far fewer** submissions than worldwide lic
 | Governikus attestation badge | Surface third-party attestations parsed from cert if present |
 | Admin UI | Manual removal, moderation, audit timeline |
 | WoT graph | Visualisation of signatures among registered keys |
+
+---
+
+## Open questions
+
+Decisions to resolve **before** implementation begins:
+
+- **Hagrid reuse:** code dependency, API-compatible reimplementation, or design patterns only? Crate availability on crates.io vs standalone binary.
+- **Authentication model for key submission:** unauthenticated (anyone can push), token-based, or eID-gated (per the Governikus integration described in README.md)?
+- **Email verification flow:** required before a User ID is publicly listed, or optional?
+- **Workspace location:** separate binary crate in this repo, a new `keyserver/` top-level directory, or a separate repository entirely?
+- **Whether `galdra keyserver push` requires a connected token (PC/SC)** or can accept a fingerprint and public key passed explicitly for offline/testing use.

@@ -1,5 +1,6 @@
 //! OpenPGP encrypt / decrypt / sign / verify CLI wiring.
 
+use crate::identity_cmds;
 use galdra_core_host::audit::{self, AuditAction, AuditEntry};
 use galdra_core_host::cipher_envelope::{
     open_plaintext_from_openpgp_literal, parse_hex_fixed, seal_plaintext_with_profile,
@@ -8,9 +9,10 @@ use galdra_core_host::cipher_envelope::{
 use galdra_core_host::contacts::{self, ContactFilter, Identity};
 use galdra_core_host::encrypt::{self, try_decrypt_session_key_from_cert};
 use galdra_core_host::groups;
+use galdra_core_host::openpgp_pcsc;
 use galdra_core_host::profiles::{self, ProfileStore};
 use galdra_core_host::sign;
-use galdra_core_host::GaldraError;
+use galdra_core_host::{GaldraError, GaldraFingerprint};
 use sequoia_openpgp::parse::Parse;
 use sequoia_openpgp::policy::StandardPolicy;
 use sha2::digest::Digest;
@@ -80,6 +82,7 @@ pub fn run_encrypt(
     profile: Option<String>,
     cess_k_outer_hex: Option<String>,
     cess_nonce_hex: Option<String>,
+    emit_fingerprint: bool,
 ) -> Result<(), GaldraError> {
     let fmt = format.as_deref().unwrap_or("openpgp");
     if fmt == "age" {
@@ -121,6 +124,24 @@ pub fn run_encrypt(
         .get_owned(&profile_name)
         .ok_or_else(|| GaldraError::ProfileNotFound(profile_name.clone()))?;
 
+    if emit_fingerprint && cipher_profile.ephemeral_ecdh() {
+        return Err(GaldraError::Config(
+            identity_cmds::GALDRA_FINGERPRINT_EPHEMERAL_ECDH_BLOCKED.to_string(),
+        ));
+    }
+
+    let galdra_fp: Option<GaldraFingerprint> = if cipher_profile.ephemeral_ecdh() {
+        None
+    } else {
+        let pk = openpgp_pcsc::read_sig_public_key_bytes_via_pcsc()?;
+        Some(GaldraFingerprint::from_public_key_bytes(&pk))
+    };
+
+    let sender_fp = galdra_fp
+        .as_ref()
+        .map(|f| f.canonical().to_string())
+        .unwrap_or_else(|| PLACEHOLDER_SENDER_FP.to_string());
+
     let cess_k_outer: Option<[u8; 32]> = match (&cess_k_outer_hex, &cess_nonce_hex) {
         (None, None) => None,
         (Some(_), None) | (None, Some(_)) => {
@@ -143,7 +164,7 @@ pub fn run_encrypt(
         ));
     } else {
         let mut sealed =
-            seal_plaintext_with_profile(&cipher_profile, &plaintext, PLACEHOLDER_SENDER_FP)?;
+            seal_plaintext_with_profile(&cipher_profile, &plaintext, sender_fp.as_str())?;
         if let Some(ref k_outer) = cess_k_outer {
             let nonce = parse_hex_fixed::<12>(
                 "--cess-nonce-hex",
@@ -171,13 +192,20 @@ pub fn run_encrypt(
     )?;
 
     if output_mode == OutputMode::Json {
-        print_json(&serde_json::json!({
+        let mut v = serde_json::json!({
             "output": output,
             "bytes": ciphertext.len(),
             "recipients": idents.len(),
             "profile": profile_name,
             "cess_mode_a": cess_k_outer.is_some(),
-        }))?;
+        });
+        if emit_fingerprint {
+            if let Some(ref fp) = galdra_fp {
+                v["galdra_fingerprint_canonical"] = serde_json::Value::String(fp.canonical().to_string());
+                v["galdra_fingerprint_display"] = serde_json::Value::String(fp.display());
+            }
+        }
+        print_json(&v)?;
     } else if !quiet {
         eprintln!(
             "Wrote {} bytes for {} recipient(s) (profile {}{}).",
@@ -190,6 +218,11 @@ pub fn run_encrypt(
                 ""
             },
         );
+        if emit_fingerprint {
+            if let Some(fp) = galdra_fp {
+                eprintln!("Galdralag fingerprint (G:): {}", fp.display());
+            }
+        }
     }
     Ok(())
 }

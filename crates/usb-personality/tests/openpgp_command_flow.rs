@@ -635,13 +635,13 @@ impl OpenPgpBackend for MockOpenPgp {
                     let vk = self.sig_key.as_ref().map(|k| k.verifying_key()).ok_or(
                         OpenPgpBackendError::Status(StatusWord::ReferenceDataNotFound),
                     )?;
-                    vk.to_sec1_uncompressed()
+                    vk.to_sec1_compressed()
                 }
                 OpenPgpKeySlot::Aut => {
                     let vk = self.aut_key.as_ref().map(|k| k.verifying_key()).ok_or(
                         OpenPgpBackendError::Status(StatusWord::ReferenceDataNotFound),
                     )?;
-                    vk.to_sec1_uncompressed()
+                    vk.to_sec1_compressed()
                 }
                 OpenPgpKeySlot::Dec => {
                     let pk = self
@@ -651,7 +651,7 @@ impl OpenPgpBackend for MockOpenPgp {
                         .ok_or(OpenPgpBackendError::Status(
                             StatusWord::ReferenceDataNotFound,
                         ))?;
-                    pk.to_sec1_uncompressed()
+                    pk.to_sec1_compressed()
                 }
             };
             let mut out = HVec::new();
@@ -671,7 +671,7 @@ impl OpenPgpBackend for MockOpenPgp {
                     .map_err(|_| OpenPgpBackendError::Status(StatusWord::ExecutionError))?;
                 self.sig_key = Some(sk);
                 let vk = self.sig_key.as_ref().unwrap().verifying_key();
-                let sec1 = vk.to_sec1_uncompressed();
+                let sec1 = vk.to_sec1_compressed();
                 let mut out = HVec::new();
                 for b in sec1 {
                     out.push(b)
@@ -684,7 +684,7 @@ impl OpenPgpBackend for MockOpenPgp {
                     .map_err(|_| OpenPgpBackendError::Status(StatusWord::ExecutionError))?;
                 self.aut_key = Some(sk);
                 let vk = self.aut_key.as_ref().unwrap().verifying_key();
-                let sec1 = vk.to_sec1_uncompressed();
+                let sec1 = vk.to_sec1_compressed();
                 let mut out = HVec::new();
                 for b in sec1 {
                     out.push(b)
@@ -702,7 +702,7 @@ impl OpenPgpBackend for MockOpenPgp {
                     .unwrap()
                     .public_key()
                     .map_err(|_| OpenPgpBackendError::Status(StatusWord::ExecutionError))?;
-                let sec1 = vk.to_sec1_uncompressed();
+                let sec1 = vk.to_sec1_compressed();
                 let mut out = HVec::new();
                 for b in sec1 {
                     out.push(b)

@@ -31,7 +31,7 @@
 - [CLI command reference](#cli-command-reference)
 - [Security requirements](#security-requirements)
 - [Compliance considerations](#compliance-considerations)
-- [Implementation order](#implementation-order)
+- [Implementation status (original phased roadmap)](#implementation-status-original-phased-roadmap)
 - [Dependencies](#dependencies)
 - [Out of scope](#out-of-scope)
 
@@ -1309,8 +1309,9 @@ galdra shamir import-qr --input <png>
 - The local SQLite database contains public keys only. It is not encrypted
   by default. On platforms where the OS provides user-level encryption
   (FileVault, BitLocker, LUKS), users are encouraged to rely on that.
-- An optional encrypted-database mode using SQLCipher is planned for future
-  implementation on shared workstations.
+- Optional **SQLCipher** encryption at rest: set `database_key_env` in `config.toml` to the name of an
+  environment variable that holds the passphrase; `galdra` / `galdrad` pass it into `Db::open` via
+  `database_key_from_env` (see `galdra-core-host`). The same passphrase is required on every open.
 
 ### Audit log integrity
 
@@ -1344,39 +1345,36 @@ responsibility of the deploying organisation.
 
 ---
 
-## Implementation order
+## Implementation status (original phased roadmap)
 
-Build in the following order. Each phase produces a usable, testable
-deliverable before the next phase begins.
+The **phase labels** below are the **original build order**. Most items are **already implemented** in
+this repository; remaining gaps are noted where readers commonly hit them (for example token-side
+key generation still depends on firmware integration; some `galdrad` routes remain stubs).
 
-**Phase 1 — Core library and CLI (basic)**
-- `galdra-core-host`: device communication, SQLite schema, basic contact
-  and group CRUD
-- `galdra` CLI: `device`, `key`, `contact`, and `group` commands
-- HKP keyserver fetch
-- WKD fetch
+**Phase 1 — Core library and CLI (basic)** — **done**
+- `galdra-core-host`: device communication, SQLite schema, contact and group CRUD
+- `galdra`: `device`, `key`, `contact`, `group`
+- HKP keyserver fetch (`galdra contact fetch --source keyserver`; `[keyservers]` in `config.toml`)
+- WKD fetch (`--source wkd`)
 
-**Phase 2 — Encryption and signing**
-- `galdra`: multi-recipient OpenPGP encrypt/decrypt via `sequoia-openpgp` (required; see [Multi-recipient encryption](#multi-recipient-encryption))
-- Signing and verification
-- `galdra encrypt`, `galdra decrypt`, `galdra sign`, `galdra verify`
-- Hidden recipients support
+**Phase 2 — Encryption and signing** — **done** (host-side; token behaviour varies by firmware build)
+- Multi-recipient OpenPGP encrypt/decrypt via `sequoia-openpgp` (see [Multi-recipient encryption](#multi-recipient-encryption))
+- `galdra encrypt`, `decrypt`, `sign`, `verify`; hidden recipients where documented
+- `galdra encrypt --format age` (age)
 
-**Phase 3 — Audit and sync**
-- Audit log with hash chain
-- Sync export/import
-- Group export/import packages
+**Phase 3 — Audit and sync** — **done**
+- Audit log with hash chain (`galdra audit …`)
+- `galdra sync export` / `sync import`
+- Group export/import (`galdra group export` / `group import`)
 
-**Phase 4 — Daemon and GTK4 desktop GUI**
-- `galdrad` REST API daemon
-- OpenAPI spec generation
-- GTK4 desktop GUI (Rust bindings)
+**Phase 4 — Daemon and GTK4 desktop GUI** — **done** (`galdrad`, OpenAPI; `galdra-gtk`; not every
+HTTP route mirrors full CLI depth yet)
 
-**Phase 5 — Advanced integration**
-- LDAP / Active Directory
-- QR code import
-- age format support
-- Encrypted database (SQLCipher)
+**Phase 5 — Advanced integration** — **mostly done**
+- LDAP / Active Directory: `galdra contact fetch --source ldap` with `[ldap]` in `config.toml`
+- QR code import: `galdra contact import --qr`
+- age: see Phase 2 (`--format age`)
+- Optional SQLCipher: `database_key_env` in `config.toml` (see [Database security](#database-security))
 
 ---
 
@@ -1385,11 +1383,11 @@ deliverable before the next phase begins.
 | Crate | Purpose |
 |-------|---------|
 | `clap` | CLI argument parsing |
-| `rusqlite` | SQLite database |
+| `rusqlite` | SQLite database (bundled SQLCipher available for optional encryption) |
 | `sequoia-openpgp` | OpenPGP key parsing; multi-recipient encryption/decryption and signing in `galdra` (mandated) |
-| `sequoia-net` | HKP keyserver and WKD fetching |
-| `age` | age format encryption (Phase 2) |
-| `ldap3` | LDAP / Active Directory (Phase 5) |
+| `sequoia-net` | HKP keyserver and WKD fetching (`galdra-core-host::keyserver`) |
+| `age` | age format encryption (`galdra encrypt --format age`) |
+| `ldap3` | LDAP / Active Directory (`galdra contact fetch --source ldap`) |
 | `rusb` | USB device communication |
 | `rpassword` | Secure PIN prompt (no echo) |
 | `zeroize` | PIN buffer zeroisation |
@@ -1398,11 +1396,11 @@ deliverable before the next phase begins.
 | `uuid` | Identity UUID generation |
 | `chrono` | Timestamps and expiry calculations |
 | `sha2` | Audit log hash chain |
-| `axum` | HTTP daemon (Phase 4) |
-| `utoipa` | OpenAPI spec generation (Phase 4) |
+| `axum` | HTTP daemon (`galdrad`) |
+| `utoipa` | OpenAPI spec generation (`galdrad`) |
 | `tokio` | Async runtime for daemon and network I/O |
 | `tracing` | Structured logging |
-| `image` / `rqrr` | QR code import (Phase 5) |
+| `image` / `rqrr` | QR code decode for `galdra contact import --qr` |
 
 All dependencies must be evaluated for open security advisories before
 inclusion. Pin versions in `Cargo.lock`. Review with `cargo audit` on

@@ -475,6 +475,8 @@ pub struct CreateProfileBody {
     pub layers: Vec<String>,
     pub shamir_threshold: Option<u8>,
     pub shamir_total: Option<u8>,
+    /// When false, the profile allows Galdralag `G:` fingerprints (default: true).
+    pub ephemeral_ecdh: Option<bool>,
 }
 
 async fn list_profiles(State(state): State<AppState>) -> Result<Json<serde_json::Value>, ApiError> {
@@ -530,7 +532,8 @@ async fn create_profile(
             layers.push(l);
         }
         let curve = parse_curve_wire(&curve_s)?;
-        let profile = build_profile_from_options(&name, &desc, curve, &layers, kt, nt)?;
+        let ecdh = body.ephemeral_ecdh.unwrap_or(true);
+        let profile = build_profile_from_options(&name, &desc, curve, &layers, kt, nt, ecdh)?;
         let mut store = ProfileStore::load(db)?;
         store.add(db, profile)?;
         Ok::<_, GaldraError>(())

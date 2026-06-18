@@ -114,6 +114,15 @@ impl BrainpoolPublicKey {
         out
     }
 
+    /// Serialise to compressed SEC1 form (33 bytes: `0x02`/`0x03` || x).
+    pub fn to_sec1_compressed(&self) -> [u8; 33] {
+        let enc = self.0.to_sec1_point(true);
+        let mut out = [0u8; 33];
+        let b = enc.as_bytes();
+        out.copy_from_slice(b);
+        out
+    }
+
     /// Deserialise from SEC1 form (compressed or uncompressed).
     /// Returns Err if the point is not on the curve or is the point at infinity.
     pub fn from_sec1(bytes: &[u8]) -> Result<Self, BrainpoolError> {

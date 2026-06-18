@@ -189,6 +189,15 @@ impl BrainpoolVerifyingKey {
         out
     }
 
+    /// Serialise to compressed SEC1 (33 bytes).
+    pub fn to_sec1_compressed(&self) -> [u8; 33] {
+        let enc = self.0.to_sec1_point(true);
+        let mut out = [0u8; 33];
+        let b = enc.as_bytes();
+        out.copy_from_slice(b);
+        out
+    }
+
     /// Deserialise verifying key from SEC1 (compressed or uncompressed).
     pub fn from_sec1(bytes: &[u8]) -> Result<Self, BrainpoolError> {
         let vk = VerifyingKey::from_sec1_bytes(bytes).map_err(|_| BrainpoolError::InvalidPoint)?;

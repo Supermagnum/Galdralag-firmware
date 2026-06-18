@@ -13,6 +13,8 @@ pub mod device;
 pub mod encrypt;
 pub mod ephemeral_offers;
 pub mod error;
+pub mod galdra_fingerprint;
+pub mod openpgp_pcsc;
 pub mod groups;
 pub mod keyserver;
 pub mod ldap;
@@ -22,4 +24,5 @@ pub mod sign;
 pub mod sync;
 
 pub use error::GaldraError;
+pub use galdra_fingerprint::{GaldraFingerprint, GaldraFingerprintParseError};
 pub use sync::SyncImportMode;

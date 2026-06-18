@@ -5,9 +5,14 @@ edition = "2021"
 license = "GPL-3.0"
 description = "Host-side business logic for the Galdra token management tool"
 
+[features]
+default = ["pcsc"]
+pcsc = ["dep:pcsc"]
+
 [dependencies]
 anyhow = { workspace = true }
 base64 = { version = "0.22", default-features = false, features = ["std"] }
+blake3 = { workspace = true }
 chrono = { workspace = true }
 cipher-profile = { path = "../crates/cipher-profile" }
 cess = { path = "../crates/cess" }
@@ -16,6 +21,7 @@ ephemeral-session = { path = "../crates/ephemeral-session" }
 galdr-core = { path = "../crates/galdr-core", features = ["test-hal"] }
 hex = { workspace = true }
 ldap3 = { workspace = true }
+pcsc = { workspace = true, optional = true }
 rand = { workspace = true }
 rusqlite = { workspace = true }
 serde = { workspace = true }

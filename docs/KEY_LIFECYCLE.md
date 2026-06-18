@@ -9,6 +9,7 @@ inventing product features not present in source.
 - [Generation (on-device TRNG)](#generation-on-device-trng)
 - [Import](#import)
 - [Export policy](#export-policy)
+- [Galdralag fingerprint (host)](#galdralag-fingerprint-host)
 - [Rotation and deletion](#rotation-and-deletion)
 - [Zeroisation](#zeroisation)
 - [Shamir recovery (host-orchestrated)](#shamir-recovery-host-orchestrated)
@@ -48,6 +49,14 @@ Host provisioning details: [GALDRA-TOOL.md](GALDRA-TOOL.md), [OPENPGP_CARD.md](O
   and [future-todo.md](future-todo.md).
 - **Public** keys and card outputs permitted by the OpenPGP card specification
   may leave the device per standard behaviour.
+
+---
+
+## Galdralag fingerprint (host)
+
+When the selected **cipher profile** has **`ephemeral_ecdh: false`**, **Galdra** can read the **SIG** slot public key over **PC/SC** (OpenPGP `GENERATE` with P1=`0x81`), hash the raw bytes with **BLAKE3** (first 20 bytes of output), and format a **Galdralag fingerprint** (`G:` + 40 lowercase hex) for display, JSON, or **AAD** in profile-bound encrypt. Profiles with **`ephemeral_ecdh: true`** (including all **legacy** stored profiles that omit the wire byte, which default to true) **gate off** this fingerprint: the tool returns an error if you request it, and encrypt keeps a placeholder in AAD unless the profile allows real fingerprints. **Canonical** strings are compared without display spacing. See [GLOSSARY.md](GLOSSARY.md#g) (*Galdralag fingerprint*).
+
+See also: [GLOSSARY.md — Galdralag fingerprint](GLOSSARY.md#g), [README — Web of Trust and Key Signing Parties](../README.md#web-of-trust-and-key-signing-parties).
 
 ---
 

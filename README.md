@@ -47,7 +47,7 @@ This project is **registered with the [Open Invention Network (OIN)](https://ope
   - [Using keyservers](#using-keyservers)
   - [Common keyservers](#common-keyservers)
   - [Best practices and caveats](#best-practices-and-caveats)
-  - [WoT registry server specification](server.md)
+  - [WoT registry server specification (design; not implemented)](server.md)
 - [Standards vs. firmware-specific features](#standards-vs-firmware-specific-features)
 - [Shamir secret sharing and drive encryption](#shamir-secret-sharing-and-drive-encryption)
 - [German eID and Governikus as a trust anchor for public keys](#german-eid-and-governikus-as-a-trust-anchor-for-public-keys)
@@ -336,7 +336,7 @@ was only known to those who understood.
 | [docs/FINGERVEIN_DEVICE.md](docs/FINGERVEIN_DEVICE.md) | ESP32-CAM open finger vein device: hardware, protocol sketch, liveness |
 | [docs/SWEET_PLATFORM_INTEGRATION.md](docs/SWEET_PLATFORM_INTEGRATION.md) | sweet platform hand scanner: hardware, integration, liveness, dataset |
 | [docs/GALDRA-TOOL.md](docs/GALDRA-TOOL.md) | Host tools (`galdra`, `galdrad`, `galdra-gtk`): workflows, provisioning, PIN policy, operational behaviour |
-| [server.md](server.md) | **WoT registry server**: specification for a project-hosted OpenPGP public-key registry (`galdralag-keyserver`, planned); optional amateur-radio labels and postal hint fields aligned with local contact rows; Hagrid reuse, SQLite, **`galdra keyserver push`** (not implemented yet)—see also [Web of Trust and Key Signing Parties](#web-of-trust-and-key-signing-parties) |
+| [server.md](server.md) | **WoT registry server**: specification for a project-hosted OpenPGP public-key registry (`galdralag-keyserver`, planned); optional amateur-radio labels and postal hint fields aligned with local contact rows; Hagrid reuse, SQLite; **`galdra keyserver push`** / **`galdra keyserver fetch`** (not yet implemented)—see also [Web of Trust and Key Signing Parties](#web-of-trust-and-key-signing-parties) |
 | [docs/GLOSSARY.md](docs/GLOSSARY.md) | **Plain-language glossary** (A–Z) for non-technical readers; technical detail remains in linked docs |
 | [CLAUDE.md](CLAUDE.md) | Instructions for **Claude** / AI coding agents; points to [`.cursor/rules/`](.cursor/rules/) for **Cursor** |
 | [docs/GALDRALAG_DEV_REFERENCE.md](docs/GALDRALAG_DEV_REFERENCE.md) | Toolchain, `xtask` commands, fuzzing and crypto test entry points |
@@ -402,6 +402,8 @@ The firmware implements the **OpenPGP card application** (documented as version 
 ## Web of Trust and Key Signing Parties
 
 OpenPGP and **GnuPG** use a decentralised trust model—the **web of trust**—to help verify who owns which keys and whether to rely on a given **public key**. That model is entirely **host-side**. Where chip-backed attestations such as [German eID and Governikus](#german-eid-and-governikus-as-a-trust-anchor-for-public-keys) are unavailable or inappropriate, it is the usual decentralised alternative (**key signing parties**, signatures on certificates); where they **are** available, both approaches can coexist as complementary paths.
+
+**Galdralag fingerprint (`G:`):** For in-person verification workflows, **Galdra** can show a **device-bound** fingerprint derived from the token’s **SIG** public key (**BLAKE3-160**, `G:` prefix). It is **not** an OpenPGP v4 certificate fingerprint. It is **only** available when the active **cipher profile** has **`ephemeral_ecdh: false`**; built-in profiles default **`ephemeral_ecdh: true`**, so you typically add a user profile with **`galdra profile add ... --no-ephemeral-ecdh`** for workflows that need this identifier alongside **WoT**-style host signing. Plain-language definition and format specification: [Galdralag fingerprint](docs/GLOSSARY.md#g). Lifecycle, rotation policy, and the ephemeral ECDH gate: [KEY_LIFECYCLE.md — Galdralag fingerprint](docs/KEY_LIFECYCLE.md#galdralag-fingerprint-host).
 
 ### What is the web of trust?
 
@@ -496,10 +498,11 @@ gpg --refresh-keys
 - Run **`gpg --refresh-keys`** periodically so revocations and new signatures propagate locally.
 - **Key signing asserts identity linkage**, not cipher strength—sign only after proportionate verification.
 - A signature means: you attest this **public key** belonged to that verified identity **at signing time**; others still choose trust paths themselves.
+- Before publishing a Galdralag fingerprint, confirm the active profile has `ephemeral_ecdh: false` with `galdra profile show <name>`.
 
 For authoritative behaviour of **`gpg`**, trust models, and distribution options, see the **GnuPG** manual and upstream documentation.
 
-A separate **WoT-aligned project registry server** (`galdralag-keyserver`, not yet in this workspace Cargo tree) is specified in **[server.md](server.md)** for storing contributor public keys plus optional amateur-radio labels and postal hint columns (organisation, department, radio fields, mailing-address strings); **`galdra keyserver push`** and the **`[keyserver]`** config stanza described there remain to be wired into **`galdra`** / **`galdra-core-host`**.
+A separate **WoT-aligned project registry server** (`galdralag-keyserver`, not yet in this workspace Cargo tree) **remains a design** specified in **[server.md](server.md)** for storing contributor public keys plus optional amateur-radio labels and postal hint columns (organisation, department, radio fields, mailing-address strings). **`galdra keyserver push`**, **`galdra keyserver fetch`**, and the **`[keyserver]`** config stanza described there are **not yet implemented** in **`galdra`** / **`galdra-core-host`**.
 
 ---
 
@@ -978,19 +981,30 @@ cargo run -p xtask -- test-all
 
 ## Workspace layout
 
+Firmware-oriented crates under `crates/` and host binaries at the repo root (see root **`Cargo.toml`** `[workspace]` for the authoritative member list):
+
 | Crate | Role |
 |-------|------|
 | `galdr-core` | HAL traits (`MonotonicCounter`, `HardwareTrng`, `ZeroiseController`, `VaultStorage`), shared errors, `test-hal` fakes |
 | `vault` | RRAM vault contracts, HKDF `KeyPurpose` labels, key material types (`zeroize`, no `Clone`/`Copy`) |
 | `pin-policy` | PIN state machine; counter increment before `subtle::ConstantTimeEq`; threshold zeroisation |
-| `usb-personality` | Mass-storage vs authenticated-unlock personas; challenge/response; OpenPGP/CCID card application; USB disconnect-on-lock |
-| `psram-store` | Optional microSD bulk block device (decoy volume); probe-absent short-circuit; mount/unmount access gate |
+| `usb-personality` | Mass-storage vs authenticated-unlock personas (including decoy mass-storage role); challenge/response; OpenPGP/CCID card application; USB disconnect-on-lock |
 | `ephemeral-session` | Authenticated ephemeral ECDH session protocol; forward secrecy |
 | `cipher-profile` | User-configurable cipher cascade profiles; built-in and user-defined |
 | `cess` | HKDF-BLAKE3 `K_outer`, ChaCha outer AEAD, `suite_id \|\| inner_blob`; see [CESS_CONFORMANCE.md](docs/CESS_CONFORMANCE.md) |
-| `security-tests` | dudect timing harnesses for all cryptographic paths |
+| `bp512` | Brainpool P-512 backend helper crate |
+| `biometric-api` | Biometric pre-gate wire types (CBOR, `SignedMatchResult`), session token helpers |
+| `biometric-vault` | Template sealing and vault-side integration pieces |
+| `biometric-fingervein` / `biometric-sweet` | Pluggable biometric backend sketches |
+| `security-tests` | dudect timing harnesses for cryptographic paths |
 | `host-tools` | Host manifest hashing, update verification, `psram-unlock`, **`galdralag-provision`** (Xous two-line CDC PIN provisioning) |
 | `xtask` | Build, check, test, fuzz, **`build-and-register`** (Xous `galdralag-service`), timing-test |
+| `galdra-core-host` | SQLite schema, contacts/groups/audit/sync, HKP/WKD/LDAP fetch, device and OpenPGP host helpers |
+| `galdra` | CLI over `galdra-core-host` |
+| `galdrad` | Local REST daemon |
+| `galdra-gtk` | GTK4 desktop UI |
+
+**Not in this workspace table as separate crates:** `baochip-openpgp` and `services/galdralag` are built via **`--manifest-path`** (see root `Cargo.toml` `exclude` and [services/galdralag/README.md](services/galdralag/README.md)). Optional **bulk/decoy block storage** (`psram-store` in design docs) is **not** yet a workspace member; see [docs/Psram.md](docs/Psram.md), [docs/dev-ref.md](docs/dev-ref.md), and [docs/SDMMC_STORAGE_INTEGRATION.md](docs/SDMMC_STORAGE_INTEGRATION.md).
 
 ---
 

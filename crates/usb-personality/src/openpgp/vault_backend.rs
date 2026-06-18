@@ -764,7 +764,7 @@ where
                         let vk = self.sig_key.as_ref().map(|k| k.verifying_key()).ok_or(
                             OpenPgpBackendError::Status(StatusWord::ReferenceDataNotFound),
                         )?;
-                        let sec1 = vk.to_sec1_uncompressed();
+                        let sec1 = vk.to_sec1_compressed();
                         let mut out = Vec::new();
                         for b in sec1 {
                             out.push(b).map_err(|_| {
@@ -796,7 +796,7 @@ where
                         let vk = self.aut_key.as_ref().map(|k| k.verifying_key()).ok_or(
                             OpenPgpBackendError::Status(StatusWord::ReferenceDataNotFound),
                         )?;
-                        let sec1 = vk.to_sec1_uncompressed();
+                        let sec1 = vk.to_sec1_compressed();
                         let mut out = Vec::new();
                         for b in sec1 {
                             out.push(b).map_err(|_| {
@@ -832,7 +832,7 @@ where
                             .ok_or(OpenPgpBackendError::Status(
                                 StatusWord::ReferenceDataNotFound,
                             ))?;
-                        let sec1 = pk.to_sec1_uncompressed();
+                        let sec1 = pk.to_sec1_compressed();
                         let mut out = Vec::new();
                         for b in sec1 {
                             out.push(b).map_err(|_| {
@@ -875,7 +875,7 @@ where
                     self.sig_ed25519 = None;
                     self.sig_key = Some(sk);
                     let vk = self.sig_key.as_ref().unwrap().verifying_key();
-                    let sec1 = vk.to_sec1_uncompressed();
+                    let sec1 = vk.to_sec1_compressed();
                     let mut out = Vec::new();
                     for b in sec1 {
                         out.push(b)
@@ -911,7 +911,7 @@ where
                     self.aut_ed25519 = None;
                     self.aut_key = Some(sk);
                     let vk = self.aut_key.as_ref().unwrap().verifying_key();
-                    let sec1 = vk.to_sec1_uncompressed();
+                    let sec1 = vk.to_sec1_compressed();
                     let mut out = Vec::new();
                     for b in sec1 {
                         out.push(b)
@@ -952,7 +952,7 @@ where
                         .unwrap()
                         .public_key()
                         .map_err(|_| OpenPgpBackendError::Status(StatusWord::ExecutionError))?;
-                    let sec1 = vk.to_sec1_uncompressed();
+                    let sec1 = vk.to_sec1_compressed();
                     let mut out = Vec::new();
                     for b in sec1 {
                         out.push(b)

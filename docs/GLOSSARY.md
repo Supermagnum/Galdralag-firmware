@@ -168,6 +168,11 @@ The name of this **firmware** project for the **Baochip** token. The word refers
 **Galdralag**  
 The repository and umbrella name for the project (“pattern of galdr”).
 
+**Galdralag fingerprint**  
+A **host-computed** identifier for the token’s **OpenPGP SIG** long-term **public key**, not the same as an **OpenPGP v4 key fingerprint**. **Canonical form:** mandatory `G:` prefix plus **40 lowercase hexadecimal characters** (no spaces)—this is what is stored, compared on the host, and placed in **AAD** for profile-bound encrypt. **Display form:** the same 40 hex digits grouped as four characters, with a **double space** after the fifth group (cosmetic only; never used for storage). The value is **BLAKE3** of the **raw public key bytes** the card returns when reading the SIG key (compressed SEC1 for Brainpool curves, 32-byte Ed25519 verifier), **first 20 bytes** of the digest only—no profile name, timestamp, or other metadata is hashed. **Galdralag fingerprints are only defined** when the active **cipher profile** has **authenticated ephemeral ECDH turned off** (`ephemeral_ecdh: false` in the profile registry); otherwise the tool refuses to print or embed them (forward secrecy and long-term fingerprint binding do not mix).
+
+See also: [KEY_LIFECYCLE.md — Galdralag fingerprint](KEY_LIFECYCLE.md#galdralag-fingerprint-host), [README — Web of Trust and Key Signing Parties](../README.md#web-of-trust-and-key-signing-parties).
+
 **galdrad**  
 A small **local server** on the PC that lets a GUI or scripts use **Galdra** features over HTTP.
 

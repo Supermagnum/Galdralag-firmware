@@ -27,8 +27,8 @@ pub fn run_profile(
                 print_json(&serde_json::json!({ "profiles": rows }))?;
             } else if !quiet {
                 println!(
-                    "{:<22} {:<18} {:<40} {:<10} {:<10}",
-                    "name", "curve", "layers", "shamir", "source"
+                    "{:<22} {:<10} {:<18} {:<40} {:<10} {:<10}",
+                    "name", "ecdhe", "curve", "layers", "shamir", "source"
                 );
                 for r in rows {
                     let layers = r.layers.join(", ");
@@ -38,9 +38,10 @@ pub fn run_profile(
                         "none".to_string()
                     };
                     let src = if r.is_builtin { "builtin" } else { "user" };
+                    let ecdhe = if r.ephemeral_ecdh { "on" } else { "off" };
                     println!(
-                        "{:<22} {:<18} {:<40} {:<10} {:<10}",
-                        r.name, r.curve, layers, sham, src
+                        "{:<22} {:<10} {:<18} {:<40} {:<10} {:<10}",
+                        r.name, ecdhe, r.curve, layers, sham, src
                     );
                 }
             }
@@ -86,12 +87,17 @@ pub fn run_profile(
                     "curve": curve_audit_str(p.curve()),
                     "layers": p.layers().iter().map(|l| layer_audit_name(*l)).collect::<Vec<_>>(),
                     "shamir": sham_s,
+                    "ephemeral_ecdh": p.ephemeral_ecdh(),
                     "source": src,
                 }))?;
             } else if !quiet {
                 println!("Name:        {}", p.name());
                 println!("Description: {}", p.description());
                 println!("Curve:       {}", curve_audit_str(p.curve()));
+                println!(
+                    "Ephemeral ECDH (profile): {}",
+                    if p.ephemeral_ecdh() { "on" } else { "off" }
+                );
                 print!("Layers:\n{}", layer_lines);
                 println!("Shamir:      {}", sham_s);
                 println!("Source:      {}", src);
@@ -105,6 +111,7 @@ pub fn run_profile(
             layer,
             shamir_threshold,
             shamir_total,
+            no_ephemeral_ecdh,
         } => {
             if layer.is_empty() {
                 return Err(GaldraError::Config(
@@ -127,6 +134,7 @@ pub fn run_profile(
             let curve_p = parse_curve_wire(&curve)?;
             let kt = shamir_threshold.unwrap_or(1);
             let nt = shamir_total.unwrap_or(1);
+            let ephemeral_ecdh = !no_ephemeral_ecdh;
             let profile = build_profile_from_options(
                 &name,
                 description.as_deref().unwrap_or(""),
@@ -134,6 +142,7 @@ pub fn run_profile(
                 &layers,
                 kt,
                 nt,
+                ephemeral_ecdh,
             )?;
             if output_mode == OutputMode::Json {
                 let mut store = ProfileStore::load(db)?;
@@ -143,8 +152,13 @@ pub fn run_profile(
             }
             if !quiet {
                 eprintln!(
-                    "Profile: {}\nCurve: {:?}\nLayers: {:?}\nShamir: {}/{}",
-                    name, curve_p, layers, kt, nt
+                    "Profile: {}\nCurve: {:?}\nLayers: {:?}\nShamir: {}/{}\nEphemeral ECDH: {}",
+                    name,
+                    curve_p,
+                    layers,
+                    kt,
+                    nt,
+                    if ephemeral_ecdh { "on" } else { "off" }
                 );
                 eprint!("Save this profile? [y/N]: ");
                 std::io::stderr().flush().map_err(GaldraError::Io)?;

@@ -6,7 +6,7 @@ license = "GPL-3.0"
 description = "Local REST daemon for Galdra (HTTP JSON API for GUI and integrations)"
 
 [dependencies]
-galdra-core-host = { path = "../galdra-core-host" }
+galdra-core-host = { path = "../galdra-core-host", default-features = false }
 axum = { workspace = true }
 base64 = { version = "0.22", default-features = false, features = ["std"] }
 sequoia-openpgp = { workspace = true }

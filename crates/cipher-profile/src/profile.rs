@@ -19,6 +19,9 @@ pub struct CipherProfile {
     curve: SessionCurve,
     layers: Vec<CipherLayer, 4>,
     shamir: ShamirConfig,
+    /// When true (default for legacy serialised blobs), authenticated ephemeral ECDH is part of the
+    /// product posture; host tooling must not emit a Galdralag `G:` fingerprint derived from the SIG key.
+    ephemeral_ecdh: bool,
 }
 
 impl CipherProfile {
@@ -47,7 +50,17 @@ impl CipherProfile {
         self.shamir
     }
 
+    /// When true, authenticated ephemeral ECDH is active for this profile's security model; Galdralag
+    /// `G:` fingerprints must not be produced.
+    pub fn ephemeral_ecdh(&self) -> bool {
+        self.ephemeral_ecdh
+    }
+
     /// Serialise to compact bytes.
+    ///
+    /// **Wire format:** legacy payloads end after `shamir.threshold` and `shamir.total`; parsers
+    /// default `ephemeral_ecdh` to **true** for those blobs (migration). New encodings append one
+    /// byte: `0` = `ephemeral_ecdh` false, `1` = true.
     pub fn to_bytes(&self) -> Vec<u8, 256> {
         let mut out = Vec::new();
         let name_b = self.name.as_str().as_bytes();
@@ -67,6 +80,7 @@ impl CipherProfile {
         }
         let _ = out.push(self.shamir.threshold);
         let _ = out.push(self.shamir.total);
+        let _ = out.push(if self.ephemeral_ecdh { 1 } else { 0 });
         out
     }
 
@@ -112,6 +126,17 @@ impl CipherProfile {
         i += 1;
         let sn = *bytes.get(i).ok_or(CipherProfileError::MalformedEncoding)?;
         i += 1;
+        let ephemeral_ecdh = match bytes.get(i).copied() {
+            None => true, // Migration: existing `user_profiles` rows without trailing byte.
+            Some(flags) => {
+                i += 1;
+                match flags {
+                    0 => false,
+                    1 => true,
+                    _ => return Err(CipherProfileError::MalformedEncoding),
+                }
+            }
+        };
         if i != bytes.len() {
             return Err(CipherProfileError::MalformedEncoding);
         }
@@ -135,6 +160,7 @@ impl CipherProfile {
             curve,
             layers,
             shamir,
+            ephemeral_ecdh,
         })
     }
 
@@ -166,6 +192,7 @@ pub struct CipherProfileBuilder {
     curve: Option<SessionCurve>,
     layers: Vec<CipherLayer, 4>,
     shamir: ShamirConfig,
+    ephemeral_ecdh: bool,
 }
 
 impl CipherProfileBuilder {
@@ -181,6 +208,7 @@ impl CipherProfileBuilder {
             curve: None,
             layers: Vec::new(),
             shamir: ShamirConfig::none(),
+            ephemeral_ecdh: true,
         })
     }
 
@@ -221,6 +249,12 @@ impl CipherProfileBuilder {
         self
     }
 
+    /// Whether this profile uses authenticated ephemeral ECDH (default **true**).
+    pub fn ephemeral_ecdh(mut self, on: bool) -> Self {
+        self.ephemeral_ecdh = on;
+        self
+    }
+
     /// Validate and build.
     pub fn build(self) -> Result<CipherProfile, CipherProfileError> {
         if self.layers.is_empty() {
@@ -235,6 +269,7 @@ impl CipherProfileBuilder {
             curve,
             layers: self.layers,
             shamir: self.shamir,
+            ephemeral_ecdh: self.ephemeral_ecdh,
         })
     }
 }
@@ -358,6 +393,44 @@ mod tests {
         assert_eq!(p.curve(), q.curve());
         assert_eq!(p.layers(), q.layers());
         assert_eq!(p.shamir(), q.shamir());
+        assert_eq!(p.ephemeral_ecdh(), q.ephemeral_ecdh());
+    }
+
+    #[test]
+    fn profile_parse_legacy_defaults_ephemeral_ecdh_true() {
+        let b = tr(CipherProfileBuilder::new("legacy"));
+        let b = b
+            .description("")
+            .curve(SessionCurve::BrainpoolP256r1)
+            .ephemeral_ecdh(false);
+        let b = tr(b.layer(CipherLayer::ChaCha20Poly1305));
+        let p = tr(b.build());
+        let mut legacy = Vec::<u8, 256>::new();
+        let full = p.to_bytes();
+        // Strip trailing ephemeral byte to simulate pre-migration blobs.
+        for (idx, b) in full.iter().enumerate() {
+            if idx + 1 == full.len() {
+                break;
+            }
+            let _ = legacy.push(*b);
+        }
+        let q = tr(CipherProfile::from_bytes(legacy.as_slice()));
+        assert!(q.ephemeral_ecdh(), "legacy blobs must default ephemeral_ecdh to true");
+        assert_ne!(p.ephemeral_ecdh(), q.ephemeral_ecdh());
+    }
+
+    #[test]
+    fn profile_ephemeral_ecdh_false_roundtrip() {
+        let b = tr(CipherProfileBuilder::new("nofp"));
+        let b = b
+            .curve(SessionCurve::BrainpoolP256r1)
+            .ephemeral_ecdh(false);
+        let b = tr(b.layer(CipherLayer::ChaCha20Poly1305));
+        let p = tr(b.build());
+        assert!(!p.ephemeral_ecdh());
+        let raw = p.to_bytes();
+        let q = tr(CipherProfile::from_bytes(raw.as_slice()));
+        assert!(!q.ephemeral_ecdh());
     }
 
     #[test]

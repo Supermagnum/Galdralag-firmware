@@ -115,6 +115,8 @@ pub struct ProfileSummary {
     pub layers: Vec<String>,
     pub shamir_k: u8,
     pub shamir_n: u8,
+    /// When true, authenticated ephemeral ECDH is active; Galdralag `G:` fingerprints are not produced.
+    pub ephemeral_ecdh: bool,
     pub is_builtin: bool,
 }
 
@@ -132,6 +134,7 @@ impl ProfileSummary {
             layers,
             shamir_k: sham.threshold,
             shamir_n: sham.total,
+            ephemeral_ecdh: p.ephemeral_ecdh(),
             is_builtin,
         }
     }
@@ -220,9 +223,13 @@ pub fn build_profile_from_options(
     layers: &[CipherLayer],
     shamir_threshold: u8,
     shamir_total: u8,
+    ephemeral_ecdh: bool,
 ) -> Result<CipherProfile, GaldraError> {
     let mut b = CipherProfileBuilder::new(name).map_err(map_cipher_err)?;
-    b = b.description(description).curve(curve);
+    b = b
+        .description(description)
+        .curve(curve)
+        .ephemeral_ecdh(ephemeral_ecdh);
     for layer in layers {
         b = b.layer(*layer).map_err(map_cipher_err)?;
     }
@@ -258,6 +265,7 @@ mod tests {
                 &[CipherLayer::ChaCha20Poly1305],
                 1,
                 1,
+                true,
             )
             .expect("build");
             store.add(&mut db, p).expect("add");
