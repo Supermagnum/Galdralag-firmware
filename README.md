@@ -216,7 +216,7 @@ Shippable firmware for **Baochip-1x** is **signed** with **Ed25519**. You sign t
 
 **Browse all files:** [github.com/Supermagnum/Galdralag-firmware — `docs/`](https://github.com/Supermagnum/Galdralag-firmware/tree/main/docs)
 
-**Hardware (USB dongle and related):** [Hardware/kicad-sd-card/](Hardware/kicad-sd-card/) — KiCad project (`dabao_v3c`), gerbers, BOM, production outputs, and [pinout docs](Hardware/kicad-sd-card/docs/pinout/README.md). The USB-A dongle PCB layout (minimal token vs Pico-format eval) is described in [docs/USB_DONGLE_PCB.md](docs/USB_DONGLE_PCB.md).
+**Hardware (USB dongle and related):** [Hardware/kicad-sd-card/](Hardware/kicad-sd-card/) — KiCad project (`dabao_v3c_sdcard`, USB-A token with micro-SD holder), gerbers, BOM, production outputs, and [pinout docs](Hardware/kicad-sd-card/docs/pinout/README.md). The USB-A dongle PCB layout (minimal token vs Pico-format eval) is described in [docs/USB_DONGLE_PCB.md](docs/USB_DONGLE_PCB.md).
 
 | Document | Description |
 |----------|-------------|

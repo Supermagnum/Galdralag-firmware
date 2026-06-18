@@ -477,7 +477,7 @@
     "pinned_symbol_libs": []
   },
   "meta": {
-    "filename": "dabao_v3c.kicad_pro",
+    "filename": "dabao_v3c_sdcard.kicad_pro",
     "version": 3
   },
   "net_settings": {
@@ -516,7 +516,7 @@
       "plot": "gerbers/",
       "pos_files": "gerbers/",
       "specctra_dsn": "",
-      "step": "dabao_v3c.step",
+      "step": "dabao_v3c_sdcard.step",
       "svg": "",
       "vrml": ""
     },

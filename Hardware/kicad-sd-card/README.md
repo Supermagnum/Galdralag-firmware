@@ -1,12 +1,12 @@
-# Dabao board design files
+# Dabao board design files (SD card)
 
-This directory contains the KiCad design files for the Dabao evaluation board based USB-A version. Its for a USB-A security token with the Baochip-1x.
+This directory contains the KiCad design files for the Dabao USB-A security token with the Baochip-1x. This revision adds a micro-SD card holder (`dabao_v3c_sdcard` project).
 
 **Outputs and previews**
 
-- [dabao_v3c.pdf](dabao_v3c.pdf) — schematic / design PDF export  
-- [dabao_v3c.jpg](dabao_v3c.jpg) — top of the PCB (render or photo)  
-- [dabao_v3c-b.jpg](dabao_v3c-b.jpg) — bottom of the PCB
+- [dabao_v3c_sdcard.pdf](dabao_v3c_sdcard.pdf) — schematic / design PDF export  
+- [dabao_v3c_sdcard.jpg](dabao_v3c_sdcard.jpg) — top of the PCB (render or photo)  
+- [dabao_v3c_sdcard-b.jpg](dabao_v3c_sdcard-b.jpg) — bottom of the PCB
 
 **Enclosure — FreeCAD source**
 

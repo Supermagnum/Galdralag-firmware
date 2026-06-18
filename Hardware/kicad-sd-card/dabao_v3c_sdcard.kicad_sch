@@ -7977,7 +7977,7 @@
 			(uuid "180cd9fe-459a-4253-a473-5eabd1d1da97")
 		)
 		(instances
-			(project "dabao_v3c"
+			(project "dabao_v3c_sdcard"
 				(path "/30b97054-956f-4926-8f71-e9554821c3b2"
 					(reference "C16")
 					(unit 1)
@@ -8144,7 +8144,7 @@
 			(uuid "ed243540-13ad-4c4d-b084-894f8fe3819c")
 		)
 		(instances
-			(project "dabao_v3c"
+			(project "dabao_v3c_sdcard"
 				(path "/30b97054-956f-4926-8f71-e9554821c3b2"
 					(reference "D1")
 					(unit 1)
@@ -8305,7 +8305,7 @@
 			(uuid "ab9e7ca5-8ca4-4891-9ae0-4cba9b7ced21")
 		)
 		(instances
-			(project "dabao_v3c"
+			(project "dabao_v3c_sdcard"
 				(path "/30b97054-956f-4926-8f71-e9554821c3b2"
 					(reference "R4")
 					(unit 1)
@@ -8381,7 +8381,7 @@
 			(uuid "dbb93162-c46b-47ea-af16-406ce337c072")
 		)
 		(instances
-			(project "dabao_v3c"
+			(project "dabao_v3c_sdcard"
 				(path "/30b97054-956f-4926-8f71-e9554821c3b2"
 					(reference "L1")
 					(unit 1)
@@ -8529,7 +8529,7 @@
 			(uuid "7eee4ce7-cd36-486d-89fe-f96a2b2c5efd")
 		)
 		(instances
-			(project "dabao_v3c"
+			(project "dabao_v3c_sdcard"
 				(path "/30b97054-956f-4926-8f71-e9554821c3b2"
 					(reference "SW1")
 					(unit 1)
@@ -8594,7 +8594,7 @@
 			(uuid "b11a3b94-f3c0-469e-8d83-5d5b264dd37d")
 		)
 		(instances
-			(project "dabao_v3c"
+			(project "dabao_v3c_sdcard"
 				(path "/30b97054-956f-4926-8f71-e9554821c3b2"
 					(reference "#PWR034")
 					(unit 1)
@@ -8660,7 +8660,7 @@
 			(uuid "68973a08-b816-4c79-98c6-cdfbbcc2acc4")
 		)
 		(instances
-			(project "dabao_v3c"
+			(project "dabao_v3c_sdcard"
 				(path "/30b97054-956f-4926-8f71-e9554821c3b2"
 					(reference "#PWR030")
 					(unit 1)
@@ -8725,7 +8725,7 @@
 			(uuid "94cbaf28-edb9-4114-b97b-e305c6c5b6ad")
 		)
 		(instances
-			(project "dabao_v3c"
+			(project "dabao_v3c_sdcard"
 				(path "/30b97054-956f-4926-8f71-e9554821c3b2"
 					(reference "#PWR019")
 					(unit 1)
@@ -8790,7 +8790,7 @@
 			(uuid "e7e5ff56-cf8d-40da-8cb9-154ea0905363")
 		)
 		(instances
-			(project "dabao_v3c"
+			(project "dabao_v3c_sdcard"
 				(path "/30b97054-956f-4926-8f71-e9554821c3b2"
 					(reference "#PWR023")
 					(unit 1)
@@ -8854,7 +8854,7 @@
 			)
 		)
 		(instances
-			(project "dabao_v3c"
+			(project "dabao_v3c_sdcard"
 				(path "/30b97054-956f-4926-8f71-e9554821c3b2"
 					(reference "H4")
 					(unit 1)
@@ -8920,7 +8920,7 @@
 			(uuid "f9c11b92-3b6f-4d22-94df-fd3768b6b046")
 		)
 		(instances
-			(project "dabao_v3c"
+			(project "dabao_v3c_sdcard"
 				(path "/30b97054-956f-4926-8f71-e9554821c3b2"
 					(reference "#PWR025")
 					(unit 1)
@@ -8986,7 +8986,7 @@
 			(uuid "d834f7d9-cc8b-4a87-a86a-1a5c1b776564")
 		)
 		(instances
-			(project "dabao_v3c"
+			(project "dabao_v3c_sdcard"
 				(path "/30b97054-956f-4926-8f71-e9554821c3b2"
 					(reference "#PWR017")
 					(unit 1)
@@ -9051,7 +9051,7 @@
 			(uuid "3b72c24c-6266-4088-a548-ea80b25b0572")
 		)
 		(instances
-			(project "dabao_v3c"
+			(project "dabao_v3c_sdcard"
 				(path "/30b97054-956f-4926-8f71-e9554821c3b2"
 					(reference "#PWR028")
 					(unit 1)
@@ -9116,7 +9116,7 @@
 			(uuid "4004c971-319b-48d5-a5ae-0ef820cc73ec")
 		)
 		(instances
-			(project "dabao_v3c"
+			(project "dabao_v3c_sdcard"
 				(path "/30b97054-956f-4926-8f71-e9554821c3b2"
 					(reference "#PWR010")
 					(unit 1)
@@ -9277,7 +9277,7 @@
 			(uuid "396e5c90-b27f-418b-a31c-f192f2ef427f")
 		)
 		(instances
-			(project "dabao_v3c"
+			(project "dabao_v3c_sdcard"
 				(path "/30b97054-956f-4926-8f71-e9554821c3b2"
 					(reference "C7")
 					(unit 1)
@@ -9343,7 +9343,7 @@
 			(uuid "e3c2b49a-3a40-43e4-95b0-f022adbb16e1")
 		)
 		(instances
-			(project "dabao_v3c"
+			(project "dabao_v3c_sdcard"
 				(path "/30b97054-956f-4926-8f71-e9554821c3b2"
 					(reference "#PWR018")
 					(unit 1)
@@ -9408,7 +9408,7 @@
 			(uuid "04c207be-ed9e-40d3-840f-93e10506aee4")
 		)
 		(instances
-			(project "dabao_v3c"
+			(project "dabao_v3c_sdcard"
 				(path "/30b97054-956f-4926-8f71-e9554821c3b2"
 					(reference "#PWR039")
 					(unit 1)
@@ -9474,7 +9474,7 @@
 			(uuid "075ee502-1fc3-4d69-a1f8-c58627b4c8ec")
 		)
 		(instances
-			(project "dabao_v3c"
+			(project "dabao_v3c_sdcard"
 				(path "/30b97054-956f-4926-8f71-e9554821c3b2"
 					(reference "#PWR04")
 					(unit 1)
@@ -9540,7 +9540,7 @@
 			(uuid "7f7d46d4-70f8-40f2-a640-23a189730340")
 		)
 		(instances
-			(project "dabao_v3c"
+			(project "dabao_v3c_sdcard"
 				(path "/30b97054-956f-4926-8f71-e9554821c3b2"
 					(reference "#PWR08")
 					(unit 1)
@@ -9701,7 +9701,7 @@
 			(uuid "4cf2f245-1656-4df5-ac1a-960f528888e3")
 		)
 		(instances
-			(project "dabao_v3c"
+			(project "dabao_v3c_sdcard"
 				(path "/30b97054-956f-4926-8f71-e9554821c3b2"
 					(reference "C5")
 					(unit 1)
@@ -9862,7 +9862,7 @@
 			(uuid "3577e836-9ecd-4f20-91e5-1b5293345c80")
 		)
 		(instances
-			(project "dabao_v3c"
+			(project "dabao_v3c_sdcard"
 				(path "/30b97054-956f-4926-8f71-e9554821c3b2"
 					(reference "R6")
 					(unit 1)
@@ -9926,7 +9926,7 @@
 			)
 		)
 		(instances
-			(project "dabao_v3c"
+			(project "dabao_v3c_sdcard"
 				(path "/30b97054-956f-4926-8f71-e9554821c3b2"
 					(reference "H2")
 					(unit 1)
@@ -9992,7 +9992,7 @@
 			(uuid "412e1de8-3990-4468-9220-6aa2174e2118")
 		)
 		(instances
-			(project "dabao_v3c"
+			(project "dabao_v3c_sdcard"
 				(path "/30b97054-956f-4926-8f71-e9554821c3b2"
 					(reference "#PWR013")
 					(unit 1)
@@ -10153,7 +10153,7 @@
 			(uuid "83e4608f-0165-403c-9f86-59a7f0a3ea4d")
 		)
 		(instances
-			(project "dabao_v3c"
+			(project "dabao_v3c_sdcard"
 				(path "/30b97054-956f-4926-8f71-e9554821c3b2"
 					(reference "R8")
 					(unit 1)
@@ -10218,7 +10218,7 @@
 			(uuid "99558e83-fe97-454c-8005-7ab31c5c28c3")
 		)
 		(instances
-			(project "dabao_v3c"
+			(project "dabao_v3c_sdcard"
 				(path "/30b97054-956f-4926-8f71-e9554821c3b2"
 					(reference "#PWR020")
 					(unit 1)
@@ -10282,7 +10282,7 @@
 			)
 		)
 		(instances
-			(project "dabao_v3c"
+			(project "dabao_v3c_sdcard"
 				(path "/30b97054-956f-4926-8f71-e9554821c3b2"
 					(reference "FID2")
 					(unit 1)
@@ -10443,7 +10443,7 @@
 			(uuid "d3ad9809-46f6-4089-b60f-8ef117376778")
 		)
 		(instances
-			(project "dabao_v3c"
+			(project "dabao_v3c_sdcard"
 				(path "/30b97054-956f-4926-8f71-e9554821c3b2"
 					(reference "C12")
 					(unit 1)
@@ -10604,7 +10604,7 @@
 			(uuid "0829b598-4a3c-4316-8d3d-2d57f29e29ea")
 		)
 		(instances
-			(project "dabao_v3c"
+			(project "dabao_v3c_sdcard"
 				(path "/30b97054-956f-4926-8f71-e9554821c3b2"
 					(reference "C11")
 					(unit 1)
@@ -10765,7 +10765,7 @@
 			(uuid "ce292602-1b3c-4074-abdb-36ec0a73ec87")
 		)
 		(instances
-			(project "dabao_v3c"
+			(project "dabao_v3c_sdcard"
 				(path "/30b97054-956f-4926-8f71-e9554821c3b2"
 					(reference "R3")
 					(unit 1)
@@ -10852,7 +10852,7 @@
 			(uuid "3b909898-04a0-479a-8703-af45c169067c")
 		)
 		(instances
-			(project "dabao_v3c"
+			(project "dabao_v3c_sdcard"
 				(path "/30b97054-956f-4926-8f71-e9554821c3b2"
 					(reference "U4")
 					(unit 1)
@@ -10917,7 +10917,7 @@
 			(uuid "f07f7591-845b-43fe-b952-48be24e13dc1")
 		)
 		(instances
-			(project "dabao_v3c"
+			(project "dabao_v3c_sdcard"
 				(path "/30b97054-956f-4926-8f71-e9554821c3b2"
 					(reference "#PWR031")
 					(unit 1)
@@ -11078,7 +11078,7 @@
 			(uuid "2b550ca5-bf16-448b-a610-02364dbf1a29")
 		)
 		(instances
-			(project "dabao_v3c"
+			(project "dabao_v3c_sdcard"
 				(path "/30b97054-956f-4926-8f71-e9554821c3b2"
 					(reference "R1")
 					(unit 1)
@@ -11144,7 +11144,7 @@
 			(uuid "5e20e298-c17d-4187-8c29-965bc81d0b8a")
 		)
 		(instances
-			(project "dabao_v3c"
+			(project "dabao_v3c_sdcard"
 				(path "/30b97054-956f-4926-8f71-e9554821c3b2"
 					(reference "#PWR026")
 					(unit 1)
@@ -11305,7 +11305,7 @@
 			(uuid "4d374257-d151-442b-9a88-053601c19911")
 		)
 		(instances
-			(project "dabao_v3c"
+			(project "dabao_v3c_sdcard"
 				(path "/30b97054-956f-4926-8f71-e9554821c3b2"
 					(reference "C6")
 					(unit 1)
@@ -11370,7 +11370,7 @@
 			(uuid "a967831c-65f4-4802-a2be-df02e65acb75")
 		)
 		(instances
-			(project "dabao_v3c"
+			(project "dabao_v3c_sdcard"
 				(path "/30b97054-956f-4926-8f71-e9554821c3b2"
 					(reference "#PWR032")
 					(unit 1)
@@ -11531,7 +11531,7 @@
 			(uuid "a5e56ac6-6ff4-4862-a15f-8ad75fcc9e01")
 		)
 		(instances
-			(project "dabao_v3c"
+			(project "dabao_v3c_sdcard"
 				(path "/30b97054-956f-4926-8f71-e9554821c3b2"
 					(reference "C4")
 					(unit 1)
@@ -11596,7 +11596,7 @@
 			(uuid "29ba0bd4-d996-4195-9efe-c56e5c72d9b7")
 		)
 		(instances
-			(project "dabao_v3c"
+			(project "dabao_v3c_sdcard"
 				(path "/30b97054-956f-4926-8f71-e9554821c3b2"
 					(reference "#PWR07")
 					(unit 1)
@@ -11873,7 +11873,7 @@
 			(uuid "a35408b1-a42f-4c3d-ab26-2040b884592a")
 		)
 		(instances
-			(project "dabao_v3c"
+			(project "dabao_v3c_sdcard"
 				(path "/30b97054-956f-4926-8f71-e9554821c3b2"
 					(reference "U2")
 					(unit 5)
@@ -12034,7 +12034,7 @@
 			(uuid "b705fe57-daaa-4015-8e3d-fd26d8c433ff")
 		)
 		(instances
-			(project "dabao_v3c"
+			(project "dabao_v3c_sdcard"
 				(path "/30b97054-956f-4926-8f71-e9554821c3b2"
 					(reference "C8")
 					(unit 1)
@@ -12311,7 +12311,7 @@
 			(uuid "a35408b1-a42f-4c3d-ab26-2040b884592b")
 		)
 		(instances
-			(project "dabao_v3c"
+			(project "dabao_v3c_sdcard"
 				(path "/30b97054-956f-4926-8f71-e9554821c3b2"
 					(reference "U2")
 					(unit 4)
@@ -12472,7 +12472,7 @@
 			(uuid "ca0dc49b-ffd1-4784-a134-f17dd0159f4a")
 		)
 		(instances
-			(project "dabao_v3c"
+			(project "dabao_v3c_sdcard"
 				(path "/30b97054-956f-4926-8f71-e9554821c3b2"
 					(reference "C10")
 					(unit 1)
@@ -12642,7 +12642,7 @@
 			(uuid "418e8e5e-a077-455e-8e51-2ee94d4a3abe")
 		)
 		(instances
-			(project "dabao_v3c"
+			(project "dabao_v3c_sdcard"
 				(path "/30b97054-956f-4926-8f71-e9554821c3b2"
 					(reference "C9")
 					(unit 1)
@@ -12708,7 +12708,7 @@
 			(uuid "ab5b977f-9e05-42c5-ba6e-71d1c7d2e1ad")
 		)
 		(instances
-			(project "dabao_v3c"
+			(project "dabao_v3c_sdcard"
 				(path "/30b97054-956f-4926-8f71-e9554821c3b2"
 					(reference "#PWR02")
 					(unit 1)
@@ -12773,7 +12773,7 @@
 			(uuid "22bd0dd3-dbdc-43b4-b57c-66c51317d8cf")
 		)
 		(instances
-			(project "dabao_v3c"
+			(project "dabao_v3c_sdcard"
 				(path "/30b97054-956f-4926-8f71-e9554821c3b2"
 					(reference "#PWR05")
 					(unit 1)
@@ -12934,7 +12934,7 @@
 			(uuid "9a3e025e-432e-416c-aa33-eace977a472d")
 		)
 		(instances
-			(project "dabao_v3c"
+			(project "dabao_v3c_sdcard"
 				(path "/30b97054-956f-4926-8f71-e9554821c3b2"
 					(reference "C3")
 					(unit 1)
@@ -13000,7 +13000,7 @@
 			(uuid "4f86ca6b-739c-4e14-b505-b1419e94a52f")
 		)
 		(instances
-			(project "dabao_v3c"
+			(project "dabao_v3c_sdcard"
 				(path "/30b97054-956f-4926-8f71-e9554821c3b2"
 					(reference "#PWR022")
 					(unit 1)
@@ -13170,7 +13170,7 @@
 			(uuid "fd0bc2c4-0d5f-4686-a40a-1fda1c7b7b17")
 		)
 		(instances
-			(project "dabao_v3c"
+			(project "dabao_v3c_sdcard"
 				(path "/30b97054-956f-4926-8f71-e9554821c3b2"
 					(reference "C1")
 					(unit 1)
@@ -13327,7 +13327,7 @@
 			(uuid "856620a5-ace4-4ca2-b903-ffdadd41e911")
 		)
 		(instances
-			(project "dabao_v3c"
+			(project "dabao_v3c_sdcard"
 				(path "/30b97054-956f-4926-8f71-e9554821c3b2"
 					(reference "U1")
 					(unit 1)
@@ -13392,7 +13392,7 @@
 			(uuid "0af28714-17e4-4626-8536-f08afca56707")
 		)
 		(instances
-			(project "dabao_v3c"
+			(project "dabao_v3c_sdcard"
 				(path "/30b97054-956f-4926-8f71-e9554821c3b2"
 					(reference "#PWR015")
 					(unit 1)
@@ -13458,7 +13458,7 @@
 			(uuid "fcdbf34d-9f44-431a-8696-311c69402027")
 		)
 		(instances
-			(project "dabao_v3c"
+			(project "dabao_v3c_sdcard"
 				(path "/30b97054-956f-4926-8f71-e9554821c3b2"
 					(reference "#PWR035")
 					(unit 1)
@@ -13523,7 +13523,7 @@
 			(uuid "674c3cf1-8edb-4961-a852-874c77279a1f")
 		)
 		(instances
-			(project "dabao_v3c"
+			(project "dabao_v3c_sdcard"
 				(path "/30b97054-956f-4926-8f71-e9554821c3b2"
 					(reference "#PWR036")
 					(unit 1)
@@ -13588,7 +13588,7 @@
 			(uuid "84451463-8a6b-4ba0-81e8-b9ec490c8819")
 		)
 		(instances
-			(project "dabao_v3c"
+			(project "dabao_v3c_sdcard"
 				(path "/30b97054-956f-4926-8f71-e9554821c3b2"
 					(reference "#PWR033")
 					(unit 1)
@@ -13652,7 +13652,7 @@
 			)
 		)
 		(instances
-			(project "dabao_v3c"
+			(project "dabao_v3c_sdcard"
 				(path "/30b97054-956f-4926-8f71-e9554821c3b2"
 					(reference "H3")
 					(unit 1)
@@ -13717,7 +13717,7 @@
 			(uuid "eda9d8a0-5f86-48b0-8fe4-0ecfe0b9ba81")
 		)
 		(instances
-			(project "dabao_v3c"
+			(project "dabao_v3c_sdcard"
 				(path "/30b97054-956f-4926-8f71-e9554821c3b2"
 					(reference "#PWR09")
 					(unit 1)
@@ -13782,7 +13782,7 @@
 			(uuid "bd08773c-9555-4682-a8a8-5bda751910e3")
 		)
 		(instances
-			(project "dabao_v3c"
+			(project "dabao_v3c_sdcard"
 				(path "/30b97054-956f-4926-8f71-e9554821c3b2"
 					(reference "#PWR014")
 					(unit 1)
@@ -13848,7 +13848,7 @@
 			(uuid "1719676c-5468-431e-a41a-9fdc43bb9149")
 		)
 		(instances
-			(project "dabao_v3c"
+			(project "dabao_v3c_sdcard"
 				(path "/30b97054-956f-4926-8f71-e9554821c3b2"
 					(reference "#PWR029")
 					(unit 1)
@@ -13924,7 +13924,7 @@
 			(uuid "f6db1853-444a-418c-9e1f-f00c3ee581d0")
 		)
 		(instances
-			(project "dabao_v3c"
+			(project "dabao_v3c_sdcard"
 				(path "/30b97054-956f-4926-8f71-e9554821c3b2"
 					(reference "L2")
 					(unit 1)
@@ -14085,7 +14085,7 @@
 			(uuid "16b222a0-5b39-4d49-9e97-247fb2d8a6df")
 		)
 		(instances
-			(project "dabao_v3c"
+			(project "dabao_v3c_sdcard"
 				(path "/30b97054-956f-4926-8f71-e9554821c3b2"
 					(reference "R5")
 					(unit 1)
@@ -14149,7 +14149,7 @@
 			)
 		)
 		(instances
-			(project "dabao_v3c"
+			(project "dabao_v3c_sdcard"
 				(path "/30b97054-956f-4926-8f71-e9554821c3b2"
 					(reference "H1")
 					(unit 1)
@@ -14215,7 +14215,7 @@
 			(uuid "3bffc00b-b91b-4758-b69d-e33a96e89304")
 		)
 		(instances
-			(project "dabao_v3c"
+			(project "dabao_v3c_sdcard"
 				(path "/30b97054-956f-4926-8f71-e9554821c3b2"
 					(reference "#PWR06")
 					(unit 1)
@@ -14281,7 +14281,7 @@
 			(uuid "ea550d99-2614-48b2-ae1c-eb07c34a994b")
 		)
 		(instances
-			(project "dabao_v3c"
+			(project "dabao_v3c_sdcard"
 				(path "/30b97054-956f-4926-8f71-e9554821c3b2"
 					(reference "#PWR021")
 					(unit 1)
@@ -14370,7 +14370,7 @@
 			(uuid "62d66680-fa26-4096-9b55-b8948e531bd0")
 		)
 		(instances
-			(project "dabao_v3c"
+			(project "dabao_v3c_sdcard"
 				(path "/30b97054-956f-4926-8f71-e9554821c3b2"
 					(reference "J2")
 					(unit 1)
@@ -14447,7 +14447,7 @@
 			(uuid "1ffc6d06-e6b9-4b69-bd96-6c78555ea08f")
 		)
 		(instances
-			(project "dabao_v3c"
+			(project "dabao_v3c_sdcard"
 				(path "/30b97054-956f-4926-8f71-e9554821c3b2"
 					(reference "J1")
 					(unit 1)
@@ -14512,7 +14512,7 @@
 			(uuid "8e21c603-5d78-495a-bad8-c0b896535b8a")
 		)
 		(instances
-			(project "dabao_v3c"
+			(project "dabao_v3c_sdcard"
 				(path "/30b97054-956f-4926-8f71-e9554821c3b2"
 					(reference "#PWR016")
 					(unit 1)
@@ -14578,7 +14578,7 @@
 			(uuid "0c4e0960-0957-4243-9683-53d7f910686f")
 		)
 		(instances
-			(project "dabao_v3c"
+			(project "dabao_v3c_sdcard"
 				(path "/30b97054-956f-4926-8f71-e9554821c3b2"
 					(reference "#PWR01")
 					(unit 1)
@@ -14693,7 +14693,7 @@
 			(uuid "fdc91f89-cf0a-4352-8ba7-db39325e21a3")
 		)
 		(instances
-			(project "dabao_v3c"
+			(project "dabao_v3c_sdcard"
 				(path "/30b97054-956f-4926-8f71-e9554821c3b2"
 					(reference "U5")
 					(unit 1)
@@ -14968,7 +14968,7 @@
 			(uuid "a35408b1-a42f-4c3d-ab26-2040b884592c")
 		)
 		(instances
-			(project "dabao_v3c"
+			(project "dabao_v3c_sdcard"
 				(path "/30b97054-956f-4926-8f71-e9554821c3b2"
 					(reference "U2")
 					(unit 2)
@@ -15034,7 +15034,7 @@
 			(uuid "bc4210c7-eb7d-470e-ae2b-5fd9c21f3fb1")
 		)
 		(instances
-			(project "dabao_v3c"
+			(project "dabao_v3c_sdcard"
 				(path "/30b97054-956f-4926-8f71-e9554821c3b2"
 					(reference "#PWR038")
 					(unit 1)
@@ -15195,7 +15195,7 @@
 			(uuid "aca664b1-4b8a-45b1-9be1-583364755d1e")
 		)
 		(instances
-			(project "dabao_v3c"
+			(project "dabao_v3c_sdcard"
 				(path "/30b97054-956f-4926-8f71-e9554821c3b2"
 					(reference "R7")
 					(unit 1)
@@ -15261,7 +15261,7 @@
 			(uuid "b6cc85aa-06a9-4c03-8167-73fa18bc38a5")
 		)
 		(instances
-			(project "dabao_v3c"
+			(project "dabao_v3c_sdcard"
 				(path "/30b97054-956f-4926-8f71-e9554821c3b2"
 					(reference "#PWR03")
 					(unit 1)
@@ -15327,7 +15327,7 @@
 			(uuid "8327d20e-a78f-44ad-b7a7-4a069c94c628")
 		)
 		(instances
-			(project "dabao_v3c"
+			(project "dabao_v3c_sdcard"
 				(path "/30b97054-956f-4926-8f71-e9554821c3b2"
 					(reference "#PWR024")
 					(unit 1)
@@ -15392,7 +15392,7 @@
 			(uuid "43a0b909-1184-4638-b0c5-53f962c96f30")
 		)
 		(instances
-			(project "dabao_v3c"
+			(project "dabao_v3c_sdcard"
 				(path "/30b97054-956f-4926-8f71-e9554821c3b2"
 					(reference "#PWR011")
 					(unit 1)
@@ -15456,7 +15456,7 @@
 			)
 		)
 		(instances
-			(project "dabao_v3c"
+			(project "dabao_v3c_sdcard"
 				(path "/30b97054-956f-4926-8f71-e9554821c3b2"
 					(reference "FID3")
 					(unit 1)
@@ -15522,7 +15522,7 @@
 			(uuid "d4eba714-4187-4931-b3f3-3e081904c298")
 		)
 		(instances
-			(project "dabao_v3c"
+			(project "dabao_v3c_sdcard"
 				(path "/30b97054-956f-4926-8f71-e9554821c3b2"
 					(reference "#PWR012")
 					(unit 1)
@@ -15663,7 +15663,7 @@
 			(uuid "66378940-2c39-4835-9951-0aa4030b67c5")
 		)
 		(instances
-			(project "dabao_v3c"
+			(project "dabao_v3c_sdcard"
 				(path "/30b97054-956f-4926-8f71-e9554821c3b2"
 					(reference "C17")
 					(unit 1)
@@ -15878,7 +15878,7 @@
 			(uuid "cb3dc282-1406-4312-b54e-2aeece6f6873")
 		)
 		(instances
-			(project "dabao_v3c"
+			(project "dabao_v3c_sdcard"
 				(path "/30b97054-956f-4926-8f71-e9554821c3b2"
 					(reference "C13")
 					(unit 1)
@@ -16153,7 +16153,7 @@
 			(uuid "a35408b1-a42f-4c3d-ab26-2040b884592d")
 		)
 		(instances
-			(project "dabao_v3c"
+			(project "dabao_v3c_sdcard"
 				(path "/30b97054-956f-4926-8f71-e9554821c3b2"
 					(reference "U2")
 					(unit 1)
@@ -16240,7 +16240,7 @@
 			(uuid "c238f38c-43b7-4287-b7d9-17a3f7048803")
 		)
 		(instances
-			(project "dabao_v3c"
+			(project "dabao_v3c_sdcard"
 				(path "/30b97054-956f-4926-8f71-e9554821c3b2"
 					(reference "U3")
 					(unit 1)
@@ -16401,7 +16401,7 @@
 			(uuid "1b5175f5-6095-4439-98fd-e49fce810df9")
 		)
 		(instances
-			(project "dabao_v3c"
+			(project "dabao_v3c_sdcard"
 				(path "/30b97054-956f-4926-8f71-e9554821c3b2"
 					(reference "C2")
 					(unit 1)
@@ -16562,7 +16562,7 @@
 			(uuid "87e144b1-deae-419e-bb84-a6080cea2de9")
 		)
 		(instances
-			(project "dabao_v3c"
+			(project "dabao_v3c_sdcard"
 				(path "/30b97054-956f-4926-8f71-e9554821c3b2"
 					(reference "C14")
 					(unit 1)
@@ -16723,7 +16723,7 @@
 			(uuid "dd721b7e-d6d6-48ae-8e83-d880f73cd9bf")
 		)
 		(instances
-			(project "dabao_v3c"
+			(project "dabao_v3c_sdcard"
 				(path "/30b97054-956f-4926-8f71-e9554821c3b2"
 					(reference "C15")
 					(unit 1)
@@ -16787,7 +16787,7 @@
 			)
 		)
 		(instances
-			(project "dabao_v3c"
+			(project "dabao_v3c_sdcard"
 				(path "/30b97054-956f-4926-8f71-e9554821c3b2"
 					(reference "FID1")
 					(unit 1)
@@ -16948,7 +16948,7 @@
 			(uuid "8589e647-7af3-40a6-b458-3b3fbcdd13b7")
 		)
 		(instances
-			(project "dabao_v3c"
+			(project "dabao_v3c_sdcard"
 				(path "/30b97054-956f-4926-8f71-e9554821c3b2"
 					(reference "R2")
 					(unit 1)
@@ -17109,7 +17109,7 @@
 			(uuid "536ba4a8-e6e3-4ec8-b247-04a123f1a9cc")
 		)
 		(instances
-			(project "dabao_v3c"
+			(project "dabao_v3c_sdcard"
 				(path "/30b97054-956f-4926-8f71-e9554821c3b2"
 					(reference "Y1")
 					(unit 1)
@@ -17386,7 +17386,7 @@
 			(uuid "a35408b1-a42f-4c3d-ab26-2040b884592e")
 		)
 		(instances
-			(project "dabao_v3c"
+			(project "dabao_v3c_sdcard"
 				(path "/30b97054-956f-4926-8f71-e9554821c3b2"
 					(reference "U2")
 					(unit 3)
@@ -17452,7 +17452,7 @@
 			(uuid "d99d98b8-b35e-4503-83e8-7214c1b0110f")
 		)
 		(instances
-			(project "dabao_v3c"
+			(project "dabao_v3c_sdcard"
 				(path "/30b97054-956f-4926-8f71-e9554821c3b2"
 					(reference "#PWR027")
 					(unit 1)
@@ -17518,7 +17518,7 @@
 			(uuid "ae5c34ac-c9b6-4f64-8c70-895180fc1212")
 		)
 		(instances
-			(project "dabao_v3c"
+			(project "dabao_v3c_sdcard"
 				(path "/30b97054-956f-4926-8f71-e9554821c3b2"
 					(reference "#PWR037")
 					(unit 1)

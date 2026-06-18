@@ -58,7 +58,7 @@
     "ssh_key": ""
   },
   "meta": {
-    "filename": "dabao_v3c.kicad_prl",
+    "filename": "dabao_v3c_sdcard.kicad_prl",
     "version": 5
   },
   "net_inspector_panel": {
