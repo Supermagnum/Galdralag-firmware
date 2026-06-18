@@ -2,7 +2,7 @@
   "document": "BSI TR-03111",
   "version": "2.10",
   "curve": "BrainpoolP256r1",
-  "note": "ECDH sample generated with cryptography.io BrainpoolP256R1 for cross-check; ECDH vectors pending official BSI extract.",
+  "note": "ECDH: cryptography.io cross-check (not BSI-extracted). ECDSA: ASCII message galdralag-tr03111-ecdsa-kat-v1; DER from vault RFC6979 (see bsi_brainpool.rs seeds); same d as ECDH row 0; Python cryptography verify() cross-check.",
   "vectors": {
     "ecdh": [
       {
@@ -13,7 +13,28 @@
         "shared_secret": "4f49f973944846473b4be37b1d311fa642a13cd74efeda19c24d2a408bfe804f"
       }
     ],
-    "ecdsa_sign": [],
-    "ecdsa_verify": []
-  }
+    "ecdsa_sign": [
+      {
+        "msg_hex": "67616c6472616c61672d747230333131312d65636473612d6b61742d7631",
+        "d_hex": "62e7bbfc99af20b70131d4762de9a94870b82744accd1b7ed3f30548e4e15ad3",
+        "sig_der_hex": "3046022100953bb199d45823ed292135ac05c3ef5ddd0f1b4d9cd281441253fd90d50203e3022100a4a3376d4ea2582c2d947ef10a586bf37ed429c423a42e690bd3d626e3948f9f",
+        "hash": "SHA-256"
+      }
+    ],
+    "ecdsa_verify": [
+      {
+        "Q_hex": "041e73375344f4c1c6cb8d419466e9b02310cd6f303b76945e40879f695cd1a10430551de02ecd01787c3ca0db19eb57f2f1b53a733c2b07b94f629911dbd8b171",
+        "msg_hex": "67616c6472616c61672d747230333131312d65636473612d6b61742d7631",
+        "sig_der_hex": "3046022100953bb199d45823ed292135ac05c3ef5ddd0f1b4d9cd281441253fd90d50203e3022100a4a3376d4ea2582c2d947ef10a586bf37ed429c423a42e690bd3d626e3948f9f",
+        "expect": "accept"
+      },
+      {
+        "Q_hex": "041e73375344f4c1c6cb8d419466e9b02310cd6f303b76945e40879f695cd1a10430551de02ecd01787c3ca0db19eb57f2f1b53a733c2b07b94f629911dbd8b171",
+        "msg_hex": "67616c6472616c61672d747230333131312d65636473612d6b61742d7631",
+        "sig_der_hex": "3046022100953bb199d45823ed292135ac05c3ef5ddd0f1b4d9cd281441253fd90d50203e3022100a4a3376d4ea2582c2d947ef10a586bf37ed429c423a42e690bd3d626e3948fca",
+        "expect": "reject"
+      }
+    ]
+  },
+  "ecdsa_kat_generator": "vault bsi_ecdsa_sig_hex_dump (ignored test); independent verify: Python cryptography."
 }

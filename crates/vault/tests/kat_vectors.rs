@@ -1,4 +1,4 @@
-//! Known-answer tests (subset) for Blake3, Serpent smoke, Shamir JSON presence.
+//! Known-answer tests for BLAKE3 (hash, keyed-hash, derive-key), Serpent smoke, Shamir JSON presence.
 
 use galdr_core::fake_hal::FakeTrng;
 use serde_json::Value;
@@ -7,15 +7,36 @@ use vault::serpent_cipher::{serpent_decrypt, serpent_encrypt, SerpentKey, Serpen
 use vault::twofish_cipher::{twofish_decrypt, twofish_encrypt, TwofishKey, TwofishNonce};
 
 #[test]
-fn kat_blake3_empty_from_json() {
+fn kat_blake3_from_json() {
     let p = format!("{}/tests/blake3_vectors.json", env!("CARGO_MANIFEST_DIR"));
     let data = std::fs::read_to_string(&p).expect("read blake3_vectors.json");
     let v: Value = serde_json::from_str(&data).expect("parse");
-    for vec in v["vectors"].as_array().expect("vectors") {
+    let key_str = v["official_key_ascii"]
+        .as_str()
+        .expect("official_key_ascii (32-byte keyed-hash test key)");
+    assert_eq!(
+        key_str.len(),
+        32,
+        "official keyed-hash key must be exactly 32 bytes"
+    );
+    let mut keyed = [0u8; 32];
+    keyed.copy_from_slice(key_str.as_bytes());
+    let context = v["official_context_string"]
+        .as_str()
+        .expect("official_context_string (derive_key context)");
+    for (i, vec) in v["vectors"].as_array().expect("vectors").iter().enumerate() {
         let msg = hex::decode(vec["msg_hex"].as_str().unwrap_or("")).unwrap_or_default();
-        let exp = hex::decode(vec["hash_hex"].as_str().expect("hash_hex")).expect("hex");
+        let exp_hash = hex::decode(vec["hash_hex"].as_str().expect("hash_hex")).expect("hex");
         let h = blake3::hash(&msg);
-        assert_eq!(h.as_bytes().as_slice(), exp.as_slice());
+        assert_eq!(h.as_bytes(), exp_hash.as_slice(), "hash row {i}");
+        let exp_kh =
+            hex::decode(vec["keyed_hash_hex"].as_str().expect("keyed_hash_hex")).expect("hex");
+        let kh = blake3::keyed_hash(&keyed, &msg);
+        assert_eq!(kh.as_bytes(), exp_kh.as_slice(), "keyed_hash row {i}");
+        let exp_dk =
+            hex::decode(vec["derive_key_hex"].as_str().expect("derive_key_hex")).expect("hex");
+        let dk = blake3::derive_key(context, &msg);
+        assert_eq!(dk.as_slice(), exp_dk.as_slice(), "derive_key row {i}");
     }
 }
 

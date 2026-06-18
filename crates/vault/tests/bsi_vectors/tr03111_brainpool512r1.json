@@ -2,7 +2,7 @@
   "document": "BSI TR-03111",
   "version": "2.10",
   "curve": "BrainpoolP512r1",
-  "note": "ECDH row cross-checks Wycheproof tcId 1 normal case. d_bob is zero placeholder; not used by runner.",
+  "note": "ECDH: Wycheproof tcId 1; d_bob placeholder unused. ECDSA: same message as P256/P384; SHA-512 digest; DER from vault; Python cryptography verify() cross-check.",
   "vectors": {
     "ecdh": [
       {
@@ -13,7 +13,28 @@
         "shared_secret": "9690120edf3c583f627774ac2837f792e1049b3768199e3cc68c75cc16f73d4eca828f87880de91e2fbe0671b7066fcc814cb2e190832adae3a6dc7d9d9e71d3"
       }
     ],
-    "ecdsa_sign": [],
-    "ecdsa_verify": []
-  }
+    "ecdsa_sign": [
+      {
+        "msg_hex": "67616c6472616c61672d747230333131312d65636473612d6b61742d7631",
+        "d_hex": "6280eb95405fa8c0e9d970547301bbefb152c8c8114abc730c89bf6db3f7d949fcfd7ebb82fd2dbd43d28d47bf4ed95de97baed19f7d087cf303d2b0cd413767",
+        "sig_der_hex": "308184024077d1c355b18c3297250be005e87bea2898ba7cc52b57c4991d03249c45675901d64b9fe3824115bf9c7c9236e1b23eae00b948a96204d8884c2a5f3dd58028d702403e34f8eee7a4377e9d11211b40413f16bbd1b1691a8064513fc8c0370215c349c4ee5e656c7bf3ecd532b5fe0231b6139f626bd8b16a272a53477a5ba186cc92",
+        "hash": "SHA-512"
+      }
+    ],
+    "ecdsa_verify": [
+      {
+        "Q_hex": "0404eec690581bb88305145a524490035183cb52ef8c2b6ca7c7f1e8e09e40a105d0ce97e1ccc9d8eb809ecd0e0fa266baa25c5bb7558a56362e37d45c68a8207f3ace9e85a745f3a4b44cef6a0346e495cb4d14b949e8bd6cf0fc6f0252553af8f7cd374971084f3f15d8e8153213766fd7380b6f8a5437d664265595f17f76de",
+        "msg_hex": "67616c6472616c61672d747230333131312d65636473612d6b61742d7631",
+        "sig_der_hex": "308184024077d1c355b18c3297250be005e87bea2898ba7cc52b57c4991d03249c45675901d64b9fe3824115bf9c7c9236e1b23eae00b948a96204d8884c2a5f3dd58028d702403e34f8eee7a4377e9d11211b40413f16bbd1b1691a8064513fc8c0370215c349c4ee5e656c7bf3ecd532b5fe0231b6139f626bd8b16a272a53477a5ba186cc92",
+        "expect": "accept"
+      },
+      {
+        "Q_hex": "0404eec690581bb88305145a524490035183cb52ef8c2b6ca7c7f1e8e09e40a105d0ce97e1ccc9d8eb809ecd0e0fa266baa25c5bb7558a56362e37d45c68a8207f3ace9e85a745f3a4b44cef6a0346e495cb4d14b949e8bd6cf0fc6f0252553af8f7cd374971084f3f15d8e8153213766fd7380b6f8a5437d664265595f17f76de",
+        "msg_hex": "67616c6472616c61672d747230333131312d65636473612d6b61742d7631",
+        "sig_der_hex": "308184024077d1c355b18c3297250be005e87bea2898ba7cc52b57c4991d03249c45675901d64b9fe3824115bf9c7c9236e1b23eae00b948a96204d8884c2a5f3dd58028d702403e34f8eee7a4377e9d11211b40413f16bbd1b1691a8064513fc8c0370215c349c4ee5e656c7bf3ecd532b5fe0231b6139f626bd8b16a272a53477a5ba186ccc7",
+        "expect": "reject"
+      }
+    ]
+  },
+  "ecdsa_kat_generator": "vault bsi_ecdsa_sig_hex_dump (ignored test); independent verify: Python cryptography."
 }

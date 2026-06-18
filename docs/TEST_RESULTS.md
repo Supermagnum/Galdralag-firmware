@@ -20,8 +20,8 @@ MAINTENANCE CONTRACT FOR THIS FILE
 
 | Field | Value |
 |---|---|
-| Date (UTC) | 2026-05-04T01:12:08Z |
-| Commit | `30c3a8e74707a5d3fb9bcc1b027f8e6d00c517bb` |
+| Date (UTC) | 2026-05-04T18:00:00Z |
+| Commit | `2a0f7f24d5db17f68d1017ea6d2597f4c90c773f` |
 | xtask version | 0.1.0 |
 | Flags | `--no-fuzz` (fuzz matrix run separately; see Section 6) |
 | Host | x86_64-unknown-linux-gnu |
@@ -35,12 +35,12 @@ MAINTENANCE CONTRACT FOR THIS FILE
 |------|---------|--------|
 | Firmware check (default) | `cargo run -p xtask -- check-fw` | PASS |
 | Firmware check (pq-signatures) | `cargo run -p xtask -- check-fw --features pq-signatures` | PASS |
-| Unit tests (workspace) | `cargo test --workspace --exclude xtask` | PASS (623 passed, 0 failed, 17 ignored) |
+| Unit tests (workspace) | `cargo test --workspace --exclude xtask` | PASS (626 passed, 0 failed, 18 ignored) |
 | Wycheproof vectors | `cargo test -p vault wycheproof` | PASS |
 | RFC vectors | `cargo test -p vault rfc_vectors` | PASS |
-| BSI Brainpool vectors | `cargo test -p vault bsi_brainpool` | PASS |
+| BSI Brainpool vectors | `cargo test -p vault bsi_brainpool` | PASS — ECDH + ECDSA, all three curves |
 | NIST CAVP subset | `cargo test -p vault nist_cavp` | PASS |
-| KAT vectors | `cargo test -p vault kat_vectors` | PASS |
+| KAT vectors | `cargo test -p vault kat_vectors` | PASS — BLAKE3 hash, keyed-hash, derive-key (35 vectors) |
 | Key lifecycle | `cargo test -p vault key_lifecycle` | PASS |
 | PIN lifecycle | `cargo test -p pin-policy pin_lifecycle` | PASS |
 | OpenPGP / CCID | `cargo test -p usb-personality` | PASS |
@@ -54,11 +54,15 @@ MAINTENANCE CONTRACT FOR THIS FILE
 ## 1. Unit tests
 
 **Command:** `cargo test --workspace --exclude xtask`  
-**Result:** 623 passed, 0 failed, 17 ignored
+**Result:** 626 passed, 0 failed, 18 ignored
 
 Round-trip tests (encrypt/decrypt, seal/open, sign/verify,
-split/recover) are included in the 623 total and are not reported
+split/recover) are included in the 626 total and are not reported
 separately.
+
+Three additional tests relative to the previous run: BSI Brainpool ECDSA KATs for
+P256r1, P384r1, and P512r1 (`bsi_brainpool.rs`). One additional ignored test:
+`bsi_ecdsa_sig_hex_dump` (helper for refreshing DER vectors; run with `--ignored`).
 
 ---
 
@@ -113,8 +117,41 @@ Source: `crates/vault/tests/twofish_vectors.json`
 | `crates/vault/tests/rfc_vectors/` | `vault/tests/rfc_vectors.rs` |
 | `crates/vault/tests/bsi_vectors/` | `vault/tests/bsi_brainpool.rs` |
 | `crates/vault/tests/nist_cavp_vectors/` | `vault/tests/nist_cavp.rs` |
-| `crates/vault/tests/blake3_vectors.json` (and related KAT JSON) | `crates/vault/tests/kat_vectors.rs` |
+| `crates/vault/tests/blake3_vectors.json` | `crates/vault/tests/kat_vectors.rs` (`kat_blake3_from_json`) |
 | `crates/vault/tests/twofish_vectors.json` | `cargo test -p vault twofish_vectors_json_kat` (`twofish_vectors_json_kat` in `crates/vault/src/twofish_cipher.rs`) |
+
+### 2.5 BLAKE3 known-answer tests
+
+Vector file: `crates/vault/tests/blake3_vectors.json`  
+Source: upstream `test_vectors/test_vectors.json` (BLAKE3 reference repository).  
+Runner: `kat_blake3_from_json` in `crates/vault/tests/kat_vectors.rs`.
+
+| Mode | API | Vectors | Input lengths |
+|------|-----|---------|---------------|
+| Hash | `blake3::hash` | 35 | 0–102400 bytes (all official lengths) |
+| Keyed-hash | `blake3::keyed_hash` | 35 | same — key `"whats the Elvish word for friend"` |
+| Derive-key | `blake3::derive_key` | 35 | same — context `"BLAKE3 2019-12-27 16:29:52 test vectors context"` |
+
+Message construction: repeating byte sequence 0, 1, …, 250, 0, 1, … for each `input_len`.  
+Expected outputs are the first 32 bytes of the upstream extended-output fields (`hash`, `keyed_hash`, `derive_key`).  
+Chunk-boundary lengths covered: 63/64/65, 127/128/129, 1023/1024/1025, through 8192/8193, 16384, 31744, 102400.
+
+### 2.6 BSI TR-03111 Brainpool vectors
+
+Vector files: `crates/vault/tests/bsi_vectors/tr03111_brainpool{256,384,512}r1.json`  
+Runner: `crates/vault/tests/bsi_brainpool.rs`  
+Document version referenced in JSON: **BSI TR-03111 v2.10** (current as of this run).
+
+| Curve | ECDH rows | ECDSA sign rows | ECDSA verify rows | Status |
+|-------|-----------|-----------------|-------------------|--------|
+| BrainpoolP256r1 | 1 | 1 | 2 (accept + reject) | PASS |
+| BrainpoolP384r1 | 1 | 1 | 2 (accept + reject) | PASS |
+| BrainpoolP512r1 | 1 | 1 | 2 (accept + reject) | PASS |
+
+ECDH provenance: P256 cross-checked with Python `cryptography`; P384 and P512 from Wycheproof tcId 1.  
+ECDSA provenance: project-owned KATs; DER signatures from vault RFC 6979 (`FakeTrng` seeds documented in `bsi_brainpool.rs`); independently verified with Python `cryptography` `verify()`.  
+Hash per curve: SHA-256 (P256), SHA-384 (P384), SHA-512 (P512).  
+ECDSA reject row: valid DER with last byte toggled (`^ 0x55`); runner asserts `Err(InvalidSignature)`.
 
 ---
 
@@ -163,8 +200,8 @@ Source: `crates/vault/tests/twofish_vectors.json`
 | `timing_blake2s` | 100000 | -2.221 | PASS |  |
 | `timing_blake3` | 100000 | -1.760 | PASS | Single-chunk 64-byte message |
 | `dudect_session_token_verify_constant_time` | 100000 | +2.048 | PASS | Constant-time compare harness |
-| `dudect_template_decrypt_constant_time` | 100000 | -1.798 | PASS | Null pairing — decrypt good blob both classes |
-| `dudect_signature_verify_constant_time` | 100000 | +3.159 | PASS | Constant-time limb compare harness |
+| `dudect_template_decrypt_constant_time` | 100000 | -1.688 | PASS | Null pairing — decrypt good blob both classes |
+| `dudect_signature_verify_constant_time` | 100000 | +1.531 | PASS | Constant-time limb compare harness |
 
 **Not yet wired** (printed `[MISSING]` by `dudect_galdr`):
 challenge-response HMAC, PSRAM tag check, XMSS verify, LMS verify.

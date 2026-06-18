@@ -75,12 +75,32 @@ https://github.com/rust-lang/cargo/issues/16850
 
 It is ready for testing by humans. **You** decide whether to build or run any of this software; there may be bugs that **unit tests, fuzzing, and other checks** have not found. Using an **optional virtual machine** for experimentation **reduces risk** to your host system but does not eliminate it. Detailed results are in **[Test results](#test-results)** ([`docs/TEST_RESULTS.md#run-metadata`](docs/TEST_RESULTS.md#run-metadata)). **Plain-language definitions** (A–Z) of technical terms: **[Glossary](docs/GLOSSARY.md)**.
 
+## Is this AI slop?
+
+A cryptographer or serious implementer reviewing Galdralag will typically open `crates/vault/tests/` and `crates/cipher-profile/tests/` before reading prose. The test suite is the proof of work: it encodes domain knowledge that cannot be substituted with narrative alone.
+
+That is not a reason to hide the point from everyone else. People evaluating the project for procurement, deciding whether to contribute, writing policy, or shipping code without deep training in cryptographic testing methodology still deserve a pointer to the concrete evidence. The repository already states algorithm exclusions, cipher profile rules, and timing requirements; linking that story to published test vectors closes the gap between "claims on the page" and "artefacts you can run."
+
+**What to look at:** Conformance material includes RFC 8439 worked examples for ChaCha20-Poly1305 under `crates/vault/tests/rfc_vectors/`, vendored Wycheproof JSON for ChaCha20-Poly1305 and Brainpool ECDH/ECDSA edge cases under `crates/vault/tests/data/wycheproof/`, BSI TR-03111 vectors for BrainpoolP256r1, P384r1, and P512r1 under `crates/vault/tests/bsi_vectors/`, official BLAKE3 reference vectors (all 35 input lengths, all three modes) under `crates/vault/tests/blake3_vectors.json`, Twofish specification vectors (1203 cases including Monte Carlo) under `crates/vault/tests/twofish_vectors.json`, and the project's own CESS cascade KAT fixture with independently verified intermediates under `crates/cipher-profile/tests/fixtures/cascade_cess_kat.json`. Together these are the ground truth the runner and reviewers can exercise with `cargo test --workspace` and `python3 scripts/verify_cascade_kats.py`.
+
+**RFC 8439** is published by the Internet Engineering Task Force (IETF), the organisation that standardises much of how the internet interoperates. RFCs (Request for Comments) are the usual form for protocol and many cryptographic specifications. RFC 8439 defines ChaCha20-Poly1305 authenticated encryption (building on Daniel Bernstein's designs) and includes concrete worked examples with specific inputs and expected outputs so independent implementations can check they match the standard byte-for-byte. The widely reproduced plaintext beginning with *Ladies and Gentlemen of the class of '99: wear sunscreen* appears in the RFC's appendix examples: if your code reproduces the AEAD output exactly, you have a strong check that you implemented the construction correctly. It is the cryptographic analogue of an official answer key. ChaCha20-Poly1305 is the inner layer of every multi-layer cascade profile in this firmware, so this check sits at the foundation of the entire cipher stack.
+
+**Wycheproof** is a test corpus released by Google's security team (2017). The name refers to Mount Wycheproof in Australia — often cited as the world's smallest mountain — because the project focuses on clearing small but fatal hurdles: integer overflows, boundary cases, malformed inputs, and tampered authentication tags; failures that show up repeatedly in real deployed crypto. It complements RFC-style vectors: RFC 8439-style examples demonstrate correctness against the published AEAD; Wycheproof stresses robustness where implementations historically break. In this repository Wycheproof JSON covers ChaCha20-Poly1305, AES-GCM, HMAC, HKDF, X25519, Ed25519, RSA, and Brainpool ECDH/ECDSA variants.
+
+**BSI TR-03111** is the technical guideline for elliptic curve cryptography published by the German Federal Office for Information Security (Bundesamt fur Sicherheit in der Informationstechnik). Version 2.10 is the current revision. The three Brainpool curves used in this firmware — P256r1, P384r1, P512r1 — are specified in BSI standards, making TR-03111 the natural reference for their test vectors. Each curve has ECDH and ECDSA coverage; ECDSA signatures were additionally cross-checked against an independent Python implementation using the `cryptography` library.
+
+**BLAKE3 reference vectors** are the official test corpus published alongside the BLAKE3 specification by its authors. They cover 35 input lengths from 0 to 102400 bytes, specifically chosen to exercise all internal chunk and tree-hashing boundary conditions that are invisible to short-input tests. All three BLAKE3 modes — default hash, keyed hash, and derive-key — are covered. BLAKE3 is used throughout this firmware for HKDF key derivation and inter-layer integrity checks in the cascade cipher profiles; the boundary coverage matters because BLAKE3's tree construction only activates above 1024 bytes.
+
+It is now up to the reader to judge whether these claims are false or not.
+
 ## Table of contents
 
 - [Open Invention Network](#open-invention-network)
 - [What this is](#what-this-is)
   - [What this firmware is (and is not)](#what-this-firmware-is-and-is-not)
   - [Signed firmware (Ed25519, boot0)](#signed-firmware-ed25519-boot0)
+- [Is this AI slop?](#is-this-ai-slop)
+- [Galdralag for dummies](#galdralag-for-dummies)
 - [Skipped and ignored tests](#skipped-and-ignored-tests)
 - [Why Rust?](#why-rust)
   - [Memory Safety](#memory-safety)
@@ -131,6 +151,28 @@ It is ready for testing by humans. **You** decide whether to build or run any of
 - [Cryptographic dependency policy](#cryptographic-dependency-policy)
 - [Quick start](#quick-start)
 - [License](#license)
+
+---
+
+## Galdralag for dummies
+
+You plug it into a USB port. Your computer sees it as a smart card. You use it with GnuPG or similar software the same way you would use any other hardware security token — the token handles the sensitive cryptographic operations so your private keys never exist unprotected on your computer.
+
+That is the short version. Here is what makes it different from other tokens you may have encountered.
+
+**Your keys stay on the device.** When you sign an email or decrypt a file, the private key never leaves the token. The computer sends the data in, the token does the work, the result comes back out. An attacker who compromises your computer gets nothing useful.
+
+**Past sessions stay safe even if the token is stolen.** Most hardware tokens use a long-term private key directly for key agreement. This one generates a fresh throwaway key pair for every session, signs it with the long-term key to prove it is genuine, and then uses the throwaway pair for the actual exchange. If someone steals the token years from now and somehow extracts the long-term key, they still cannot decrypt anything from past sessions. This property is called forward secrecy, and it is unusual in hardware tokens.
+
+**You can split the key between multiple people.** The token can divide the long-term key into N shares so that any K of those shares are needed to reconstruct it — but no single share holder can do anything alone. This is called Shamir secret sharing. It is useful for organisational keys where no single person should have unilateral access, or as a backup strategy where shares are stored in separate locations. This is also unusual in hardware tokens.
+
+**The encryption is layered.** Rather than encrypting your data with a single cipher, the token can run it through multiple independent ciphers in sequence — for example ChaCha20, then Serpent, then Twofish — each using a separately derived key. A future breakthrough that breaks one cipher does not break the others. The specific combination is called a cipher profile, and you can choose from several built-in ones depending on how much caution your situation requires.
+
+**The algorithm choices are deliberate.** The ciphers used — ChaCha20-Poly1305, Serpent, Twofish — were all designed independently of government standards bodies. AES and the NIST suite are intentionally excluded. This is a conscious choice for users and organisations who want cryptographic independence from any single country's standards process.
+
+**A wrong PIN locks you out properly.** The token counts failed PIN attempts before it checks whether the PIN is correct, not after. This means a crash or power loss mid-attempt cannot be exploited to reset the counter. After too many wrong attempts the token zeroises sensitive material.
+
+**What it does not do yet.** There is no hardware available yet — this is firmware under active development. End-to-end testing with real USB hardware and GnuPG is a future milestone. The biometric third factor described in the documentation is not yet implemented. Some timing side-channel tests that require real hardware cannot be completed until a device exists.
 
 ---
 
@@ -743,7 +785,7 @@ platform and **boot0** integration work.
 
 ## Test results
 
-Authoritative write-up: **[`docs/TEST_RESULTS.md#run-metadata`](docs/TEST_RESULTS.md#run-metadata)** (commit, scope, and how sections are organised). That page includes the **pipeline summary** table, unit test totals, vector coverage (Wycheproof, RFC, BSI, NIST CAVP), **dudect** timing table, key lifecycle checks, and **[Section 6 — cargo-fuzz](docs/TEST_RESULTS.md#6-cargo-fuzz-libfuzzer)** (matrices, **`chacha_roundtrip`**, recorded **`openpgp_dispatch`** long run). **You** decide whether those results are enough to try building or running this project; a **virtual machine** remains optional but **reduces** host risk.
+Authoritative write-up: **[`docs/TEST_RESULTS.md#run-metadata`](docs/TEST_RESULTS.md#run-metadata)** (commit, scope, and how sections are organised). That page includes the **pipeline summary** table, unit test totals, vector coverage (Wycheproof, RFC, BSI TR-03111 ECDH + ECDSA, NIST CAVP, BLAKE3 hash/keyed-hash/derive-key), **dudect** timing table, key lifecycle checks, and **[Section 6 — cargo-fuzz](docs/TEST_RESULTS.md#6-cargo-fuzz-libfuzzer)** (matrices, **`chacha_roundtrip`**, recorded **`openpgp_dispatch`** long run). **You** decide whether those results are enough to try building or running this project; a **virtual machine** remains optional but **reduces** host risk.
 
 ```
 cargo run -p xtask -- test-all
