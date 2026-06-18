@@ -91,7 +91,7 @@ Architecture notes for this repository: [docs/ARCHITECTURE.md](docs/ARCHITECTURE
 
 The only remaining work before physical hardware works is the Xous USB service wiring — and that is documented in [docs/XOUS_CCID_INTEGRATION.md](docs/XOUS_CCID_INTEGRATION.md), waiting for the BSP crates to be available.
 
-At that point the project will be a complete, tested, open-source hardware security token firmware: **OpenPGP card–style behaviour** for GnuPG over CCID (see [OpenPGP and GnuPG compatibility](#openpgp-and-gnupg-compatibility)), plus **additional on-device features** not defined by the OpenPGP card standard — ephemeral ECDH with forward secrecy, Shamir K-of-N, cipher-agnostic profiles, PSRAM decoy volume — as summarised in [Standards vs. firmware-specific features](#standards-vs-firmware-specific-features). All on open RTL with a reproducible bootloader.
+At that point the project will be a complete, tested, open-source hardware security token firmware: **OpenPGP card–style behaviour** for GnuPG over CCID (see [OpenPGP and GnuPG compatibility](#openpgp-and-gnupg-compatibility)), plus **additional on-device features** not currently defined by the OpenPGP card standard — ephemeral ECDH with forward secrecy, Shamir K-of-N, cipher-agnostic profiles, PSRAM decoy volume — as summarised in [Standards vs. firmware-specific features](#standards-vs-firmware-specific-features). All on open RTL with a reproducible bootloader.
 
 ---
 
