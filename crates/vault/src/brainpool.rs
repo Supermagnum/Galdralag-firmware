@@ -5,6 +5,7 @@
 
 use bp256::BrainpoolP256r1;
 use elliptic_curve::ecdh::diffie_hellman;
+use bp256::elliptic_curve::pkcs8::DecodePublicKey;
 use bp256::elliptic_curve::sec1::{FromSec1Point, Sec1Point, ToSec1Point};
 use bp256::elliptic_curve::{PublicKey, SecretKey};
 use galdr_core::hal::HardwareTrng;
@@ -80,7 +81,7 @@ impl BrainpoolScalar {
     }
 
     /// Deserialize a scalar from raw secret key bytes (interoperability and test vectors).
-    pub fn from_secret_key_bytes_for_test(bytes: &[u8; 32]) -> Result<Self, BrainpoolError> {
+    pub fn from_secret_key_bytes_for_test(bytes: &[u8]) -> Result<Self, BrainpoolError> {
         let sk = SecretKey::<BrainpoolP256r1>::from_slice(bytes).map_err(|_| BrainpoolError::InvalidScalar)?;
         let fb = sk.to_bytes();
         let mut arr = [0u8; 32];
@@ -98,6 +99,12 @@ impl BrainpoolScalar {
 }
 
 impl BrainpoolPublicKey {
+    /// Deserialise an X.509 / SPKI `SubjectPublicKeyInfo` DER blob (as in Wycheproof `encoding: asn`).
+    pub fn from_public_key_der(bytes: &[u8]) -> Result<Self, BrainpoolError> {
+        let pk = PublicKey::from_public_key_der(bytes).map_err(|_| BrainpoolError::InvalidPoint)?;
+        Ok(BrainpoolPublicKey(pk))
+    }
+
     /// Serialise to uncompressed SEC1 form (65 bytes: 0x04 || x || y).
     pub fn to_sec1_uncompressed(&self) -> [u8; 65] {
         let enc = self.0.to_sec1_point(false);

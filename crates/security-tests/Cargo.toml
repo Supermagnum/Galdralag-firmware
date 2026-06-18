@@ -3,9 +3,47 @@ name = "security-tests"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
-description = "Timing-analysis stubs and security regression hooks (host-side)"
+description = "Timing-analysis harnesses and security regression hooks (host-side)"
 
 [dependencies]
+dudect-bencher = { version = "0.7", optional = true }
+subtle = { workspace = true, optional = true }
+rand = { workspace = true, optional = true, features = ["std_rng"] }
+hex = { workspace = true, optional = true }
+chacha20poly1305 = { workspace = true, optional = true }
+aes-gcm = { workspace = true, optional = true }
+hmac = { workspace = true, optional = true }
+sha2 = { workspace = true, optional = true }
+hkdf = { workspace = true, optional = true }
+x25519-dalek = { workspace = true, optional = true }
+ed25519-dalek = { workspace = true, optional = true }
+vault = { workspace = true, optional = true }
+galdr-core = { workspace = true, optional = true, features = ["test-hal"] }
+pin-policy = { workspace = true, optional = true }
+
+[features]
+default = []
+dudect = [
+    "dep:dudect-bencher",
+    "dep:subtle",
+    "dep:rand",
+    "dep:hex",
+    "dep:chacha20poly1305",
+    "dep:aes-gcm",
+    "dep:hmac",
+    "dep:sha2",
+    "dep:hkdf",
+    "dep:x25519-dalek",
+    "dep:ed25519-dalek",
+    "dep:vault",
+    "dep:galdr-core",
+    "dep:pin-policy",
+]
+
+[[bin]]
+name = "dudect_galdr"
+path = "src/bin/dudect_galdr.rs"
+required-features = ["dudect"]
 
 [lints]
 workspace = true
