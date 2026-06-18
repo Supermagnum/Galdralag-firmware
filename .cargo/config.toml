@@ -1,0 +1,7 @@
+# Firmware builds use the embedded triple via xtask, e.g.:
+#   cargo xtask build-firmware
+# Host tests use the default host target:
+#   cargo test -p galdralag-vault
+
+[target.riscv32imac-unknown-none-elf]
+runner = "qemu-riscv32"

@@ -1,0 +1,34 @@
+[package]
+name = "vault"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "RRAM vault layout contracts and HKDF domain separation (Galdr / Baochip-1x)"
+
+[features]
+default = []
+profile-openpgp = []
+profile-extended = ["profile-openpgp"]
+profile-pqc = []
+profile-hardened = []
+algo-aes-gcm = []
+algo-chacha = []
+algo-ed25519 = []
+algo-x25519 = []
+algo-shamir = []
+
+[dependencies]
+galdr-core.workspace = true
+zeroize.workspace = true
+
+[dev-dependencies]
+galdr-core = { workspace = true, features = ["test-hal"] }
+hkdf.workspace = true
+sha2.workspace = true
+x25519-dalek.workspace = true
+static_assertions.workspace = true
+proptest.workspace = true
+subtle.workspace = true
+
+[lints]
+workspace = true

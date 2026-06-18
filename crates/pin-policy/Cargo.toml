@@ -1,0 +1,23 @@
+[package]
+name = "pin-policy"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "PIN state machine, hardware counter ordering, and threshold zeroisation (Galdr)"
+
+[features]
+default = []
+profile-hardened = []
+
+[dependencies]
+galdr-core.workspace = true
+subtle.workspace = true
+zeroize.workspace = true
+
+[dev-dependencies]
+galdr-core = { workspace = true, features = ["test-hal"] }
+proptest.workspace = true
+static_assertions.workspace = true
+
+[lints]
+workspace = true
