@@ -23,6 +23,7 @@ It is ready for testing by humans; using a **virtual machine** for that is sugge
 - [Standards vs. firmware-specific features](#standards-vs-firmware-specific-features)
 - [Shamir secret sharing and drive encryption](#shamir-secret-sharing-and-drive-encryption)
 - [Standards process: Shamir and ephemeral key exchange](#standards-process-shamir-and-ephemeral-key-exchange)
+- [Sequoia PGP (if this repository is unresponsive)](#sequoia-pgp-if-this-repository-is-unresponsive)
 - [Build, install, and uninstall](#build-install-and-uninstall)
   - [Compile firmware](#compile-firmware)
   - [Flashing](#flashing)
@@ -276,6 +277,20 @@ Engaging **multiple** implementations at the same time **strengthens a proposal 
 |----------------|--------|
 | [OpenPGP.js](https://github.com/openpgpjs/openpgpjs) | Widely deployed in browsers and application stacks |
 | [Sequoia PGP](https://sequoia-pgp.org) | Modern Rust implementation; often sympathetic to Rust-heavy stacks and cross-implementation work |
+
+### Sequoia PGP (if this repository is unresponsive)
+
+If **maintainers of this GitHub repository** do not answer issues, pull requests, or mail, you can still advance **new ciphers**, **OpenPGP behaviour**, and **standards-related work** in the wider ecosystem. **[Sequoia PGP](https://sequoia-pgp.org/)** is an independent, Rust-based OpenPGP stack (memory safety, library-first design, active IETF/ecosystem participation) where much public development happens. It is **not** this project; it is documented here as a **practical alternate path** when upstream here is silent.
+
+| Goal | Where to start |
+|------|----------------|
+| Project overview, news, community | [sequoia-pgp.org](https://sequoia-pgp.org/) |
+| **Contribute** (issues, fixes, features, documentation); **contact before large work** | [Contribute](https://sequoia-pgp.org/contribute/), [Contact](https://sequoia-pgp.org/contact) |
+| **Developer docs** — API surface for extending the implementation (`sequoia-openpgp` and related crates) | [Docs](https://sequoia-pgp.org/docs/) — e.g. [sequoia-openpgp on docs.rs](https://docs.rs/sequoia-openpgp/latest/sequoia_openpgp/) |
+| **Source and trackers** | [gitlab.com/sequoia-pgp](https://gitlab.com/sequoia-pgp) (core library and tools); [github.com/sequoia-pgp](https://github.com/sequoia-pgp) (mirrors / selected repos); [Projects](https://sequoia-pgp.org/projects) |
+| **New algorithms in the OpenPGP standard** | Still go through the **[IETF OpenPGP working group](#ietf-primary-venue)**. Sequoia and other implementations implement drafts and RFCs; propose protocol changes there, and coordinate with implementors (including Sequoia) so behaviour matches the spec. |
+
+The [Contribute](https://sequoia-pgp.org/contribute/) page describes licensing (LGPL 2.0 or later for most projects), the Developer Certificate of Origin, and that **larger commercial features** may require prior agreement and long-term maintenance arrangements — read that page before investing significant effort.
 
 ---
 
