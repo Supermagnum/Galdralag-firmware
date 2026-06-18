@@ -1,6 +1,6 @@
 # Galdr — Galdralag Firmware
 
-> **Status:** Implementation in progress — no production-ready release exists.
+> **Status:** Ready for testing by humans — no production-ready release exists.
 > Cryptographic primitives are drawn exclusively from audited workspace
 > dependencies. Post-quantum algorithms are feature-gated and marked
 > **PENDING INDEPENDENT AUDIT**. See [Post-quantum status](#post-quantum-status).
