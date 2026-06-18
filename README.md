@@ -46,6 +46,7 @@ It is ready for testing by humans. **You** decide whether to build or run any of
   - [Signed firmware (Ed25519, boot0)](#signed-firmware-ed25519-boot0)
 - [Documentation](#documentation)
 - [OpenPGP and GnuPG compatibility](#openpgp-and-gnupg-compatibility)
+- [Token session and key export](#token-session-and-key-export)
 - [Standards vs. firmware-specific features](#standards-vs-firmware-specific-features)
 - [Shamir secret sharing and drive encryption](#shamir-secret-sharing-and-drive-encryption)
 - [Standards process: Shamir and ephemeral key exchange](#standards-process-shamir-and-ephemeral-key-exchange)
@@ -259,6 +260,14 @@ The firmware implements the **OpenPGP card application** (documented as version 
 **OpenPGP card vs. OpenPGP messages:** The **card** specification defines how the token exposes PINs, key slots, and on-card operations over CCID. **GnuPG** uses that through `scdaemon`. The **OpenPGP message format** for files and mail (RFC 4880 and successors) is a **host-side** layer: the card supplies keys; GnuPG still applies the message format on the PC. Neither the card spec nor RFC 4880 defines **Shamir splitting**, **ephemeral ECDH sessions**, or **cipher profiles** — those are [firmware-specific](#standards-vs-firmware-specific-features).
 
 **Integration status:** The OpenPGP and CCID logic lives in **`usb-personality`** and is covered by unit tests, integration tests, and the **`openpgp_dispatch`** fuzz target (see [TEST_RESULTS — Section 6](docs/TEST_RESULTS.md#6-cargo-fuzz-libfuzzer)). Wiring the USB **CCID** service into the running **Xous** image is still **integration work**; follow [docs/XOUS_CCID_INTEGRATION.md](docs/XOUS_CCID_INTEGRATION.md). Until that is done, **end-to-end GnuPG against real hardware** is not available, even though the card application behaviour is implemented in firmware sources.
+
+## Token session and key export
+
+**Physical disconnect (unplug):** The host loses the USB device; any in-flight operation fails until the token is connected again and re-enumerated. On the device, the OpenPGP **card session** is cleared: **PIN verification state** does not survive power-off or removal, so **signing, decryption, and other protected operations require VERIFY PIN again** after reconnect, like other OpenPGP smart cards. **Private key material remains stored on the token** in sealed vault storage; unplugging does not erase it unless a separate **zeroisation** or wipe path runs.
+
+**What may leave the device:** By design, **only public key material** is permitted to cross the USB link (for example OpenPGP **public** key packets and related data the card specification exposes to the host). **Private** keys, raw secret scalars, and sealed key blobs **do not** leave the device through normal firmware paths; private-key operations run **on the token**. The host receives **cryptographic results** (signatures, decrypted plaintext for card-assisted decrypt workflows) where the standard commands require it, not a portable copy of the private key.
+
+**Importing keys onto the device:** It must also be possible to **import public keys** into the token (for example trust anchors, peer certificates, or OpenPGP public packets for on-device verification). The firmware **vault** provides **public-key slots** for non-secret material (`crates/vault/src/public_key_vault.rs`). Host tooling for loading those slots is described in [docs/GALDRA-TOOL.md](docs/GALDRA-TOOL.md) as integration matures.
 
 ---
 
