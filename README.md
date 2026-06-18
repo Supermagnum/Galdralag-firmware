@@ -902,6 +902,8 @@ PIN cap: 32 bytes (firmware limit; OpenPGP spec allows 127). See
 
 **Integration:** Wiring lives in **xous-core** `services/usb-bao1x` (not built in this workspace). Apply the init flow there: on `NeedsProvisioning`, run the CDC provisioning poll loop, call `write_provisioning_pins`, reopen the backend, then attach `CcidClass`. See [docs/HARDWARE_BRINGUP_TEST_PLAN.md](docs/HARDWARE_BRINGUP_TEST_PLAN.md).
 
+The required usb-bao1x changes in betrusted-io/xous-core are tracked in [issue #875](https://github.com/betrusted-io/xous-core/issues/875).
+
 ---
 
 ## License
