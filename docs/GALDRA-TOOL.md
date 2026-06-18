@@ -15,6 +15,7 @@
 - [Tier 2a — CLI: `galdra`](#tier-2a--cli-galdra)
 - [Tier 2b — Local daemon: `galdrad`](#tier-2b--local-daemon-galdrad)
 - [Tier 2c — Desktop GUI (GTK4)](#tier-2c--desktop-gui-gtk4)
+- [Build and installation](#build-and-installation)
 - [Identity model](#identity-model)
 - [Group model](#group-model)
 - [Database schema](#database-schema)
@@ -24,6 +25,7 @@
 - [Audit logging](#audit-logging)
 - [PIN attempt policy](#pin-attempt-policy)
 - [Integration requirements](#integration-requirements)
+- [Operational guide: keys and Shamir](#operational-guide-keys-and-shamir)
 - [CLI command reference](#cli-command-reference)
 - [Security requirements](#security-requirements)
 - [Compliance considerations](#compliance-considerations)
@@ -265,6 +267,12 @@ The GTK4 GUI is appropriate for clinical staff, dispatch centres, and any
 environment where a polished **desktop** interface matters more than scriptability.
 
 It must work **without internet access**. UI resources ship with the application binary or load from the local filesystem; **no** runtime fetch of web frameworks.
+
+---
+
+## Build and installation
+
+How to compile **host** tools (`galdra`, `galdrad`, `galdra-gtk`), install or remove them from your system, and how **firmware** builds relate to `xtask` and flashing, is documented in the repository root **[README.md](../README.md#build-install-and-uninstall)** under **Build, install, and uninstall**. That section also explains prerequisites (Rust, optional OpenSSL/GTK dev packages) and that firmware is programmed to the device rather than installed through Cargo.
 
 ---
 
@@ -731,6 +739,62 @@ The `galdrad` REST API is documented in OpenAPI 3.0 format, generated from
 the Rust code using `utoipa`. Third-party clients (hospital portal
 software, dispatch systems) can integrate without depending on the Rust
 binary.
+
+---
+
+## Operational guide: keys and Shamir
+
+This section is a **how-to** for operators. It separates **public keys** (stored in the host database as contacts) from **private keys** (only on the token, never in `galdra`’s SQLite file).
+
+### Public keys (contacts database)
+
+The host stores **OpenPGP public certificates** for people you communicate with. It does **not** store their private keys.
+
+| Goal | Command / action |
+|------|------------------|
+| **Fetch** a public key from a keyserver, WKD, or LDAP | `galdra contact fetch <query> --source keyserver` (or `wkd`, `ldap`) and optional `--server <hkps-url>` — configure keyservers and optional `[ldap]` in `config.toml`. |
+| **Import** from a file | `galdra contact import --file <path.asc>` |
+| **Import** from a QR image | `galdra contact import --qr <image.png>` |
+| **Import** from another token on the same USB bus | `galdra contact fetch <query> --source peer` (requires a connected peer token; see implementation notes). |
+| **Refresh** keys from their recorded source | `galdra contact refresh <identifier>` or `galdra contact refresh --all` |
+| **Remove** a contact and its public key from the local database | `galdra contact delete <identifier> --confirm` — removes the row and group memberships; does not revoke the key on the internet. |
+| **List / show** | `galdra contact list`, `galdra contact show <id>` |
+
+**Delete public key material locally** means **delete the contact** (`contact delete`). That only affects your machine.
+
+### Revoking keys (OpenPGP)
+
+`galdra` does **not** implement a dedicated “revoke certificate” command. OpenPGP **revocation** is done with **GnuPG** (or another OpenPGP tool):
+
+1. Generate a revocation certificate or revoke the key in your keyring (`gpg --gen-revoke`, or revoke subkeys as appropriate).
+2. Publish the updated certificate or revocation to a keyserver (`gpg --send-keys` / `keys.openpgp.org`), if your policy allows.
+3. On Galdra hosts, **refresh** the contact (`galdra contact refresh`) so the local copy reflects the revoked key, or **delete** the contact if you no longer want it listed.
+
+For **token-resident** keys, revocation of the OpenPGP certificate (if exported and published) follows the same ecosystem rules; the token may still hold the private material until you **delete the slot** or **zeroise** the device.
+
+### Private keys (token slots)
+
+All **private** key generation and use is intended to occur **on the Galdralag token**. The host never persists private key bytes in its database.
+
+| Goal | Command / action |
+|------|------------------|
+| **List** keys in slots | `galdra key list` (USB token connected) |
+| **Generate** a new key pair on the token | `galdra key generate --type <...>` — **specification target**; the CLI may return an error until device integration is complete. Use **provision** flow and product documentation for the current firmware. |
+| **Import** a private key into a slot | `galdra key import --slot <n> --file <path>` — **specification target**; same caveat as generate. |
+| **Export the public half** from a slot | `galdra key export --slot <n> --format pgp` (or `pem`, `der`) — public material only to stdout. |
+| **Delete** a private key from a slot | `galdra key delete --slot <n> --confirm` — irreversible; destroys that slot’s key material on the token. |
+
+**Generate / import private keys outside Galdra:** use **GnuPG** (`gpg --full-generate-key`) or your organisation’s process, then **import** into the token when `galdra key import` is available, or load via vendor tooling as documented for the hardware.
+
+### Shamir secret sharing
+
+**In firmware:** Shamir (k-of-n) splitting and recovery is implemented in the **`vault`** crate on the device (for example [`crates/vault/src/shamir.rs`](../crates/vault/src/shamir.rs) in this repository). It operates on **short secrets** (byte length bounds per profile), uses **GF(256)** arithmetic via `vsss-rs`, and participates in **recovery and backup policy** together with **HKDF** domain separation (`KeyPurpose::ShamirRecovery` in [`kdf_policy.rs`](../crates/vault/src/kdf_policy.rs)).
+
+**Alone:** Shamir is used to split a **single secret** (for example a recovery root) into shares. Each share is useless until enough distinct shares (at least **k**) are combined on-device. There is **no** `galdra shamir split` CLI; share generation and recombination are **firmware flows** (provisioning, recovery mode), not host SQLite operations.
+
+**With keys:** After enough shares are combined, firmware derives further keys using **HKDF** with the Shamir-recovery label so those keys are **domain-separated** from storage keys, transport keys, and other purposes. Host tools (`galdra`) do not perform Shamir math; they may **prompt**, **display status**, or **audit** events when product integration exposes recovery in the USB protocol.
+
+**Operational takeaway:** treat Shamir shares like **physical recovery codes**: store offline, restrict who holds them, and assume compromise of k shares equals compromise of the recovered secret. For day-to-day OpenPGP, use **contacts** and **token slots** as described above.
 
 ---
 

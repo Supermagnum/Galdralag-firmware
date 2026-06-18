@@ -1,8 +1,10 @@
 # Galdr firmware (Galdralag)
 
+**[Galdra — Token Management Tool Specification](docs/GALDRA-TOOL.md)** — authoritative document for the **Galdra** CLI, **galdrad** daemon, GTK client, REST API, contacts and groups, encryption, build/install, and operational workflows (including keys and Shamir). Start here when working with host-side tools.
+
 Portions of this repository (including documentation, tests, and tooling) may have been drafted or refined with assistance from automated coding or language models. That assistance is not a substitute for human review, security analysis, or independent cryptographic audit. Recorded test vectors, suite summaries, and timing statistics are collected in [docs/TEST_RESULTS.md](docs/TEST_RESULTS.md). The same policy in full appears under [AI disclaimer](#ai-disclaimer) at the end of this README.
 
-> **Status:** Implementation in progress. No production-ready release exists.
+> **Status:** Ready for human review and testing. No production-ready release exists.
 > Cryptographic primitives are drawn exclusively from audited workspace
 > dependencies. Post-quantum algorithms are feature-gated and marked
 > **PENDING INDEPENDENT AUDIT** — do not use in production until that
@@ -10,6 +12,7 @@ Portions of this repository (including documentation, tests, and tooling) may ha
 
 ## Table of contents
 
+- [Galdra tool specification (docs/GALDRA-TOOL.md)](docs/GALDRA-TOOL.md)
 - [AI disclaimer](#ai-disclaimer)
 - [Test results](#test-results)
 - [About the name](#about-the-name)
@@ -64,6 +67,7 @@ Portions of this repository (including documentation, tests, and tooling) may ha
   - [galdra-gtk (GTK4 desktop client)](#galdra-gtk-gtk4-desktop-client)
   - [Timing analysis (dudect)](#timing-analysis-dudect)
 - [Commands](#commands)
+- [Build, install, and uninstall](#build-install-and-uninstall)
 - [Flashing firmware](#flashing-firmware)
 - [License](#license)
 
@@ -197,7 +201,7 @@ Revoke compromised keys promptly and publish revocation certificates.
 
 ### Using keys with Galdra and the token
 
-The **Galdra** CLI (`galdra`) manages contacts, groups, audit logs, and sync packages, and performs **OpenPGP** (and optional **age**) encrypt/decrypt on the host using **public** material from its database while **private** signing and decryption operations that require the token go through the USB protocol. Illustrative patterns (see [docs/GALDRA-TOOL.md](docs/GALDRA-TOOL.md) for the authoritative command reference):
+The **Galdra** CLI (`galdra`) manages contacts, groups, audit logs, and sync packages, and performs **OpenPGP** (and optional **age**) encrypt/decrypt on the host using **public** material from its database while **private** signing and decryption operations that require the token go through the USB protocol. For fetching, deleting, and revoking keys, generating or deleting token private keys, and how **Shamir** recovery relates to firmware (not a `galdra` subcommand), see [Operational guide: keys and Shamir](docs/GALDRA-TOOL.md#operational-guide-keys-and-shamir) in the specification. Illustrative patterns (see [docs/GALDRA-TOOL.md](docs/GALDRA-TOOL.md) for the full command reference):
 
 ```text
 # Encrypt a file to a group or explicit contacts (OpenPGP default)
@@ -652,6 +656,76 @@ cargo run -p xtask -- test-all
 Additional **xtask** entry points (timing, RSA bench, libFuzzer wrappers): run
 `cargo run -p xtask --` with no subcommand to print the full usage line
 (`timing-test`, `bench-rsa`, `fuzz`, `fuzz-chacha`, `fuzz-shamir`, etc.).
+
+## Build, install, and uninstall
+
+### Prerequisites
+
+- **Rust** (stable), via [rustup](https://rustup.rs/).
+- **SQLCipher-enabled SQLite** (`rusqlite` with `bundled-sqlcipher` in this workspace): on some Linux systems you need OpenSSL development headers to compile (for example `libssl-dev` on Debian/Ubuntu).
+- **galdra-gtk**: GTK 4 and libadwaita development packages for your distribution (for example `libgtk-4-dev` and `libadwaita-1-dev` on Debian/Ubuntu).
+
+### Compile host software
+
+From the **repository root**, release binaries for the CLI, daemon, and desktop client:
+
+```text
+cargo build --release -p galdra -p galdrad -p galdra-gtk
+```
+
+Artifacts: `target/release/galdra`, `target/release/galdrad`, `target/release/galdra-gtk` (or under `CARGO_TARGET_DIR` if set).
+
+Build **all** workspace members (embedded crates build for the host where tests require it):
+
+```text
+cargo build --workspace
+```
+
+### Compile firmware (RISC-V)
+
+Add the embedded target, then use `xtask` (same commands as in [Commands](#commands)):
+
+```text
+rustup target add riscv32imac-unknown-none-elf
+cargo run -p xtask -- check-fw
+cargo run -p xtask -- build-fw
+```
+
+Release **libraries** for linking into a full Xous image:
+
+```text
+cargo build --release -p galdr-core -p vault -p pin-policy -p usb-personality --target riscv32imac-unknown-none-elf
+```
+
+Object files appear under `target/riscv32imac-unknown-none-elf/<debug|release>/`. A bootable firmware image is produced outside this snippet by linking with Xous and board support; see [Flashing firmware](#flashing-firmware) and the upstream Baochip documentation.
+
+### Install host software
+
+There is no `.deb` / `.rpm` / MSI in this repository.
+
+**Using Cargo’s install layout** (installs to `~/.cargo/bin` by default; ensure it is on `PATH`):
+
+```text
+cargo install --path galdra --locked
+cargo install --path galdrad --locked
+cargo install --path galdra-gtk --locked
+```
+
+Run from the workspace root so `--path` resolves to each crate directory.
+
+**Manual install:** copy the `target/release/` binaries to a directory on your `PATH` (for example `/usr/local/bin`; copying system-wide may require elevated permissions).
+
+**First-run data:** installing binaries does not create Galdra’s config or database until you run a command. Default locations are described in the `galdra-core-host` `config` module (Linux example: `~/.config/galdra/config.toml`, `~/.local/share/galdra/galdra.db`).
+
+### Uninstall host software
+
+- Installed with **`cargo install`**: `cargo uninstall galdra`, `cargo uninstall galdrad`, `cargo uninstall galdra-gtk`.
+- **Manually copied** binaries: remove `galdra`, `galdrad`, and `galdra-gtk` from the directory where you installed them.
+- **Optional data removal** (destructive): delete your Galdra config and SQLite database if you want to remove local contacts, groups, and audit history from disk. Paths depend on the OS; they are not removed by `cargo uninstall`.
+
+### Firmware install and uninstall
+
+Firmware is **not** installed with Cargo. **Install** here means **flash** a verified image to the device (see [Flashing firmware](#flashing-firmware)). **Uninstall** or replace firmware by programming another image or following vendor recovery and zeroisation procedures; see the **Baochip-1x firmware design README** linked there.
 
 ## Flashing firmware
 
