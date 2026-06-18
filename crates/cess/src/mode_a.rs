@@ -65,7 +65,7 @@ mod tests {
     fn chacha_roundtrip() {
         let k_outer = [7u8; 32];
         let nonce = [3u8; 12];
-        let plain = assemble_mode_a_outer_plaintext(0xE001, b"inner-cipher-blob").unwrap();
+        let plain = assemble_mode_a_outer_plaintext(0x0001, b"inner-cipher-blob").unwrap();
         let wire = seal_mode_a_outer(&k_outer, &nonce, &plain).unwrap();
         let back = open_mode_a_outer(&k_outer, &wire).unwrap();
         assert_eq!(back, plain);

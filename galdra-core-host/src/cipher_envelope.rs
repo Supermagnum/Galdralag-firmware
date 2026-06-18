@@ -207,17 +207,17 @@ pub fn parse_hex_fixed<const N: usize>(label: &str, s: &str) -> Result<[u8; N], 
 
 /// Wrap a sealed GALDRACP blob with CESS Mode A outer ChaCha20-Poly1305 (`nonce || ct || tag`).
 ///
-/// `suite_id` is taken from the provisional registry for `profile_name`. Custom profiles without a
-/// mapping return an error until a suite id is assigned.
+/// `suite_id` is taken from the CESS [algorithm registry](https://github.com/Supermagnum/CESS/blob/main/ALGORITHM-REGISTRY.md)
+/// lookup table for `profile_name`. Custom profiles without a mapping return an error until a suite id is assigned.
 pub fn wrap_inner_with_cess_mode_a(
     inner_galdra: &[u8],
     profile_name: &str,
     k_outer: &[u8; 32],
     nonce: &[u8; 12],
 ) -> Result<Vec<u8>, GaldraError> {
-    let suite_id = cess::provisional::suite_id_for_profile_name(profile_name).ok_or_else(|| {
+    let suite_id = cess::suite_id_for_profile_name(profile_name).ok_or_else(|| {
         GaldraError::CipherProfile(format!(
-            "no provisional CESS suite_id for profile '{profile_name}' (Mode A supports built-in profiles only)"
+            "no CESS registry suite_id for profile '{profile_name}' (Mode A supports built-in profiles only)"
         ))
     })?;
     let outer_plain = assemble_mode_a_outer_plaintext(suite_id, inner_galdra).map_err(|e| {

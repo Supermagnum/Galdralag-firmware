@@ -97,31 +97,30 @@ fn builtin_standard() -> Result<CipherProfile, CipherProfileError> {
 
 fn builtin_conservative() -> Result<CipherProfile, CipherProfileError> {
     CipherProfileBuilder::new("conservative")?
-        .description("Serpent then ChaCha; BP256r1")
+        .description("ChaCha inner, Serpent outer (CESS suite_id 0x0003); BP256r1")
         .curve(SessionCurve::BrainpoolP256r1)
-        .layer(CipherLayer::Serpent256)?
         .layer(CipherLayer::ChaCha20Poly1305)?
+        .layer(CipherLayer::Serpent256)?
         .shamir(ShamirConfig::none())
         .build()
 }
 
 fn builtin_conservative_shamir() -> Result<CipherProfile, CipherProfileError> {
     CipherProfileBuilder::new("conservative-shamir")?
-        .description("Same as conservative; Shamir 3-of-5")
+        .description("Same cascade as conservative; Shamir 3-of-5")
         .curve(SessionCurve::BrainpoolP256r1)
-        .layer(CipherLayer::Serpent256)?
         .layer(CipherLayer::ChaCha20Poly1305)?
+        .layer(CipherLayer::Serpent256)?
         .shamir(ShamirConfig::new(3, 5)?)
         .build()
 }
 
 fn builtin_high_assurance() -> Result<CipherProfile, CipherProfileError> {
     CipherProfileBuilder::new("high-assurance")?
-        .description("Serpent, Twofish, ChaCha; BP512r1; Shamir 3-of-5")
+        .description("ChaCha inner, Serpent outer (CESS suite_id 0x0012); BP512r1; Shamir 3-of-5")
         .curve(SessionCurve::BrainpoolP512r1)
-        .layer(CipherLayer::Serpent256)?
-        .layer(CipherLayer::Twofish256)?
         .layer(CipherLayer::ChaCha20Poly1305)?
+        .layer(CipherLayer::Serpent256)?
         .shamir(ShamirConfig::new(3, 5)?)
         .build()
 }
@@ -163,7 +162,7 @@ mod tests {
         };
         assert_eq!(
             p.layers(),
-            &[CipherLayer::Serpent256, CipherLayer::ChaCha20Poly1305]
+            &[CipherLayer::ChaCha20Poly1305, CipherLayer::Serpent256]
         );
     }
 
@@ -176,11 +175,7 @@ mod tests {
         assert_eq!(p.curve(), SessionCurve::BrainpoolP512r1);
         assert_eq!(
             p.layers(),
-            &[
-                CipherLayer::Serpent256,
-                CipherLayer::Twofish256,
-                CipherLayer::ChaCha20Poly1305
-            ]
+            &[CipherLayer::ChaCha20Poly1305, CipherLayer::Serpent256]
         );
     }
 

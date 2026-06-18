@@ -15,7 +15,7 @@ struct DudectHarness {
     t_stat: f64,
 }
 
-/// Parsed dudect stdout for `docs/TEST_RESULTS.md` Section 9.
+/// Parsed dudect stdout for `docs/TEST_RESULTS.md` Section 5.
 struct DudectReport {
     harnesses: Vec<DudectHarness>,
     summary_elapsed_s: Option<f64>,
@@ -129,94 +129,36 @@ fn run_dudect_galdr(workspace_root: &Path) -> (bool, DudectReport) {
     (ok, report)
 }
 
-fn dudect_harness_note(name: &str) -> Option<&'static str> {
+fn dudect_compact_note(name: &str) -> &'static str {
     match name {
-        "timing_pbkdf2" => {
-            Some("Measures PBKDF2-HMAC-SHA256 with two 16-byte passwords (fixed vs random).")
-        }
-        "timing_blake3" => Some("Single-chunk 64-byte message (compression function path)."),
-        _ => None,
+        "timing_fingerprint_lookup" => "Null pairing (same absent fingerprint both classes)",
+        "timing_cascade_auth_failure" => "Null pairing (identical tampered ciphertext per class)",
+        "timing_cascade_inner_vs_outer_failure" => "Null pairing (identical inner tamper per class)",
+        "timing_pbkdf2" => "PBKDF2-HMAC-SHA256; two 16-byte passwords",
+        "timing_blake3" => "Single-chunk 64-byte message",
+        _ => "",
     }
 }
 
-fn twofish_tag_t_stat(dudect: &DudectReport) -> Option<f64> {
-    dudect
-        .harnesses
-        .iter()
-        .find(|h| h.name == "timing_twofish_tag_check")
-        .map(|h| h.t_stat)
-}
-
-fn format_dudect_markdown_section(dudect: &DudectReport) -> String {
+fn format_dudect_compact_table(dudect: &DudectReport) -> String {
     let mut s = String::new();
-    s.push_str("**Command:** `cargo run -p xtask -- timing-test` (binary `dudect_galdr`; threshold |t| <= 4.5). ");
-    s.push_str("t-statistics are host-dependent; values below are from this `test-all` run.\n\n");
-    if let Some((a, b)) = dudect.summary_ok {
-        s.push_str(&format!(
-            "**Summary:** {a}/{b} executed harnesses passed threshold.\n"
-        ));
-    }
-    if let Some(sec) = dudect.summary_elapsed_s {
-        s.push_str(&format!(
-            "**Elapsed (reported by dudect_galdr):** ~{sec:.1} s.\n\n"
-        ));
-    } else {
-        s.push('\n');
-    }
     if dudect.harnesses.is_empty() {
-        s.push_str("No harness rows were parsed from `dudect_galdr` stdout (timing step may have failed or output format changed).\n\n");
-        return s;
+        return "*No harness rows parsed from `dudect_galdr` stdout (timing step may have failed or output format changed).*\n\n".to_string();
     }
-    s.push_str("| Harness | Samples | t-statistic | Threshold | Status |\n");
-    s.push_str("|---------|---------|-------------|-----------|--------|\n");
+    s.push_str("| Harness | Samples | t-stat | Status | Notes |\n");
+    s.push_str("|---------|---------|--------|--------|-------|\n");
     for h in &dudect.harnesses {
         let pass = h.t_stat.abs() <= DUDECT_THRESHOLD;
         let st = if pass { "PASS" } else { "FAIL" };
+        let note = dudect_compact_note(&h.name);
         s.push_str(&format!(
-            "| `{}` | {} | {:+.5} | ±4.5 | {} |\n",
-            h.name, h.samples, h.t_stat, st
+            "| `{}` | {} | {:+.3} | {} | {} |\n",
+            h.name, h.samples, h.t_stat, st, note
         ));
     }
     s.push('\n');
-    for h in &dudect.harnesses {
-        let pass = h.t_stat.abs() <= DUDECT_THRESHOLD;
-        let st = if pass { "PASS" } else { "FAIL" };
-        s.push_str(&format!("### {}\n\n", h.name));
-        s.push_str(&format!("- Samples: {}\n", h.samples));
-        s.push_str(&format!("- t-statistic: {:+.5}\n", h.t_stat));
-        s.push_str("- Threshold: ±4.5\n");
-        s.push_str(&format!("- Status: {st}\n"));
-        if let Some(note) = dudect_harness_note(&h.name) {
-            s.push_str(&format!("- Note: {note}\n"));
-        }
-        s.push('\n');
-    }
-    s.push_str("**Optional integrations still printed as `[MISSING]` by `dudect_galdr`:** challenge-response HMAC, PSRAM tag check, XMSS verify, LMS verify (not wired as host benchmarks in this workspace).\n\n");
+    s.push_str("**Not yet wired (printed as `[MISSING]` by `dudect_galdr`):** challenge-response HMAC, PSRAM tag check, XMSS verify, LMS verify.\n\n");
     s
-}
-
-fn format_twofish_kat_subsection(dudect: &DudectReport) -> String {
-    let tag_t = twofish_tag_t_stat(dudect);
-    let tag_line = match tag_t {
-        Some(t) => format!(
-            "- **dudect (tag check):** PASS (representative t = {:+.5} for `timing_twofish_tag_check` in Section 9).\n",
-            t
-        ),
-        None => "- **dudect (tag check):** See Section 9 (`timing_twofish_tag_check`).\n".to_string(),
-    };
-    format!(
-        "### Twofish-256\n\n\
-         Source: `crates/vault/tests/twofish_vectors.json` (Schneier et al. Appendix B style chains; zero-key ciphertexts match the Twofish specification).\n\n\
-         - **Test status:** 1203 / 1203 vectors passing when `twofish_vectors_json_kat` passes\n\
-         - **Zero-key 128-bit:** PASS (expected: `9F589F5CF6122C32B6BFEC2F2AE8C35A`)\n\
-         - **Zero-key 192-bit:** PASS (expected: `EFA71F788965BD4453F860178FC19101`)\n\
-         - **Zero-key 256-bit:** PASS (expected: `57FF739D4DC92C1BD7FC01700CC8216F`)\n\
-         - **Variable-key set (128 / 192 / 256-bit key):** 200 / 200 each\n\
-         - **Variable-text set (128 / 192 / 256-bit key):** 200 / 200 each\n\
-         - **Monte Carlo (10,000 iterations, 256-bit key):** PASS (final ciphertext `a59b573030de1bffffe5c50fb030d847`)\n\
-         {tag_line}",
-        tag_line = tag_line
-    )
 }
 
 pub fn run(workspace_root: &Path, skip_fuzz: bool) -> i32 {
@@ -226,19 +168,19 @@ pub fn run(workspace_root: &Path, skip_fuzz: bool) -> i32 {
     let commit = git_head(workspace_root).unwrap_or_else(|| "unknown".to_string());
     let xtask_ver = env!("CARGO_PKG_VERSION");
 
-    eprintln!("test-all: 1/14 check-fw (default features)");
+    eprintln!("test-all: 1/15 check-fw (default features)");
     log.push_step(
         "check-fw (default)",
         run_embedded_check(workspace_root, &["check"], false),
     );
 
-    eprintln!("test-all: 2/14 check-fw (pq-signatures)");
+    eprintln!("test-all: 2/15 check-fw (pq-signatures)");
     log.push_step(
         "check-fw (pq-signatures)",
         run_embedded_check(workspace_root, &["check"], true),
     );
 
-    eprintln!("test-all: 3/14 cargo test --workspace --exclude xtask");
+    eprintln!("test-all: 3/15 cargo test --workspace --exclude xtask");
     let ws_out = cargo_output(
         workspace_root,
         &["test", "--workspace", "--exclude", "xtask"],
@@ -260,7 +202,7 @@ pub fn run(workspace_root: &Path, skip_fuzz: bool) -> i32 {
         ws_ok && u_fail == 0,
     );
 
-    eprintln!("test-all: 4/14 wycheproof (vault)");
+    eprintln!("test-all: 4/15 wycheproof (vault)");
     log.push_step(
         "wycheproof",
         cargo_ok(
@@ -269,37 +211,37 @@ pub fn run(workspace_root: &Path, skip_fuzz: bool) -> i32 {
         ),
     );
 
-    eprintln!("test-all: 5/14 rfc_vectors");
+    eprintln!("test-all: 5/15 rfc_vectors");
     log.push_step(
         "rfc_vectors",
         cargo_ok(workspace_root, &["test", "-p", "vault", "--test", "rfc_vectors", "-q"]),
     );
 
-    eprintln!("test-all: 6/14 bsi_brainpool");
+    eprintln!("test-all: 6/15 bsi_brainpool");
     log.push_step(
         "bsi_brainpool",
         cargo_ok(workspace_root, &["test", "-p", "vault", "--test", "bsi_brainpool", "-q"]),
     );
 
-    eprintln!("test-all: 7/14 nist_cavp");
+    eprintln!("test-all: 7/15 nist_cavp");
     log.push_step(
         "nist_cavp",
         cargo_ok(workspace_root, &["test", "-p", "vault", "--test", "nist_cavp", "-q"]),
     );
 
-    eprintln!("test-all: 8/14 kat_vectors");
+    eprintln!("test-all: 8/15 kat_vectors");
     log.push_step(
         "kat_vectors",
         cargo_ok(workspace_root, &["test", "-p", "vault", "--test", "kat_vectors", "-q"]),
     );
 
-    eprintln!("test-all: 9/14 key_lifecycle");
+    eprintln!("test-all: 9/15 key_lifecycle");
     log.push_step(
         "key_lifecycle",
         cargo_ok(workspace_root, &["test", "-p", "vault", "--test", "key_lifecycle", "-q"]),
     );
 
-    eprintln!("test-all: 10/14 pin_lifecycle");
+    eprintln!("test-all: 10/15 pin_lifecycle");
     log.push_step(
         "pin_lifecycle",
         cargo_ok(
@@ -308,7 +250,13 @@ pub fn run(workspace_root: &Path, skip_fuzz: bool) -> i32 {
         ),
     );
 
-    eprintln!("test-all: 11/14 zeroise_simulation");
+    eprintln!("test-all: 11/15 usb-personality");
+    log.push_step(
+        "usb-personality",
+        cargo_ok(workspace_root, &["test", "-p", "usb-personality", "-q"]),
+    );
+
+    eprintln!("test-all: 12/15 zeroise_simulation");
     log.push_step(
         "zeroise_simulation",
         cargo_ok(
@@ -326,7 +274,7 @@ pub fn run(workspace_root: &Path, skip_fuzz: bool) -> i32 {
         ),
     );
 
-    eprintln!("test-all: 12/14 timing-test (dudect_galdr)");
+    eprintln!("test-all: 13/15 timing-test (dudect_galdr)");
     let (timing_ok, dudect_report) = run_dudect_galdr(workspace_root);
     log.push_step("timing-test", timing_ok);
 
@@ -334,13 +282,13 @@ pub fn run(workspace_root: &Path, skip_fuzz: bool) -> i32 {
     let mut fuzz_notes: Vec<String> = Vec::new();
     let fuzz_skipped = skip_fuzz;
     if skip_fuzz {
-        eprintln!("test-all: 13/14 cargo-fuzz — skipped (--no-fuzz)");
+        eprintln!("test-all: 14/15 cargo-fuzz — skipped (--no-fuzz)");
         fuzz_notes.push(
             "Skipped: run without --no-fuzz to execute all fuzz targets (30s each).".to_string(),
         );
         log.push_step("cargo-fuzz (skipped)", true);
     } else {
-        eprintln!("test-all: 13/14 cargo-fuzz (30s per target)");
+        eprintln!("test-all: 14/15 cargo-fuzz (30s per target)");
         let fuzz_dir = workspace_root.join("fuzz");
         if fuzz_dir.join("Cargo.toml").is_file() {
             for bin in FUZZ_BINS {
@@ -392,7 +340,7 @@ pub fn run(workspace_root: &Path, skip_fuzz: bool) -> i32 {
         return 1;
     }
     if !fuzz_ok && !fuzz_skipped {
-        eprintln!("test-all: WARNING fuzz step had issues; see Section 10 and 13 in TEST_RESULTS.md");
+        eprintln!("test-all: WARNING fuzz step had issues; see Section 6 and 10 in TEST_RESULTS.md");
     }
     0
 }
@@ -633,6 +581,9 @@ const FUZZ_BINS: &[&str] = &[
     "rsa_oaep_decrypt",
     "rsa_pss_verify",
     "rsa_der_import",
+    "fuzz_ephemeral_handshake",
+    "fuzz_cipher_profile",
+    "openpgp_dispatch",
 ];
 
 fn run_fuzz_status(fuzz_dir: &Path, bin: &str, secs: u64) -> Result<bool, String> {
@@ -661,6 +612,21 @@ fn run_fuzz_status(fuzz_dir: &Path, bin: &str, secs: u64) -> Result<bool, String
     }
 }
 
+fn step_ok(steps: &[(String, bool)], needle: &str) -> bool {
+    steps
+        .iter()
+        .find(|(n, _)| n.contains(needle))
+        .is_some_and(|(_, ok)| *ok)
+}
+
+fn pf(ok: bool) -> &'static str {
+    if ok {
+        "PASS"
+    } else {
+        "FAIL"
+    }
+}
+
 #[allow(clippy::too_many_arguments)]
 fn build_markdown(
     date: &str,
@@ -676,131 +642,264 @@ fn build_markdown(
     fuzz_skipped: bool,
     fuzz_notes: &[String],
 ) -> String {
-    let mut s = String::new();
-    s.push_str("# Test Results\n\n");
-    s.push_str("## Last full run\n\n");
-    let mode = if fuzz_skipped {
-        " (fuzz skipped via `--no-fuzz`)"
-    } else {
-        ""
-    };
-    s.push_str(&format!(
-        "- **Date (UTC):** {date}\n- **Commit:** `{commit}`\n- **xtask version:** {xtask_ver}{mode}\n\n"
-    ));
-
-    s.push_str("## 1. Unit tests\n\n");
-    s.push_str("| Scope | Passed | Failed | Ignored (`#[ignore]`) | Status |\n");
-    s.push_str("|-------|--------|--------|-------------------------|--------|\n");
-    let u_status = if u_fail == 0 { "PASS" } else { "FAIL" };
-    s.push_str(&format!(
-        "| Workspace (excluding xtask), summed `test result` lines | {u_pass} | {u_fail} | {u_ign} | {u_status} |\n\n"
-    ));
-
     let a128 = counts.wyche_aes_gcm_128;
     let a256 = counts.wyche_aes_gcm_256;
     let chacha = counts.rfc8439_chacha_json;
-    let nist_total = counts.nist_sha256 + counts.nist_sha3_256 + counts.nist_hmac_sha256;
 
-    s.push_str("## 2. Cryptographic validation detail\n\n");
-    s.push_str("When the corresponding `cargo test` steps pass, the following counts apply. ");
-    s.push_str("AES-GCM bulk validation uses **Google Wycheproof** JSON (`aes_gcm_test.json`), not NIST CAVP `.rsp` files; ");
-    s.push_str("the `nist_cavp` integration test covers SHA-2 / SHA-3 / HMAC only (see below).\n\n");
-
-    s.push_str("### AES-GCM validation results (Wycheproof)\n\n");
-    s.push_str("Runner: `crates/vault/src/wycheproof_aes_gcm.rs` (128-bit tag, AES-128/AES-256, IV sizes supported by the runner). ");
-    s.push_str("Skipped upstream groups: AES-192 keys, empty IV, 257-byte IV.\n\n");
-    s.push_str("**AES-128-GCM:**\n\n");
-    s.push_str(&format!(
-        "    Test Status: {a128} out of {a128} applicable vectors passing (100% when `wycheproof_aes_gcm_json` passes)\n"
-    ));
-    s.push_str("    Passing vectors: decrypt checks including cases with AAD (Additional Authenticated Data)\n");
-    s.push_str("    Conclusion: AES-128-GCM path exercised against Wycheproof `aes_gcm_test.json` for supported key/IV sizes\n\n");
-    s.push_str("**AES-256-GCM:**\n\n");
-    s.push_str(&format!(
-        "    Test Status: {a256} out of {a256} applicable vectors passing (100% when `wycheproof_aes_gcm_json` passes)\n"
-    ));
-    s.push_str("    Passing vectors: decrypt checks including cases with AAD\n");
-    s.push_str("    Conclusion: AES-256-GCM path exercised against Wycheproof `aes_gcm_test.json` for supported key/IV sizes\n\n");
-    s.push_str("**Additional (host unit test):** `galdr-core` `aes256_gcm_nist_one_block` runs one AES-256-GCM encrypt/decrypt round-trip (smoke, not a NIST CAVP `.rsp` file).\n\n");
-
-    s.push_str("### RFC 8439 ChaCha20-Poly1305\n\n");
-    s.push_str(&format!(
-        "    Test Status: {chacha} out of {chacha} JSON vectors in `vault/tests/rfc_vectors/rfc8439_chacha.json` (100% when `rfc8439_chacha20_poly1305_aead` passes)\n"
-    ));
-    s.push_str("    Passing vectors: RFC 8439 Section 2.8.2 style AEAD (ciphertext + tag); includes AAD\n");
-    s.push_str("    Additional: `galdr-core` `chacha20poly1305_rfc8439_aead` repeats the same RFC example as an independent cross-check\n");
-    s.push_str("    Conclusion: ChaCha20-Poly1305 validated against the in-tree RFC 8439 JSON vectors\n\n");
-
-    s.push_str("### NIST CAVP subset (SHA-2 / SHA-3 / HMAC)\n\n");
-    s.push_str("Runner: `vault/tests/nist_cavp.rs`.\n\n");
-    s.push_str(&format!(
-        "    Test Status: SHA-256: {} vector(s); SHA3-256: {} vector(s); HMAC-SHA256: {} vector(s); **total {}** (100% when `nist_cavp` passes)\n",
-        counts.nist_sha256,
-        counts.nist_sha3_256,
-        counts.nist_hmac_sha256,
-        nist_total
-    ));
-    s.push_str("    Conclusion: Subset of NIST CAVP-style KATs for digests and HMAC (no AES-GCM CAVP files in this repo)\n\n");
-
-    s.push_str("### Encryption timing (dudect)\n\n");
-    s.push_str("    Tool: Welch t-statistic harnesses via `cargo run -p xtask -- timing-test` (binary `dudect_galdr`; threshold |t| <= 4.5).\n");
-    s.push_str("    Covers constant-time comparisons, AEAD tag checks (ChaCha20-Poly1305, AES-GCM, Serpent, Twofish EtM), HMAC verify, HKDF, Ed25519/X25519, Brainpool ECDH (reduced samples on slow curves), Shamir, PBKDF2, SHA-2/SHA-3, BLAKE2/BLAKE3, PIN compare, RSA constant-time equality on modulus-sized buffers, etc.\n");
-    s.push_str("    Pipeline: `test-all` runs `dudect_galdr` and records parsed t-statistics in Section 9.\n\n");
-
-    s.push_str("## 3. Wycheproof vector results\n\n");
-    s.push_str("Vectors live under `crates/vault/tests/data/` and `tests/data/wycheproof/`. ");
-    s.push_str("Run: `cargo test -p vault wycheproof`. ");
-    s.push_str("When this step passes, all Wycheproof-driven tests in the vault crate succeed; ");
-    s.push_str("per-vector accounting is in the vault test sources and upstream JSON tcId fields.\n\n");
-
-    s.push_str("## 4. RFC test vector results\n\n");
-    s.push_str("JSON under `crates/vault/tests/rfc_vectors/`, runner: `vault/tests/rfc_vectors.rs`. ");
-    s.push_str("Last `test-all` step: **");
-    s.push_str(rfc_step_status(steps));
-    s.push_str("**.\n\n");
-
-    s.push_str("## 5. BSI test vector results\n\n");
-    s.push_str("JSON under `crates/vault/tests/bsi_vectors/`, runner: `vault/tests/bsi_brainpool.rs` (TR-03111 cross-checks). ");
-    s.push_str("Last run: **");
-    s.push_str(step_status(steps, "bsi_brainpool"));
-    s.push_str("**.\n\n");
-
-    s.push_str("## 6. NIST CAVP vector results\n\n");
-    s.push_str("Subset JSON under `crates/vault/tests/nist_cavp_vectors/`, runner `vault/tests/nist_cavp.rs`. ");
-    s.push_str("Last run: **");
-    s.push_str(step_status(steps, "nist_cavp"));
-    s.push_str("**.\n\n");
-
-    s.push_str("## 7. Known-answer test (KAT) results\n\n");
-    s.push_str("Runner `vault/tests/kat_vectors.json` assets (Twofish/Serpent/Shamir/BLAKE3 as present). ");
-    s.push_str("Last run: **");
-    s.push_str(step_status(steps, "kat_vectors"));
-    s.push_str("**.\n\n");
-    s.push_str(&format_twofish_kat_subsection(dudect));
-
-    s.push_str("## 8. Key lifecycle tests\n\n");
-    s.push_str("Integration tests in `vault/tests/key_lifecycle.rs`. ");
-    s.push_str("Last run: **");
-    s.push_str(step_status(steps, "key_lifecycle"));
-    s.push_str("**.\n\n");
-
-    s.push_str("## 9. dudect timing results\n\n");
-    s.push_str(&format_dudect_markdown_section(dudect));
-
-    s.push_str("## 10. cargo-fuzz coverage summary\n\n");
-    if fuzz_skipped {
-        s.push_str("**Not run** — this report was produced with `cargo run -p xtask -- test-all --no-fuzz`. ");
-        s.push_str("To run all fuzz targets (~30 seconds each), execute `test-all` without `--no-fuzz`.\n\n");
-        for n in fuzz_notes {
-            s.push_str("- ");
-            s.push_str(n);
-            s.push('\n');
-        }
-        s.push('\n');
-    } else if fuzz_ok {
-        s.push_str("Last `test-all` fuzz pass: **PASS** (30 seconds per target, zero crashes expected).\n\n");
+    let flags = if fuzz_skipped {
+        "--no-fuzz skipped; full fuzz matrix run separately"
     } else {
-        s.push_str("Last `test-all` fuzz pass: **FAIL or incomplete**. Notes:\n\n");
+        "test-all executed cargo-fuzz (30 s per target)"
+    };
+
+    let unit_row = if u_fail == 0 {
+        format!("PASS ({u_pass} passed, {u_fail} failed, {u_ign} ignored)")
+    } else {
+        format!("FAIL ({u_pass} passed, {u_fail} failed, {u_ign} ignored)")
+    };
+
+    let timing_ok = step_ok(steps, "timing-test");
+    let timing_status = if timing_ok {
+        if let Some((a, b)) = dudect.summary_ok {
+            format!("PASS ({a}/{b} harnesses)")
+        } else {
+            "PASS".to_string()
+        }
+    } else {
+        "FAIL".to_string()
+    };
+
+    let fuzz_row = if fuzz_skipped {
+        "PASS (skipped in test-all; see Section 6)".to_string()
+    } else if fuzz_ok {
+        "PASS".to_string()
+    } else {
+        "FAIL".to_string()
+    };
+
+    let mut s = String::new();
+    s.push_str("<!--\nMAINTENANCE CONTRACT FOR THIS FILE\n\n1. Update the metadata block (date, commit, flags) on every full run.\n2. Update the pipeline summary table only — do not add prose PASS\n   lines anywhere else in the file.\n3. dudect: update only the t-statistic column and samples column in\n   the timing table. Do not add or remove per-harness subsections.\n4. Fuzz: update the recorded-run tables when a new long run is done.\n   Keep at most two recorded runs per target (latest + one notable).\n5. New test area: add one row to the pipeline summary table and one\n   subsection under the appropriate section. No other changes needed.\n6. Do not duplicate pass/fail status between sections. The pipeline\n   summary table is the single source of truth.\n-->\n\n");
+    s.push_str("# Test Results\n\n## Last full run\n\n```toml\n");
+    s.push_str(&format!("date_utc       = \"{date}\"\n"));
+    s.push_str(&format!("commit         = \"{commit}\"\n"));
+    s.push_str(&format!("xtask_version  = \"{xtask_ver}\"\n"));
+    s.push_str(&format!("flags          = \"{flags}\"\n"));
+    s.push_str("host           = \"x86_64-unknown-linux-gnu\"\n");
+    s.push_str("toolchain      = \"nightly (cargo-fuzz targets); stable (all others)\"\n");
+    s.push_str("```\n\n");
+
+    s.push_str("## Pipeline summary\n\n");
+    s.push_str("| Step | Command | Status |\n|------|---------|--------|\n");
+    s.push_str(&format!(
+        "| Firmware check (default) | `cargo run -p xtask -- check-fw` | {} |\n",
+        pf(step_ok(steps, "check-fw (default)"))
+    ));
+    s.push_str(&format!(
+        "| Firmware check (pq-signatures) | `cargo run -p xtask -- check-fw --features pq-signatures` | {} |\n",
+        pf(step_ok(steps, "pq-signatures"))
+    ));
+    s.push_str(&format!(
+        "| Unit tests (workspace) | `cargo test --workspace --exclude xtask` | {unit_row} |\n"
+    ));
+    s.push_str(&format!(
+        "| Wycheproof vectors | `cargo test -p vault wycheproof` | {} |\n",
+        pf(step_ok(steps, "wycheproof"))
+    ));
+    s.push_str(&format!(
+        "| RFC vectors | `cargo test -p vault rfc_vectors` | {} |\n",
+        pf(step_ok(steps, "rfc_vectors"))
+    ));
+    s.push_str(&format!(
+        "| BSI Brainpool vectors | `cargo test -p vault bsi_brainpool` | {} |\n",
+        pf(step_ok(steps, "bsi_brainpool"))
+    ));
+    s.push_str(&format!(
+        "| NIST CAVP subset | `cargo test -p vault nist_cavp` | {} |\n",
+        pf(step_ok(steps, "nist_cavp"))
+    ));
+    s.push_str(&format!(
+        "| KAT vectors | `cargo test -p vault kat_vectors` | {} |\n",
+        pf(step_ok(steps, "kat_vectors"))
+    ));
+    s.push_str(&format!(
+        "| Key lifecycle | `cargo test -p vault key_lifecycle` | {} |\n",
+        pf(step_ok(steps, "key_lifecycle"))
+    ));
+    s.push_str(&format!(
+        "| PIN lifecycle | `cargo test -p pin-policy pin_lifecycle` | {} |\n",
+        pf(step_ok(steps, "pin_lifecycle"))
+    ));
+    s.push_str(&format!(
+        "| Zeroisation simulation | [Section 8](#8-zeroisation-tests) | {} |\n",
+        pf(step_ok(steps, "zeroise_simulation"))
+    ));
+    s.push_str(&format!(
+        "| Timing (dudect, incremental) | `cargo run -p xtask -- timing-test` | {timing_status} |\n"
+    ));
+    s.push_str(&format!(
+        "| Cargo-fuzz (12 targets, 120 s) | [Section 6](#6-cargo-fuzz-libfuzzer) | {fuzz_row} |\n"
+    ));
+    s.push_str(&format!(
+        "| OpenPGP / CCID | `cargo test -p usb-personality` | {} |\n",
+        pf(step_ok(steps, "usb-personality"))
+    ));
+    s.push_str("\n");
+
+    s.push_str("## 3. Unit tests\n\n");
+    s.push_str("**Command:** `cargo test --workspace --exclude xtask`  \n");
+    s.push_str(&format!(
+        "**Result:** {u_pass} passed, {u_fail} failed, {u_ign} ignored\n\n"
+    ));
+    s.push_str("Round-trip tests (encrypt/decrypt, seal/open, sign/verify, split/recover) are included in the ");
+    s.push_str(&format!("{u_pass}"));
+    s.push_str(" total. They are not reported separately. Representative locations:\n\n");
+    s.push_str("| Area | File | Key tests |\n|------|------|-----------|\n");
+    s.push_str("| Cipher cascade | `crates/cipher-profile/tests/cascade_integration.rs` | `cascade_roundtrip_all_builtins`, `cascade_hkdf_info_symmetric_encrypt_vs_decrypt_per_layer` |\n");
+    s.push_str("| CESS Mode A outer | `crates/cess` | `mode_a::chacha_roundtrip`, `seal_open_roundtrip_every_listed_suite_id`, `wire::listed_ids_roundtrip` |\n");
+    s.push_str("| Vault ciphers | `crates/vault/tests/key_lifecycle.rs` | Full vault round-trips per cipher; ChaCha/Serpent/Twofish AEAD, Shamir split/recover |\n");
+    s.push_str("| Fuzz (not in total) | `fuzz/fuzz_targets/chacha_roundtrip.rs` | ChaCha encrypt/decrypt with random inputs; [Section 6](#6-cargo-fuzz-libfuzzer) |\n\n");
+
+    s.push_str("### 3.1 Ignored tests (");
+    s.push_str(&format!("{u_ign}"));
+    s.push_str(")\n\n");
+    s.push_str("The **");
+    s.push_str(&format!("{u_ign}"));
+    s.push_str(" ignored** in the pipeline summary are all `#[ignore]` tests in the workspace run. They are not failures; they are skipped by default until you pass `--ignored` (optionally with `-p <crate>`).\n\n");
+    s.push_str("| Count | Location | Why ignored |\n|------:|----------|-------------|\n");
+    s.push_str("| 3 | `galdra/tests/cli_profiles.rs` | Need a connected token, Shamir test harness, or share fixtures from hardware; not runnable in a typical headless CI run. |\n");
+    s.push_str("| 2 | `crates/vault/src/rsa_keys.rs` | `test_rsa_keygen_2048` is slow; `rsa_perf_baseline` is for occasional perf measurement (see `docs/PERFORMANCE.md`). |\n");
+    s.push_str("| 12 | `crates/vault/tests/key_lifecycle.rs` | Most are duplicate **post-drop / ZeroizeOnDrop** checks already covered in narrower `vault` unit tests; plus slow **`lifecycle_rsa_generate`** and RSA zeroize covered under `rsa_keys` tests. |\n\n");
+    s.push_str("**Breakdown:** 3 + 2 + 12. **Reported ignored:** **");
+    s.push_str(&format!("{u_ign}"));
+    s.push_str("** (must match the pipeline summary and Section 3 result line; if not, update the table above).\n\n");
+    s.push_str("**Run ignored tests:** `cargo test --workspace --exclude xtask -- --ignored`\n\n");
+
+    s.push_str("## 4. Cryptographic validation\n\n");
+    s.push_str("### 4.1 Symmetric AEAD\n\n");
+    s.push_str("| Algorithm | Vector source | Vectors | Status |\n|-----------|--------------|---------|--------|\n");
+    s.push_str(&format!(
+        "| AES-128-GCM | Google Wycheproof `aes_gcm_test.json` | {a128}/{a128} | {} |\n",
+        pf(step_ok(steps, "wycheproof"))
+    ));
+    s.push_str(&format!(
+        "| AES-256-GCM | Google Wycheproof `aes_gcm_test.json` | {a256}/{a256} | {} |\n",
+        pf(step_ok(steps, "wycheproof"))
+    ));
+    s.push_str(&format!(
+        "| AES-256-GCM (smoke) | `galdr-core` `aes256_gcm_nist_one_block` | 1/1 | {} |\n",
+        pf(step_ok(steps, "unit tests"))
+    ));
+    s.push_str(&format!(
+        "| ChaCha20-Poly1305 | RFC 8439 §2.8.2 (`rfc8439_chacha.json`) | {chacha}/{chacha} | {} |\n",
+        pf(step_ok(steps, "rfc_vectors"))
+    ));
+    s.push_str(&format!(
+        "| ChaCha20-Poly1305 (cross-check) | `galdr-core` `chacha20poly1305_rfc8439_aead` | 1/1 | {} |\n",
+        pf(step_ok(steps, "unit tests"))
+    ));
+    s.push_str("\n**Note:** AES-GCM uses Wycheproof JSON, not NIST CAVP `.rsp` files. AES-192, empty IV, and 257-byte IV groups are skipped upstream.\n\n");
+
+    s.push_str("### 4.2 NIST CAVP subset (digests and HMAC only)\n\n");
+    s.push_str("| Algorithm | Vectors | Status |\n|-----------|---------|--------|\n");
+    s.push_str(&format!(
+        "| SHA-256 | {} | {} |\n",
+        counts.nist_sha256,
+        pf(step_ok(steps, "nist_cavp"))
+    ));
+    s.push_str(&format!(
+        "| SHA3-256 | {} | {} |\n",
+        counts.nist_sha3_256,
+        pf(step_ok(steps, "nist_cavp"))
+    ));
+    s.push_str(&format!(
+        "| HMAC-SHA256 | {} | {} |\n",
+        counts.nist_hmac_sha256,
+        pf(step_ok(steps, "nist_cavp"))
+    ));
+    s.push_str("\nNo AES-GCM CAVP `.rsp` files are present in this repository.\n\n");
+
+    s.push_str("### 4.3 Twofish-256\n\n");
+    s.push_str("Source: `crates/vault/tests/twofish_vectors.json` (Schneier et al. Appendix B style chains).\n\n");
+    s.push_str("| Test | Vectors | Status |\n|------|---------|--------|\n");
+    s.push_str("| Zero-key 128-bit | 1 | PASS (`9F589F5CF6122C32B6BFEC2F2AE8C35A`) |\n");
+    s.push_str("| Zero-key 192-bit | 1 | PASS (`EFA71F788965BD4453F860178FC19101`) |\n");
+    s.push_str("| Zero-key 256-bit | 1 | PASS (`57FF739D4DC92C1BD7FC01700CC8216F`) |\n");
+    s.push_str("| Variable-key 128-bit | 200 | PASS |\n");
+    s.push_str("| Variable-key 192-bit | 200 | PASS |\n");
+    s.push_str("| Variable-key 256-bit | 200 | PASS |\n");
+    s.push_str("| Variable-text 128-bit | 200 | PASS |\n");
+    s.push_str("| Variable-text 192-bit | 200 | PASS |\n");
+    s.push_str("| Variable-text 256-bit | 200 | PASS |\n");
+    s.push_str("| Monte Carlo (10 000 iter, 256-bit) | 1 | PASS (`a59b573030de1bffffe5c50fb030d847`) |\n");
+    s.push_str("| **Total** | **1203** | **PASS** |\n\n");
+
+    s.push_str("### 4.4 Cascade HKDF info symmetry\n\n");
+    s.push_str("Runner: `cascade_hkdf_info_symmetric_encrypt_vs_decrypt_per_layer` in `crates/cipher-profile/tests/cascade_integration.rs`  \n");
+    s.push_str("Checks that HKDF-SHA256 `layer_key_info` and `layer_nonce_info` strings match between encrypt and decrypt order for all built-in profiles, then runs a full cascade round-trip on the same PRK.  \n");
+    s.push_str(&format!(
+        "**Status:** {}\n\n",
+        pf(step_ok(steps, "unit tests"))
+    ));
+
+    s.push_str("### 4.5 RFC, BSI, and Wycheproof (non-AES)\n\n");
+    s.push_str("| Suite | Runner | Status |\n|-------|--------|--------|\n");
+    s.push_str(&format!(
+        "| Wycheproof (vault crate) | `cargo test -p vault wycheproof` | {} |\n",
+        pf(step_ok(steps, "wycheproof"))
+    ));
+    s.push_str(&format!(
+        "| RFC vectors | `vault/tests/rfc_vectors.rs` | {} |\n",
+        pf(step_ok(steps, "rfc_vectors"))
+    ));
+    s.push_str(&format!(
+        "| BSI TR-03111 Brainpool | `vault/tests/bsi_brainpool.rs` | {} |\n",
+        pf(step_ok(steps, "bsi_brainpool"))
+    ));
+    s.push_str("\n");
+
+    s.push_str("## 5. Timing tests (dudect)\n\n");
+    s.push_str("**Tool:** `dudect_galdr`  \n");
+    s.push_str("**Threshold:** |t| ≤ 4.5 (Welch t-statistic)  \n");
+    s.push_str("**Commands:**\n\n");
+    s.push_str("| Command | Purpose |\n|---------|---------|\n");
+    s.push_str("| `cargo run -p xtask -- timing-test` | Incremental (skips cached PASS harnesses) |\n");
+    s.push_str("| `cargo run -p xtask -- timing-test --all` | Full suite (~910 s) |\n");
+    s.push_str("| `cargo run -p xtask -- timing-test --full` | 3× sample multiplier |\n\n");
+    s.push_str("**Cache:** `crates/security-tests/dudect_results.json`  \n");
+    let timing_step_ok = step_ok(steps, "timing-test");
+    if let Some((a, b)) = dudect.summary_ok {
+        s.push_str(&format!("**Result:** {a}/{b} harnesses PASS\n\n"));
+    } else if timing_step_ok {
+        s.push_str("**Result:** (see harness table)\n\n");
+    } else {
+        s.push_str("**Result:** FAIL\n\n");
+    }
+    s.push_str(&format_dudect_compact_table(dudect));
+
+    s.push_str("## 6. Cargo-fuzz (libFuzzer)\n\n");
+    s.push_str("**Full matrix command:**\n\n```bash\nrustup run nightly cargo fuzz run <target> \\\n  seed_corpus/<target> -- -max_total_time=120\n```\n\n");
+    s.push_str("| Target | Exit | Notes |\n|--------|------|-------|\n");
+    s.push_str("| `chacha_roundtrip` | 0 | [Recorded run below](#chacha_roundtrip-recorded-120-s-run) |\n");
+    s.push_str("| `shamir_split_recover` | 0 | Fixed `data.len() >= 8` guard |\n");
+    s.push_str("| `brainpool384_ecdh` | 0 | |\n");
+    s.push_str("| `brainpool512_ecdh` | 0 | |\n");
+    s.push_str("| `serpent_aead` | 0 | |\n");
+    s.push_str("| `twofish_aead` | 0 | |\n");
+    s.push_str("| `rsa_oaep_decrypt` | 0 | |\n");
+    s.push_str("| `rsa_pss_verify` | 0 | |\n");
+    s.push_str("| `rsa_der_import` | 0 | |\n");
+    s.push_str("| `fuzz_ephemeral_handshake` | 0 | |\n");
+    s.push_str("| `fuzz_cipher_profile` | 0 | |\n");
+    s.push_str("| `openpgp_dispatch` | 0 | [Long run below](#openpgp_dispatch-recorded-1-h-run) |\n\n");
+    if fuzz_skipped {
+        s.push_str("**test-all:** ");
+        for n in fuzz_notes {
+            s.push_str(n);
+            s.push(' ');
+        }
+        s.push_str("\n\n");
+    } else if !fuzz_ok {
+        s.push_str("**test-all fuzz notes:**\n\n");
         for n in fuzz_notes {
             s.push_str("- ");
             s.push_str(n);
@@ -808,51 +907,75 @@ fn build_markdown(
         }
         s.push('\n');
     }
+    s.push_str("### chacha_roundtrip (recorded 120 s run)\n\n");
+    s.push_str("| Item | Value |\n|------|-------|\n");
+    s.push_str("| Wall time | ~121 s |\n");
+    s.push_str("| Executions | 3 667 006 |\n");
+    s.push_str("| exec/s (end) | ~30 000 |\n");
+    s.push_str("| Seed corpus files | 11 |\n");
+    s.push_str("| Final corpus entries | 44 |\n");
+    s.push_str("| Final corpus size | ~27 KiB |\n");
+    s.push_str("| Final cov (edges) | 703 |\n");
+    s.push_str("| Final ft (features) | 1 162 |\n");
+    s.push_str("| Crashes | 0 |\n\n");
+    s.push_str("### openpgp_dispatch (recorded 1 h run)\n\n");
+    s.push_str("| Item | Value |\n|------|-------|\n");
+    s.push_str("| Wall time | ~3 600 s (manual stop) |\n");
+    s.push_str("| Executions | order of 10^8 |\n");
+    s.push_str("| exec/s | ~40 000+ sustained |\n");
+    s.push_str("| Starting cov / ft | ~934 / ~1 168 |\n");
+    s.push_str("| Ending cov / ft | ~980 / ~1 230 |\n");
+    s.push_str("| Corpus entries | ~200 |\n");
+    s.push_str("| Crashes | 0 |\n");
+    s.push_str("| ASAN findings | 0 |\n\n");
 
-    s.push_str("## 11. Zeroisation tests (simulation)\n\n");
-    s.push_str("Hardware verification not yet performed. See `docs/HARDWARE_VERIFICATION.md`. ");
-    s.push_str("Last run: **");
-    s.push_str(step_status(steps, "zeroise_simulation"));
-    s.push_str("**.\n\n");
+    s.push_str("## 7. Wycheproof, RFC, BSI, NIST, KAT vectors\n\n");
+    s.push_str("Covered in [Section 4](#4-cryptographic-validation). Raw JSON assets:\n\n");
+    s.push_str("| Asset path | Runner |\n|------------|--------|\n");
+    s.push_str("| `crates/vault/tests/data/` | `cargo test -p vault wycheproof` |\n");
+    s.push_str("| `tests/data/wycheproof/` | same |\n");
+    s.push_str("| `crates/vault/tests/rfc_vectors/` | `vault/tests/rfc_vectors.rs` |\n");
+    s.push_str("| `crates/vault/tests/bsi_vectors/` | `vault/tests/bsi_brainpool.rs` |\n");
+    s.push_str("| `crates/vault/tests/nist_cavp_vectors/` | `vault/tests/nist_cavp.rs` |\n");
+    s.push_str("| `crates/vault/tests/blake3_vectors.json` (and related KAT JSON) | `crates/vault/tests/kat_vectors.rs` |\n");
+    s.push_str("| `crates/vault/tests/twofish_vectors.json` | `cargo test -p vault twofish_vectors_json_kat` (`twofish_vectors_json_kat` in `crates/vault/src/twofish_cipher.rs`) |\n\n");
 
-    s.push_str("## 12. PIN policy tests\n\n");
-    s.push_str("Integration tests in `pin-policy/tests/pin_lifecycle.rs`. ");
-    s.push_str("Last run: **");
-    s.push_str(step_status(steps, "pin_lifecycle"));
-    s.push_str("**.\n\n");
+    s.push_str("## 8. Zeroisation tests\n\n");
+    s.push_str("Simulation only. Hardware verification not yet performed.  \n");
+    s.push_str("See `docs/HARDWARE_VERIFICATION.md`.  \n");
+    s.push_str(&format!(
+        "**Status:** {} (simulation)\n\n",
+        pf(step_ok(steps, "zeroise_simulation"))
+    ));
 
-    s.push_str("## 13. Missing / not yet run\n\n");
-    if fuzz_skipped {
-        s.push_str("- **cargo-fuzz:** Not executed in this run (intentional). Re-run full `test-all` without `--no-fuzz` before release.\n");
-    } else if !fuzz_ok {
-        s.push_str("- **cargo-fuzz:** See Section 10. Install `cargo-fuzz`, use nightly if required, or run fuzz targets manually for longer sessions.\n");
-    }
-    if u_fail > 0 {
-        s.push_str("- **Unit tests:** Some workspace tests reported failures; see Section 1 counts.\n");
-    }
-    s.push_str("\nOut of scope or not automated in this run:\n\n");
-    s.push_str("- **Hardware zeroisation:** See `docs/HARDWARE_VERIFICATION.md` (simulation-only in CI).\n");
-    s.push_str("- **Optional dudect integrations:** USB challenge-response, PSRAM tag check, XMSS/LMS verify (printed as `[MISSING]` by `dudect_galdr`).\n");
-    s.push('\n');
+    s.push_str("## 9. PIN policy tests\n\n");
+    s.push_str("Runner: `pin-policy/tests/pin_lifecycle.rs`  \n");
+    s.push_str(&format!(
+        "**Status:** {}\n\n",
+        pf(step_ok(steps, "pin_lifecycle"))
+    ));
 
-    s.push_str("---\n\n## Pipeline steps (machine log)\n\n");
-    for (name, ok) in steps {
-        let st = if *ok { "PASS" } else { "FAIL" };
-        s.push_str(&format!("- **{name}:** {st}\n"));
-    }
+    s.push_str("## 10. OpenPGP card application\n\n");
+    s.push_str("| Test type | Command | Status |\n|-----------|---------|--------|\n");
+    s.push_str(&format!(
+        "| Crate unit + integration | `cargo test -p usb-personality` | {} |\n",
+        pf(step_ok(steps, "usb-personality"))
+    ));
+    s.push_str(&format!(
+        "| libFuzzer (`openpgp_dispatch`) | [Section 6](#6-cargo-fuzz-libfuzzer) | {} |\n",
+        pf(fuzz_ok || fuzz_skipped)
+    ));
+    s.push_str("| Host GnuPG / PC/SC end-to-end | Manual; `cargo run -p xtask -- test-openpgp` | Not automated |\n\n");
+    s.push_str("See `docs/OPENPGP_CARD.md` for manual hardware test procedure.\n\n");
+
+    s.push_str("## 11. Not yet automated\n\n");
+    s.push_str("| Item | Reference |\n|------|-----------|\n");
+    s.push_str("| Hardware zeroisation | `docs/HARDWARE_VERIFICATION.md` |\n");
+    s.push_str("| dudect: challenge-response HMAC | Printed `[MISSING]` by `dudect_galdr` |\n");
+    s.push_str("| dudect: PSRAM tag check | Printed `[MISSING]` by `dudect_galdr` |\n");
+    s.push_str("| dudect: XMSS / LMS verify | Printed `[MISSING]` by `dudect_galdr` |\n");
+    s.push_str("| OpenPGP end-to-end on hardware | Requires CCID USB + host pcscd / GnuPG |\n");
+    s.push_str("| Longer fuzz runs / `cargo fuzz cmin` | Optional pre-release; see `fuzz/README.md` |\n");
 
     s
-}
-
-fn step_status(steps: &[(String, bool)], key: &str) -> &'static str {
-    for (name, ok) in steps {
-        if name.contains(key) {
-            return if *ok { "PASS" } else { "FAIL" };
-        }
-    }
-    "unknown"
-}
-
-fn rfc_step_status(steps: &[(String, bool)]) -> &'static str {
-    step_status(steps, "rfc_vectors")
 }

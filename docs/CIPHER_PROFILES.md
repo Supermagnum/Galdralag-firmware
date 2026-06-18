@@ -11,9 +11,9 @@ key agreement and the Shamir configuration for long-term key recovery.
 | Name | Curve | Layers | Shamir | Use case |
 |------|-------|--------|--------|----------|
 | `standard` | BP256r1 | ChaCha20-Poly1305 | none | General use |
-| `conservative` | BP256r1 | Serpent-256 to ChaCha20-Poly1305 | none | NSA-independent cascade |
-| `conservative-shamir` | BP256r1 | Serpent-256 to ChaCha20-Poly1305 | 3/5 | Team deployments |
-| `high-assurance` | BP512r1 | Serpent-256 to Twofish-256 to ChaCha20-Poly1305 | 3/5 | Maximum defence-in-depth |
+| `conservative` | BP256r1 | ChaCha20-Poly1305 then Serpent-256 (matches CESS `suite_id` **0x0003**) | none | NSA-independent cascade |
+| `conservative-shamir` | BP256r1 | Same cascade as `conservative` | 3/5 | Team deployments |
+| `high-assurance` | BP512r1 | ChaCha20-Poly1305 then Serpent-256 (matches CESS `suite_id` **0x0012**) | 3/5 | Strong cascade + P512 |
 
 ## Defining a custom profile
 

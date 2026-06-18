@@ -1,4 +1,4 @@
-//! Dudect harnesses for [`cipher_profile::cascade::cascade_decrypt`] (conservative profile: Serpent then ChaCha).
+//! Dudect harnesses for [`cipher_profile::cascade::cascade_decrypt`] (conservative profile: ChaCha inner, Serpent outer).
 
 use crate::dudect_sample_counts::samples_for_harness;
 use crate::dudect_stats::{update_ct_stats, Class, CtRunner, CtSummary};

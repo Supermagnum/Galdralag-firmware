@@ -1,5 +1,20 @@
 # Galdr — Galdralag Firmware
 
+## Open Invention Network
+
+![Open Invention Network member](docs/oin-member-horiz.jpg)
+
+This project is **registered with the [Open Invention Network (OIN)](https://openinventionnetwork.com/)**. OIN is a defensive patent pool: members cross-license Linux-related patents so participants can ship and use open-source software with reduced patent exposure.
+
+## Skipped and ignored tests
+
+Not every test runs in every command; that is intentional.
+
+- **`xtask` not in the default workspace test:** The common recipe is `cargo test --workspace --exclude xtask` because `xtask` is a build-orchestration crate. Run `cargo test -p xtask` when you want its tests.
+- **Tests marked `#[ignore]`:** These are skipped unless you pass `--ignored` (and any needed crate filters). Reasons include: coverage that is already exercised in focused unit tests (e.g. post-drop zeroization), **slow** cases (e.g. RSA key generation), and **hardware or token-dependent** flows in host tools such as `galdra` that need a connected device or fixtures.
+- **`test-all --no-fuzz`:** Skips the **cargo-fuzz** step to keep CI or quick runs short and to avoid requiring a nightly toolchain for that step; run `cargo run -p xtask -- test-all` without `--no-fuzz`, or invoke fuzz targets separately (see [`fuzz/README.md`](fuzz/README.md)).
+- **Conformance vector suites:** Some groups are not executed (for example certain AES-GCM Wycheproof cases); see [`docs/TEST_RESULTS.md`](docs/TEST_RESULTS.md) for what is in scope.
+
 > **Status:** Ready for testing by humans — no production-ready release exists.
 > It's written in Rust using validated and audited crypto crates. 
 > Cryptographic primitives are drawn exclusively from audited workspace
@@ -16,6 +31,8 @@ It is ready for testing by humans. **You** decide whether to build or run any of
 
 ## Table of contents
 
+- [Open Invention Network](#open-invention-network)
+- [Skipped and ignored tests](#skipped-and-ignored-tests)
 - [Why Rust?](#why-rust)
   - [Memory Safety](#memory-safety)
   - [System-level robustness (with limits)](#system-level-robustness-with-limits)
@@ -177,7 +194,7 @@ Architecture notes for this repository: [docs/ARCHITECTURE.md](docs/ARCHITECTURE
 
 The only remaining work before physical hardware works is the Xous USB service wiring — and that is documented in [docs/XOUS_CCID_INTEGRATION.md](docs/XOUS_CCID_INTEGRATION.md), waiting for the BSP crates to be available.
 
-At that point the project will be a complete, tested, open-source hardware security token firmware: **OpenPGP card–style behaviour** for GnuPG over CCID (see [OpenPGP and GnuPG compatibility](#openpgp-and-gnupg-compatibility)), plus **additional on-device features** not currently defined by the OpenPGP card standard — ephemeral ECDH with forward secrecy, Shamir K-of-N, cipher-agnostic profiles, PSRAM decoy volume — as summarised in [Standards vs. firmware-specific features](#standards-vs-firmware-specific-features). All on open RTL with a reproducible bootloader.
+At that point the project will be a complete, tested, open-source hardware security token firmware: **OpenPGP card–style behaviour** for GnuPG over CCID (see [OpenPGP and GnuPG compatibility](#openpgp-and-gnupg-compatibility)), plus **additional on-device features** not currently defined by the OpenPGP card standard — ephemeral ECDH with forward secrecy, Shamir K-of-N, cipher-agnostic profiles, microSD decoy volume — as summarised in [Standards vs. firmware-specific features](#standards-vs-firmware-specific-features). All on open RTL with a reproducible bootloader.
 
 ### Signed firmware (Ed25519, boot0)
 
@@ -204,13 +221,13 @@ Shippable firmware for **Baochip-1x** is **signed** with **Ed25519**. You sign t
 | [docs/XOUS_CCID_INTEGRATION.md](docs/XOUS_CCID_INTEGRATION.md) | Wiring CCID/OpenPGP USB into Xous on Baochip |
 | [docs/CIPHER_PROFILES.md](docs/CIPHER_PROFILES.md) | Cipher profile system and configuration |
 | [docs/CIPHER_PROFILE_SECURITY.md](docs/CIPHER_PROFILE_SECURITY.md) | Security considerations: cleartext profile identifiers, traffic analysis, BrainpoolP384r1 outer-wrapper rationale, encrypted identifiers, wildcard property |
-| [docs/CESS_CONFORMANCE.md](docs/CESS_CONFORMANCE.md) | [CESS](https://github.com/Supermagnum/CESS/tree/main) alignment: Mode A wire layout, provisional `suite_id`s, deviation register (retained AES/SHA-2 vs CESS-CORE), roadmap |
+| [docs/CESS_CONFORMANCE.md](docs/CESS_CONFORMANCE.md) | [CESS](https://github.com/Supermagnum/CESS/tree/main) alignment: Mode A wire layout, `suite_id` from [ALGORITHM-REGISTRY.md — lookup table](https://github.com/Supermagnum/CESS/blob/main/ALGORITHM-REGISTRY.md#cipher-suite-identifier-lookup-table), deviation register (retained AES/SHA-2 vs CESS-CORE), roadmap |
 | [crates/cess](crates/cess) | CESS Mode A: HKDF-BLAKE3 (`derive_k_outer`, `hkdf_blake3`), ChaCha outer seal/open, `suite_id \|\| inner_blob` layout; see [CESS_CONFORMANCE.md](docs/CESS_CONFORMANCE.md) |
 | [docs/EPHEMERAL_SESSION.md](docs/EPHEMERAL_SESSION.md) | Authenticated ephemeral ECDH session protocol |
 | [Supermagnum/CESS](https://github.com/Supermagnum/CESS) | **CESS** (*Cryptologically Enchanted Shamir's Secret*) — open specification (normative text and test vectors) for threshold secret sharing with authenticated encryption, password-based share wrapping, and optional post-quantum hybrid key exchange; separate from this firmware but in the same design space as Shamir and cipher profiles here |
 | [docs/PQ_SIGNATURES.md](docs/PQ_SIGNATURES.md) | Post-quantum stateful signatures (XMSS, LMS/HSS), feature gating |
-| [docs/Psram.md](docs/Psram.md) | Optional PSRAM decoy volume and related behaviour |
-| [docs/TEST_RESULTS.md](docs/TEST_RESULTS.md#last-full-run) | Opens at **Last full run**; vectors, dudect, cargo-fuzz ([Section 10](docs/TEST_RESULTS.md#10-cargo-fuzz-libfuzzer-summary)), key lifecycle |
+| [docs/Psram.md](docs/Psram.md) | Optional microSD decoy volume and related behaviour |
+| [docs/TEST_RESULTS.md](docs/TEST_RESULTS.md#last-full-run) | Opens at **Last full run**; pipeline summary, vectors, dudect, cargo-fuzz ([Section 6](docs/TEST_RESULTS.md#6-cargo-fuzz-libfuzzer)), key lifecycle |
 | [docs/PERFORMANCE.md](docs/PERFORMANCE.md) | Performance notes |
 | [docs/HARDWARE_VERIFICATION.md](docs/HARDWARE_VERIFICATION.md) | Hardware zeroisation: simulation vs silicon verification |
 | [docs/HARDWARE_TEST.md](docs/HARDWARE_TEST.md) | Hardware-oriented testing notes |
@@ -241,7 +258,7 @@ The firmware implements the **OpenPGP card application** (documented as version 
 
 **OpenPGP card vs. OpenPGP messages:** The **card** specification defines how the token exposes PINs, key slots, and on-card operations over CCID. **GnuPG** uses that through `scdaemon`. The **OpenPGP message format** for files and mail (RFC 4880 and successors) is a **host-side** layer: the card supplies keys; GnuPG still applies the message format on the PC. Neither the card spec nor RFC 4880 defines **Shamir splitting**, **ephemeral ECDH sessions**, or **cipher profiles** — those are [firmware-specific](#standards-vs-firmware-specific-features).
 
-**Integration status:** The OpenPGP and CCID logic lives in **`usb-personality`** and is covered by unit tests, integration tests, and the **`openpgp_dispatch`** fuzz target (see [TEST_RESULTS — Section 10](docs/TEST_RESULTS.md#10-cargo-fuzz-libfuzzer-summary)). Wiring the USB **CCID** service into the running **Xous** image is still **integration work**; follow [docs/XOUS_CCID_INTEGRATION.md](docs/XOUS_CCID_INTEGRATION.md). Until that is done, **end-to-end GnuPG against real hardware** is not available, even though the card application behaviour is implemented in firmware sources.
+**Integration status:** The OpenPGP and CCID logic lives in **`usb-personality`** and is covered by unit tests, integration tests, and the **`openpgp_dispatch`** fuzz target (see [TEST_RESULTS — Section 6](docs/TEST_RESULTS.md#6-cargo-fuzz-libfuzzer)). Wiring the USB **CCID** service into the running **Xous** image is still **integration work**; follow [docs/XOUS_CCID_INTEGRATION.md](docs/XOUS_CCID_INTEGRATION.md). Until that is done, **end-to-end GnuPG against real hardware** is not available, even though the card application behaviour is implemented in firmware sources.
 
 ---
 
@@ -257,7 +274,7 @@ Different parts of this project align with different standards. **GnuPG interope
 | **Shamir K-of-N** — split / recover long-term key material in the vault | Not in OpenPGP card spec; not in GnuPG | **No** — firmware and provisioning tools only; not a `gpg --card-edit` operation (see [Shamir and full-disk encryption](#shamir-secret-sharing-and-drive-encryption)) |
 | **Authenticated ephemeral ECDH** — forward-secret session protocol on the token | Not in OpenPGP card spec | **No** — token-specific; not a GnuPG card command |
 | **Cipher profile system** — named cipher cascades and related policy | Not in OpenPGP card spec | **No** — firmware / host token tools |
-| **PSRAM decoy / mass-storage personas** — uninformed-host USB behaviour | Not in OpenPGP card spec | **No** — separate USB personality code paths |
+| **microSD decoy / mass-storage personas** — uninformed-host USB behaviour | Not in OpenPGP card spec | **No** — separate USB personality code paths |
 | **WebAuthn / FIDO2** | CTAP / WebAuthn | **Not implemented** — different standard from OpenPGP card |
 
 For day-to-day **card** behaviour, rely on [docs/OPENPGP_CARD.md](docs/OPENPGP_CARD.md). For **vault-only** or **token-unique** features, use this repository’s firmware and [Galdra tool](docs/GALDRA-TOOL.md) documentation.
@@ -479,15 +496,15 @@ The items below are **Galdralag firmware capabilities**, not requirements of the
 
 - **Cipher-agnostic profile system** — symmetric ciphers, ECDHE curves, and
   Shamir configuration are combined into named, auditable profiles. A cascade
-  of multiple independent ciphers (e.g. Serpent-256 + ChaCha20-Poly1305) can
+  of multiple independent ciphers (e.g. ChaCha20-Poly1305 + Serpent-256 per CESS cascade rows) can
   be selected per session. Every profile selection is logged in the audit trail.
 
-- **Optional PSRAM decoy volume** — if a PSRAM chip is fitted, an extra bulk
-  decoy LUN can appear after unlock. **If no PSRAM is fitted, the device is
+- **Optional microSD decoy volume** — if a PSRAM chip is fitted, an extra bulk
+  decoy LUN can appear after unlock. **If no microSD is fitted, the device is
   still a hardware security token** (vault, PIN policy, OpenPGP/CCID, and other
   token functions are unchanged); only that optional bulk volume is absent. For
   uninformed hosts, the device still presents the usual on-chip mass-storage
-  decoy persona where configured. PSRAM content, when present, is intentionally
+  decoy persona where configured. MicroSD content, when present, is intentionally
   unencrypted and unremarkable. Real key material lives in on-chip RRAM behind
   the vault and PIN policy.
 
@@ -626,7 +643,7 @@ confirmation) has not yet been performed. See
 
 ## Test results
 
-Authoritative write-up: **[`docs/TEST_RESULTS.md#last-full-run`](docs/TEST_RESULTS.md#last-full-run)** (commit, scope, and how sections are organised). That page includes unit test totals, vector coverage (Wycheproof, RFC, BSI, NIST CAVP), **dudect** timing caches, key lifecycle checks, and **[Section 10 — cargo-fuzz](docs/TEST_RESULTS.md#10-cargo-fuzz-libfuzzer-summary)** (matrices, **`chacha_roundtrip`**, recorded **`openpgp_dispatch`** long run). **You** decide whether those results are enough to try building or running this project; a **virtual machine** remains optional but **reduces** host risk.
+Authoritative write-up: **[`docs/TEST_RESULTS.md#last-full-run`](docs/TEST_RESULTS.md#last-full-run)** (commit, scope, and how sections are organised). That page includes the **pipeline summary** table, unit test totals, vector coverage (Wycheproof, RFC, BSI, NIST CAVP), **dudect** timing table, key lifecycle checks, and **[Section 6 — cargo-fuzz](docs/TEST_RESULTS.md#6-cargo-fuzz-libfuzzer)** (matrices, **`chacha_roundtrip`**, recorded **`openpgp_dispatch`** long run). **You** decide whether those results are enough to try building or running this project; a **virtual machine** remains optional but **reduces** host risk.
 
 ```
 cargo run -p xtask -- test-all
@@ -642,7 +659,7 @@ cargo run -p xtask -- test-all
 | `vault` | RRAM vault contracts, HKDF `KeyPurpose` labels, key material types (`zeroize`, no `Clone`/`Copy`) |
 | `pin-policy` | PIN state machine; counter increment before `subtle::ConstantTimeEq`; threshold zeroisation |
 | `usb-personality` | Mass-storage vs authenticated-unlock personas; challenge/response; OpenPGP/CCID card application; USB disconnect-on-lock |
-| `psram-store` | Optional PSRAM block device; probe-absent short-circuit; mount/unmount access gate |
+| `psram-store` | Optional microSD bulk block device (decoy volume); probe-absent short-circuit; mount/unmount access gate |
 | `ephemeral-session` | Authenticated ephemeral ECDH session protocol; forward secrecy |
 | `cipher-profile` | User-configurable cipher cascade profiles; built-in and user-defined |
 | `cess` | HKDF-BLAKE3 `K_outer`, ChaCha outer AEAD, `suite_id \|\| inner_blob`; see [CESS_CONFORMANCE.md](docs/CESS_CONFORMANCE.md) |

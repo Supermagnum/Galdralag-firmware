@@ -15,10 +15,15 @@ extern crate alloc;
 
 mod hkdf_blake3;
 mod mode_a;
+mod registry_ids;
 mod wire;
+
+#[cfg(test)]
+mod spec_tests;
 
 pub use hkdf_blake3::{derive_k_outer, hkdf_blake3, hmac_blake3};
 pub use mode_a::{open_mode_a_outer, seal_mode_a_outer, CessCryptoError};
+pub use registry_ids::{is_listed_suite_id, LISTED_SUITE_ID_RANGES};
 pub use wire::{
     assemble_mode_a_outer_plaintext, parse_mode_a_outer_plaintext, CessWireError, SuiteId,
 };
@@ -34,30 +39,36 @@ pub const SUITE_ID_RESERVED: u16 = 0;
 /// `K_outer` (CESS §6.1.1).
 pub const WIRE_CURVE_BRAINPOOL_P384: u8 = 0x02;
 
-/// Provisional **16-bit** suite identifiers for built-in Galdralag profile names.
+/// Canonical **`suite_id`** values from the CESS [**Cipher suite identifier lookup
+/// table**](https://github.com/Supermagnum/CESS/blob/main/ALGORITHM-REGISTRY.md#cipher-suite-identifier-lookup-table).
+/// Per CESS Section 8.5, the **lookup table** is **authoritative**; informative bit-field layouts in
+/// the registry **must not** override a table row.
 ///
-/// Values live in the **private-use** range until allocated in the CESS
-/// [ALGORITHM-REGISTRY](https://github.com/Supermagnum/CESS/blob/main/ALGORITHM-REGISTRY.md).
-/// **Do not** treat these as stable across releases until registered upstream.
-pub mod provisional {
-    /// `standard` profile (`cipher-profile` built-in).
-    pub const GALDRALAG_STANDARD: u16 = 0xE001;
-    /// `conservative` profile.
-    pub const GALDRALAG_CONSERVATIVE: u16 = 0xE002;
-    /// `conservative-shamir` profile.
-    pub const GALDRALAG_CONSERVATIVE_SHAMIR: u16 = 0xE003;
-    /// `high-assurance` profile.
-    pub const GALDRALAG_HIGH_ASSURANCE: u16 = 0xE004;
+/// Built-in Galdralag profile names map to these rows so Mode A outer `suite_id` matches the registry.
+pub mod registry {
+    /// `0x0001` — default **CESS-CORE** inner profile: ChaCha20-Poly1305 (BrainpoolP384r1 classical KEM per table).
+    pub const CESS_CORE_DEFAULT_CHACHA: u16 = 0x0001;
+    /// `0x0003` — cascade ChaCha inner, Serpent outer (BrainpoolP384r1 classical KEM per table).
+    pub const CASCADE_CHACHA_INNER_SERPENT_OUTER_P384: u16 = 0x0003;
+    /// `0x0012` — cascade ChaCha inner, Serpent outer (BrainpoolP512r1 classical KEM per table).
+    pub const CASCADE_CHACHA_INNER_SERPENT_OUTER_P512: u16 = 0x0012;
+}
 
-    /// Map a built-in profile name to a provisional suite id, if known.
-    pub fn suite_id_for_profile_name(name: &str) -> Option<u16> {
-        match name {
-            "standard" => Some(GALDRALAG_STANDARD),
-            "conservative" => Some(GALDRALAG_CONSERVATIVE),
-            "conservative-shamir" => Some(GALDRALAG_CONSERVATIVE_SHAMIR),
-            "high-assurance" => Some(GALDRALAG_HIGH_ASSURANCE),
-            _ => None,
+/// Map a **built-in** [`cipher-profile`](https://github.com/Supermagnum/Galdralag-firmware/tree/main/crates/cipher-profile)
+/// name to the CESS registry **`suite_id`** for Mode A outer plaintext (`suite_id || inner_blob`).
+/// Only IDs listed in the upstream lookup table are emitted; see registry for **unknown `suite_id`**
+/// handling and **Ed25519**-signed rows (`0x0200`–…).
+///
+/// Custom profiles are not listed in the built-in map; host tools that wrap with Mode A require a
+/// registry-backed or deployment-specific assignment.
+pub fn suite_id_for_profile_name(name: &str) -> Option<u16> {
+    match name {
+        "standard" => Some(registry::CESS_CORE_DEFAULT_CHACHA),
+        "conservative" | "conservative-shamir" => {
+            Some(registry::CASCADE_CHACHA_INNER_SERPENT_OUTER_P384)
         }
+        "high-assurance" => Some(registry::CASCADE_CHACHA_INNER_SERPENT_OUTER_P512),
+        _ => None,
     }
 }
 
@@ -68,9 +79,9 @@ mod tests {
     #[test]
     fn roundtrip_outer_plaintext() {
         let inner = [1u8, 2, 3, 4, 5];
-        let packed = assemble_mode_a_outer_plaintext(0xE001, &inner).unwrap();
+        let packed = assemble_mode_a_outer_plaintext(0x0001, &inner).unwrap();
         let (id, blob) = parse_mode_a_outer_plaintext(&packed).unwrap();
-        assert_eq!(id, 0xE001);
+        assert_eq!(id, 0x0001);
         assert_eq!(blob, inner.as_slice());
     }
 
@@ -80,10 +91,49 @@ mod tests {
     }
 
     #[test]
-    fn provisional_names() {
+    fn builtin_profile_maps_to_registry_table() {
+        for name in [
+            "standard",
+            "conservative",
+            "conservative-shamir",
+            "high-assurance",
+        ] {
+            let id = suite_id_for_profile_name(name).expect("builtin profile");
+            assert!(
+                is_listed_suite_id(id),
+                "profile {name} maps to {id:#06x}, must be in ALGORITHM-REGISTRY lookup table"
+            );
+        }
         assert_eq!(
-            provisional::suite_id_for_profile_name("standard"),
-            Some(provisional::GALDRALAG_STANDARD)
+            suite_id_for_profile_name("standard"),
+            Some(registry::CESS_CORE_DEFAULT_CHACHA)
         );
+        assert_eq!(
+            suite_id_for_profile_name("conservative"),
+            Some(registry::CASCADE_CHACHA_INNER_SERPENT_OUTER_P384)
+        );
+        assert_eq!(
+            suite_id_for_profile_name("conservative-shamir"),
+            Some(registry::CASCADE_CHACHA_INNER_SERPENT_OUTER_P384)
+        );
+        assert_eq!(
+            suite_id_for_profile_name("high-assurance"),
+            Some(registry::CASCADE_CHACHA_INNER_SERPENT_OUTER_P512)
+        );
+    }
+
+    #[test]
+    fn registry_constants_match_listed_table() {
+        assert!(is_listed_suite_id(registry::CESS_CORE_DEFAULT_CHACHA));
+        assert!(is_listed_suite_id(registry::CASCADE_CHACHA_INNER_SERPENT_OUTER_P384));
+        assert!(is_listed_suite_id(registry::CASCADE_CHACHA_INNER_SERPENT_OUTER_P512));
+    }
+
+    #[test]
+    fn gaps_in_table_are_unlisted() {
+        assert!(!is_listed_suite_id(0x0000));
+        assert!(!is_listed_suite_id(0x0031));
+        assert!(!is_listed_suite_id(0x0103));
+        assert!(!is_listed_suite_id(0xFFFF));
     }
 }

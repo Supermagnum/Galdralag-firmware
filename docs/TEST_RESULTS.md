@@ -1,477 +1,281 @@
+<!--
+MAINTENANCE CONTRACT FOR THIS FILE
+
+1. Update the metadata block (date, commit, flags) on every full run.
+2. Update the pipeline summary table only — do not add prose PASS
+   lines anywhere else in the file.
+3. dudect: update only the t-statistic column and samples column in
+   the timing table. Do not add or remove per-harness subsections.
+4. Fuzz: update the recorded-run tables when a new long run is done.
+   Keep at most two recorded runs per target (latest + one notable).
+5. New test area: add one row to the pipeline summary table and one
+   subsection under the appropriate section. No other changes needed.
+6. Do not duplicate pass/fail status between sections. The pipeline
+   summary table is the single source of truth.
+7. When `#[ignore]` tests are added or removed, update Section 3.1 so the
+   breakdown still matches the **ignored** count in the pipeline summary.
+-->
+
 # Test Results
 
 ## Last full run
 
-- **Date (UTC):** 2026-03-27T03:25:00Z
-- **Commit:** `b5c905d1ae57133e212ed5f6e67f0646f5018518`
-- **xtask version:** 0.1.0 (fuzz skipped via `--no-fuzz`)
-
-**Section 1** unit-test totals were recomputed at this commit with `cargo test --workspace --exclude xtask` (sum of every `test result:` line). **Section 9** lists t-statistics from **`crates/security-tests/dudect_results.json`** (authoritative PASS cache updated when `cargo run -p xtask -- timing-test` succeeds). Values are host-dependent. For a **full** dudect sweep (~910 s on a typical developer machine), use `timing-test --all`; the default `timing-test` skips harnesses already marked PASS in that JSON file. **Section 10** records **cargo-fuzz** (libFuzzer) runs: a detailed **`chacha_roundtrip`** sample, a recorded long **`openpgp_dispatch`** run (OpenPGP APDU + vault backend), and a **full 12-target** matrix (`-max_total_time=120` each, `seed_corpus/`).
-
-## 1. Unit tests
-
-| Scope | Passed | Failed | Ignored (`#[ignore]`) | Status |
-|-------|--------|--------|-------------------------|--------|
-| Workspace (excluding xtask), summed `test result` lines | 398 | 0 | 14 | PASS |
-
-## 2. Cryptographic validation detail
-
-When the corresponding `cargo test` steps pass, the following counts apply. AES-GCM bulk validation uses **Google Wycheproof** JSON (`aes_gcm_test.json`), not NIST CAVP `.rsp` files; the `nist_cavp` integration test covers SHA-2 / SHA-3 / HMAC only (see below).
-
-### AES-GCM validation results (Wycheproof)
-
-Runner: `crates/vault/src/wycheproof_aes_gcm.rs` (128-bit tag, AES-128/AES-256, IV sizes supported by the runner). Skipped upstream groups: AES-192 keys, empty IV, 257-byte IV.
-
-**AES-128-GCM:**
-
-    Test Status: 105 out of 105 applicable vectors passing (100% when `wycheproof_aes_gcm_json` passes)
-    Passing vectors: decrypt checks including cases with AAD (Additional Authenticated Data)
-    Conclusion: AES-128-GCM path exercised against Wycheproof `aes_gcm_test.json` for supported key/IV sizes
-
-**AES-256-GCM:**
-
-    Test Status: 102 out of 102 applicable vectors passing (100% when `wycheproof_aes_gcm_json` passes)
-    Passing vectors: decrypt checks including cases with AAD
-    Conclusion: AES-256-GCM path exercised against Wycheproof `aes_gcm_test.json` for supported key/IV sizes
-
-**Additional (host unit test):** `galdr-core` `aes256_gcm_nist_one_block` runs one AES-256-GCM encrypt/decrypt round-trip (smoke, not a NIST CAVP `.rsp` file).
-
-### RFC 8439 ChaCha20-Poly1305
-
-    Test Status: 1 out of 1 JSON vectors in `vault/tests/rfc_vectors/rfc8439_chacha.json` (100% when `rfc8439_chacha20_poly1305_aead` passes)
-    Passing vectors: RFC 8439 Section 2.8.2 style AEAD (ciphertext + tag); includes AAD
-    Additional: `galdr-core` `chacha20poly1305_rfc8439_aead` repeats the same RFC example as an independent cross-check
-    Conclusion: ChaCha20-Poly1305 validated against the in-tree RFC 8439 JSON vectors
-
-### NIST CAVP subset (SHA-2 / SHA-3 / HMAC)
-
-Runner: `vault/tests/nist_cavp.rs`.
-
-    Test Status: SHA-256: 2 vector(s); SHA3-256: 1 vector(s); HMAC-SHA256: 1 vector(s); **total 4** (100% when `nist_cavp` passes)
-    Conclusion: Subset of NIST CAVP-style KATs for digests and HMAC (no AES-GCM CAVP files in this repo)
-
-### Encryption timing (dudect)
-
-    Tool: Welch t-statistic harnesses via `cargo run -p xtask -- timing-test` (binary `dudect_galdr`; threshold |t| <= 4.5).
-    Covers constant-time comparisons, AEAD tag checks (ChaCha20-Poly1305, AES-GCM, Serpent, Twofish EtM), HMAC verify, HKDF, Ed25519/X25519, Brainpool ECDH (reduced samples on slow curves), ephemeral-session ECDH (10k samples), Brainpool handshake signature verify, InMemoryTrustStore fingerprint lookup, Shamir, PBKDF2, SHA-2/SHA-3, BLAKE2/BLAKE3, PIN compare, RSA constant-time equality on modulus-sized buffers, etc.
-    Pipeline: `test-all` runs a **full** `dudect_galdr` (all harnesses; no PASS cache). Section 9 documents results aligned with **`dudect_results.json`**, which incremental `timing-test` runs extend after each successful pass.
-
-## 3. Wycheproof vector results
-
-Vectors live under `crates/vault/tests/data/` and `tests/data/wycheproof/`. Run: `cargo test -p vault wycheproof`. When this step passes, all Wycheproof-driven tests in the vault crate succeed; per-vector accounting is in the vault test sources and upstream JSON tcId fields.
-
-## 4. RFC test vector results
-
-JSON under `crates/vault/tests/rfc_vectors/`, runner: `vault/tests/rfc_vectors.rs`. Last `test-all` step: **PASS**.
-
-## 5. BSI test vector results
-
-JSON under `crates/vault/tests/bsi_vectors/`, runner: `vault/tests/bsi_brainpool.rs` (TR-03111 cross-checks). Last run: **PASS**.
-
-## 6. NIST CAVP vector results
-
-Subset JSON under `crates/vault/tests/nist_cavp_vectors/`, runner `vault/tests/nist_cavp.rs`. Last run: **PASS**.
-
-## 7. Known-answer test (KAT) results
-
-Runner `vault/tests/kat_vectors.json` assets (Twofish/Serpent/Shamir/BLAKE3 as present). Last run: **PASS**.
-
-### Twofish-256
-
-Source: `crates/vault/tests/twofish_vectors.json` (Schneier et al. Appendix B style chains; zero-key ciphertexts match the Twofish specification).
-
-- **Test status:** 1203 / 1203 vectors passing when `twofish_vectors_json_kat` passes
-- **Zero-key 128-bit:** PASS (expected: `9F589F5CF6122C32B6BFEC2F2AE8C35A`)
-- **Zero-key 192-bit:** PASS (expected: `EFA71F788965BD4453F860178FC19101`)
-- **Zero-key 256-bit:** PASS (expected: `57FF739D4DC92C1BD7FC01700CC8216F`)
-- **Variable-key set (128 / 192 / 256-bit key):** 200 / 200 each
-- **Variable-text set (128 / 192 / 256-bit key):** 200 / 200 each
-- **Monte Carlo (10,000 iterations, 256-bit key):** PASS (final ciphertext `a59b573030de1bffffe5c50fb030d847`)
-- **dudect (tag check):** PASS (representative t = -1.74366 for `timing_twofish_tag_check` in Section 9).
-## 8. Key lifecycle tests
-
-Integration tests in `vault/tests/key_lifecycle.rs`. Last run: **PASS**.
-
-## 9. dudect timing results
-
-**Commands (xtask):**
-
-- `cargo run -p xtask -- timing-test` — runs harnesses **not** yet recorded as PASS in **`crates/security-tests/dudect_results.json`** (fast for day-to-day work).
-- `cargo run -p xtask -- timing-test --all` — full suite (~910 s typical); ignores the cache.
-- `cargo run -p xtask -- timing-test --full` — 3x sample multiplier for whatever harnesses run (often combined with `--all` before release).
-- `cargo run -p xtask -- timing-test timing_sha256 …` — run only named harnesses (cache ignored for those names).
-
-Binary: **`dudect_galdr`**, threshold **|t| <= 4.5**. **PASS** rows in **`dudect_results.json`** are merged from JSON lines on stdout when a run exits 0. t-statistics are host-dependent; the table matches the checked-in cache at [Last full run](#last-full-run).
-
-**Summary:** 29/29 executed harnesses passed threshold (|t| <= 4.5) in the recorded cache.
-
-**Elapsed:** a **full** `--all` run is on the order of **~910 s** on a developer machine; incremental runs only time non-cached harnesses (for example ~155 s when five remained).
-
-| Harness | Samples | t-statistic | Threshold | Status |
-|---------|---------|-------------|-----------|--------|
-| `timing_subtle_eq_u256` | 100000 | -1.37078 | ±4.5 | PASS |
-| `timing_chacha_tag_check` | 100000 | +1.52140 | ±4.5 | PASS |
-| `timing_aes_gcm_tag_check` | 100000 | -0.85914 | ±4.5 | PASS |
-| `timing_hmac_verify` | 100000 | -2.06906 | ±4.5 | PASS |
-| `timing_hkdf_derive` | 100000 | -3.50326 | ±4.5 | PASS |
-| `timing_ed25519_verify` | 100000 | +1.51008 | ±4.5 | PASS |
-| `timing_x25519_ecdh` | 100000 | +1.77939 | ±4.5 | PASS |
-| `timing_brainpool256_scalar_mult` | 5000 | +1.48477 | ±4.5 | PASS |
-| `timing_brainpool384_scalar_mult` | 5000 | -2.67990 | ±4.5 | PASS |
-| `timing_brainpool512_scalar_mult` | 15000 | -1.55175 | ±4.5 | PASS |
-| `timing_ephemeral_ecdh` | 10000 | +3.18711 | ±4.5 | PASS |
-| `timing_signature_verify` | 10000 | -2.33506 | ±4.5 | PASS |
-| `timing_fingerprint_lookup` | 100000 | +2.58782 | ±4.5 | PASS |
-| `timing_shamir_recover` | 100000 | +1.91206 | ±4.5 | PASS |
-| `timing_serpent_tag_check` | 100000 | -2.15022 | ±4.5 | PASS |
-| `timing_twofish_tag_check` | 100000 | -1.74366 | ±4.5 | PASS |
-| `timing_cascade_auth_failure` | 100000 | +2.19458 | ±4.5 | PASS |
-| `timing_cascade_inner_vs_outer_failure` | 100000 | +1.55774 | ±4.5 | PASS |
-| `timing_pin_compare` | 100000 | -1.82845 | ±4.5 | PASS |
-| `timing_rsa_oaep_decrypt` | 100000 | -1.68044 | ±4.5 | PASS |
-| `timing_rsa_pss_verify` | 100000 | +2.99207 | ±4.5 | PASS |
-| `timing_pbkdf2` | 100000 | -2.44431 | ±4.5 | PASS |
-| `timing_sha256` | 100000 | -1.31473 | ±4.5 | PASS |
-| `timing_sha512` | 100000 | -1.95467 | ±4.5 | PASS |
-| `timing_sha3_256` | 200000 | -3.89831 | ±4.5 | PASS |
-| `timing_sha3_512` | 200000 | -1.51956 | ±4.5 | PASS |
-| `timing_blake2b` | 100000 | +2.04292 | ±4.5 | PASS |
-| `timing_blake2s` | 100000 | -2.53810 | ±4.5 | PASS |
-| `timing_blake3` | 100000 | -1.47562 | ±4.5 | PASS |
-
-### timing_subtle_eq_u256
-
-- Samples: 100000
-- t-statistic: -1.37078
-- Threshold: ±4.5
-- Status: PASS
-
-### timing_chacha_tag_check
-
-- Samples: 100000
-- t-statistic: +1.52140
-- Threshold: ±4.5
-- Status: PASS
-
-### timing_aes_gcm_tag_check
-
-- Samples: 100000
-- t-statistic: -0.85914
-- Threshold: ±4.5
-- Status: PASS
-
-### timing_hmac_verify
-
-- Samples: 100000
-- t-statistic: -2.06906
-- Threshold: ±4.5
-- Status: PASS
-
-### timing_hkdf_derive
-
-- Samples: 100000
-- t-statistic: -3.50326
-- Threshold: ±4.5
-- Status: PASS
-
-### timing_ed25519_verify
-
-- Samples: 100000
-- t-statistic: +1.51008
-- Threshold: ±4.5
-- Status: PASS
-
-### timing_x25519_ecdh
-
-- Samples: 100000
-- t-statistic: +1.77939
-- Threshold: ±4.5
-- Status: PASS
-
-### timing_brainpool256_scalar_mult
-
-- Samples: 5000
-- t-statistic: +1.48477
-- Threshold: ±4.5
-- Status: PASS
-
-### timing_brainpool384_scalar_mult
-
-- Samples: 5000
-- t-statistic: -2.67990
-- Threshold: ±4.5
-- Status: PASS
-
-### timing_brainpool512_scalar_mult
-
-- Samples: 15000
-- t-statistic: -1.55175
-- Threshold: ±4.5
-- Status: PASS
-
-### timing_shamir_recover
-
-- Samples: 100000
-- t-statistic: +1.91206
-- Threshold: ±4.5
-- Status: PASS
-
-### timing_serpent_tag_check
-
-- Samples: 100000
-- t-statistic: -2.15022
-- Threshold: ±4.5
-- Status: PASS
-
-### timing_twofish_tag_check
-
-- Samples: 100000
-- t-statistic: -1.74366
-- Threshold: ±4.5
-- Status: PASS
-
-### timing_cascade_auth_failure
-
-- Samples: 100000
-- t-statistic: +2.19458
-- Threshold: ±4.5
-- Status: PASS
-- Note: Welch **null** pairing (identical tampered ciphertext per class) to test harness/measurement stability; not a differential success-vs-failure probe.
-
-### timing_cascade_inner_vs_outer_failure
-
-- Samples: 100000
-- t-statistic: +1.55774
-- Threshold: ±4.5
-- Status: PASS
-- Note: Welch **null** pairing (identical inner tamper per class); see `timing_cascade_auth_failure`.
-
-### timing_pin_compare
-
-- Samples: 100000
-- t-statistic: -1.82845
-- Threshold: ±4.5
-- Status: PASS
-
-### timing_rsa_oaep_decrypt
-
-- Samples: 100000
-- t-statistic: -1.68044
-- Threshold: ±4.5
-- Status: PASS
-
-### timing_rsa_pss_verify
-
-- Samples: 100000
-- t-statistic: +2.99207
-- Threshold: ±4.5
-- Status: PASS
-
-### timing_pbkdf2
-
-- Samples: 100000
-- t-statistic: -2.44431
-- Threshold: ±4.5
-- Status: PASS
-- Note: Measures PBKDF2-HMAC-SHA256 with two 16-byte passwords (fixed vs random).
-
-### timing_sha256
-
-- Samples: 100000
-- t-statistic: -1.31473
-- Threshold: ±4.5
-- Status: PASS
-
-### timing_sha512
-
-- Samples: 100000
-- t-statistic: -1.95467
-- Threshold: ±4.5
-- Status: PASS
-
-### timing_sha3_256
-
-- Samples: 200000
-- t-statistic: -3.89831
-- Threshold: ±4.5
-- Status: PASS
-
-### timing_sha3_512
-
-- Samples: 200000
-- t-statistic: -1.51956
-- Threshold: ±4.5
-- Status: PASS
-
-### timing_blake2b
-
-- Samples: 100000
-- t-statistic: +2.04292
-- Threshold: ±4.5
-- Status: PASS
-
-### timing_blake2s
-
-- Samples: 100000
-- t-statistic: -2.53810
-- Threshold: ±4.5
-- Status: PASS
-
-### timing_blake3
-
-- Samples: 100000
-- t-statistic: -1.47562
-- Threshold: ±4.5
-- Status: PASS
-- Note: Single-chunk 64-byte message (compression function path).
-
-### timing_ephemeral_ecdh
-
-- Samples: 10000
-- t-statistic: +3.18711
-- Threshold: ±4.5
-- Status: PASS
-
-### timing_signature_verify
-
-- Samples: 10000
-- t-statistic: -2.33506
-- Threshold: ±4.5
-- Status: PASS
-
-### timing_fingerprint_lookup
-
-- Samples: 100000
-- t-statistic: +2.58782
-- Threshold: ±4.5
-- Status: PASS
-- Note: Welch **null** pairing (same absent fingerprint for both classes); not a differential hit-vs-miss lookup probe.
-
-**Optional integrations still printed as `[MISSING]` by `dudect_galdr`:** challenge-response HMAC, PSRAM tag check, XMSS verify, LMS verify (not wired as host benchmarks in this workspace).
-
-## 10. cargo-fuzz (libFuzzer) summary
-
-Host: **x86_64-unknown-linux-gnu**, **nightly** toolchain, **`cargo-fuzz`**. Corpus paths are relative to the `fuzz/` directory unless noted. LibFuzzer metrics are **host-dependent**; `cov` = edge coverage, `ft` = feature count.
-
-### chacha_roundtrip (recorded run)
-
-**Command:**
-
-```bash
-cd fuzz
-rustup run nightly cargo fuzz run chacha_roundtrip seed_corpus/chacha_roundtrip -- -max_total_time=120
+```toml
+date_utc       = "2026-04-06T22:21:19Z"
+commit         = "4b95193135db26614cc053c34aea2b6159a297c5"
+xtask_version  = "0.1.0"
+flags          = "--no-fuzz skipped; full fuzz matrix run separately"
+host           = "x86_64-unknown-linux-gnu"
+toolchain      = "nightly (cargo-fuzz targets); stable (all others)"
 ```
 
-**Outcome:** Completed normally (no crash; exit 0). Wall time **~121 s** for **3,667,006** executions (~30k exec/s at end of run).
+## Pipeline summary
+
+| Step | Command | Status |
+|------|---------|--------|
+| Firmware check (default) | `cargo run -p xtask -- check-fw` | PASS |
+| Firmware check (pq-signatures) | `cargo run -p xtask -- check-fw --features pq-signatures` | PASS |
+| Unit tests (workspace) | `cargo test --workspace --exclude xtask` | PASS (568 passed, 0 failed, 17 ignored) |
+| Wycheproof vectors | `cargo test -p vault wycheproof` | PASS |
+| RFC vectors | `cargo test -p vault rfc_vectors` | PASS |
+| BSI Brainpool vectors | `cargo test -p vault bsi_brainpool` | PASS |
+| NIST CAVP subset | `cargo test -p vault nist_cavp` | PASS |
+| KAT vectors | `cargo test -p vault kat_vectors` | PASS |
+| Key lifecycle | `cargo test -p vault key_lifecycle` | PASS |
+| PIN lifecycle | `cargo test -p pin-policy pin_lifecycle` | PASS |
+| Zeroisation simulation | [Section 8](#8-zeroisation-tests) | PASS |
+| Timing (dudect, incremental) | `cargo run -p xtask -- timing-test` | PASS (29/29 harnesses) |
+| Cargo-fuzz (12 targets, 120 s) | [Section 6](#6-cargo-fuzz-libfuzzer) | PASS (skipped in test-all; see Section 6) |
+| OpenPGP / CCID | `cargo test -p usb-personality` | PASS |
+
+## 3. Unit tests
+
+**Command:** `cargo test --workspace --exclude xtask`  
+**Result:** 568 passed, 0 failed, 17 ignored
+
+Round-trip tests (encrypt/decrypt, seal/open, sign/verify, split/recover) are included in the 568 total. They are not reported separately. Representative locations:
+
+| Area | File | Key tests |
+|------|------|-----------|
+| Cipher cascade | `crates/cipher-profile/tests/cascade_integration.rs` | `cascade_roundtrip_all_builtins`, `cascade_hkdf_info_symmetric_encrypt_vs_decrypt_per_layer` |
+| CESS Mode A outer | `crates/cess` | `mode_a::chacha_roundtrip`, `seal_open_roundtrip_every_listed_suite_id`, `wire::listed_ids_roundtrip` |
+| Vault ciphers | `crates/vault/tests/key_lifecycle.rs` | Full vault round-trips per cipher; ChaCha/Serpent/Twofish AEAD, Shamir split/recover |
+| Fuzz (not in total) | `fuzz/fuzz_targets/chacha_roundtrip.rs` | ChaCha encrypt/decrypt with random inputs; [Section 6](#6-cargo-fuzz-libfuzzer) |
+
+### 3.1 Ignored tests (17)
+
+The **17 ignored** in the pipeline summary are all `#[ignore]` tests in the workspace run. They are not failures; they are skipped by default until you pass `--ignored` (optionally with `-p <crate>`).
+
+| Count | Location | Why ignored |
+|------:|----------|-------------|
+| 3 | `galdra/tests/cli_profiles.rs` | Need a connected token, Shamir test harness, or share fixtures from hardware; not runnable in a typical headless CI run. |
+| 2 | `crates/vault/src/rsa_keys.rs` | `test_rsa_keygen_2048` is slow; `rsa_perf_baseline` is for occasional perf measurement (see `docs/PERFORMANCE.md`). |
+| 12 | `crates/vault/tests/key_lifecycle.rs` | Most are duplicate **post-drop / ZeroizeOnDrop** checks already covered in narrower `vault` unit tests; plus slow **`lifecycle_rsa_generate`** and RSA zeroize covered under `rsa_keys` tests. |
+
+**Breakdown:** 3 + 2 + 12. **Reported ignored:** **17** (must match the pipeline summary and Section 3 result line; if not, update this table).
+
+**Run ignored tests:** `cargo test --workspace --exclude xtask -- --ignored`
+
+## 4. Cryptographic validation
+
+### 4.1 Symmetric AEAD
+
+| Algorithm | Vector source | Vectors | Status |
+|-----------|--------------|---------|--------|
+| AES-128-GCM | Google Wycheproof `aes_gcm_test.json` | 105/105 | PASS |
+| AES-256-GCM | Google Wycheproof `aes_gcm_test.json` | 102/102 | PASS |
+| AES-256-GCM (smoke) | `galdr-core` `aes256_gcm_nist_one_block` | 1/1 | PASS |
+| ChaCha20-Poly1305 | RFC 8439 §2.8.2 (`rfc8439_chacha.json`) | 1/1 | PASS |
+| ChaCha20-Poly1305 (cross-check) | `galdr-core` `chacha20poly1305_rfc8439_aead` | 1/1 | PASS |
+
+**Note:** AES-GCM uses Wycheproof JSON, not NIST CAVP `.rsp` files. AES-192, empty IV, and 257-byte IV groups are skipped upstream.
+
+### 4.2 NIST CAVP subset (digests and HMAC only)
+
+| Algorithm | Vectors | Status |
+|-----------|---------|--------|
+| SHA-256 | 2 | PASS |
+| SHA3-256 | 1 | PASS |
+| HMAC-SHA256 | 1 | PASS |
+
+No AES-GCM CAVP `.rsp` files are present in this repository.
+
+### 4.3 Twofish-256
+
+Source: `crates/vault/tests/twofish_vectors.json` (Schneier et al. Appendix B style chains).
+
+| Test | Vectors | Status |
+|------|---------|--------|
+| Zero-key 128-bit | 1 | PASS (`9F589F5CF6122C32B6BFEC2F2AE8C35A`) |
+| Zero-key 192-bit | 1 | PASS (`EFA71F788965BD4453F860178FC19101`) |
+| Zero-key 256-bit | 1 | PASS (`57FF739D4DC92C1BD7FC01700CC8216F`) |
+| Variable-key 128-bit | 200 | PASS |
+| Variable-key 192-bit | 200 | PASS |
+| Variable-key 256-bit | 200 | PASS |
+| Variable-text 128-bit | 200 | PASS |
+| Variable-text 192-bit | 200 | PASS |
+| Variable-text 256-bit | 200 | PASS |
+| Monte Carlo (10 000 iter, 256-bit) | 1 | PASS (`a59b573030de1bffffe5c50fb030d847`) |
+| **Total** | **1203** | **PASS** |
+
+### 4.4 Cascade HKDF info symmetry
+
+Runner: `cascade_hkdf_info_symmetric_encrypt_vs_decrypt_per_layer` in `crates/cipher-profile/tests/cascade_integration.rs`  
+Checks that HKDF-SHA256 `layer_key_info` and `layer_nonce_info` strings match between encrypt and decrypt order for all built-in profiles, then runs a full cascade round-trip on the same PRK.  
+**Status:** PASS
+
+### 4.5 RFC, BSI, and Wycheproof (non-AES)
+
+| Suite | Runner | Status |
+|-------|--------|--------|
+| Wycheproof (vault crate) | `cargo test -p vault wycheproof` | PASS |
+| RFC vectors | `vault/tests/rfc_vectors.rs` | PASS |
+| BSI TR-03111 Brainpool | `vault/tests/bsi_brainpool.rs` | PASS |
+
+## 5. Timing tests (dudect)
+
+**Tool:** `dudect_galdr`  
+**Threshold:** |t| ≤ 4.5 (Welch t-statistic)  
+**Commands:**
+
+| Command | Purpose |
+|---------|---------|
+| `cargo run -p xtask -- timing-test` | Incremental (skips cached PASS harnesses) |
+| `cargo run -p xtask -- timing-test --all` | Full suite (~910 s) |
+| `cargo run -p xtask -- timing-test --full` | 3× sample multiplier |
+
+**Cache:** `crates/security-tests/dudect_results.json`  
+**Result:** 29/29 harnesses PASS
+
+| Harness | Samples | t-stat | Status | Notes |
+|---------|---------|--------|--------|-------|
+| `timing_subtle_eq_u256` | 100000 | +1.471 | PASS |  |
+| `timing_chacha_tag_check` | 100000 | -2.674 | PASS |  |
+| `timing_aes_gcm_tag_check` | 100000 | +1.005 | PASS |  |
+| `timing_hmac_verify` | 100000 | -1.246 | PASS |  |
+| `timing_hkdf_derive` | 100000 | +2.474 | PASS |  |
+| `timing_ed25519_verify` | 100000 | +1.447 | PASS |  |
+| `timing_x25519_ecdh` | 100000 | +1.556 | PASS |  |
+| `timing_brainpool256_scalar_mult` | 5000 | -1.434 | PASS |  |
+| `timing_brainpool384_scalar_mult` | 5000 | -1.787 | PASS |  |
+| `timing_brainpool512_scalar_mult` | 15000 | -2.246 | PASS |  |
+| `timing_ephemeral_ecdh` | 10000 | +1.066 | PASS |  |
+| `timing_signature_verify` | 10000 | -2.905 | PASS |  |
+| `timing_fingerprint_lookup` | 100000 | +1.127 | PASS | Null pairing (same absent fingerprint both classes) |
+| `timing_shamir_recover` | 100000 | -1.276 | PASS |  |
+| `timing_serpent_tag_check` | 100000 | +1.973 | PASS |  |
+| `timing_twofish_tag_check` | 100000 | -2.244 | PASS |  |
+| `timing_cascade_auth_failure` | 100000 | -2.784 | PASS | Null pairing (identical tampered ciphertext per class) |
+| `timing_cascade_inner_vs_outer_failure` | 100000 | +2.805 | PASS | Null pairing (identical inner tamper per class) |
+| `timing_pin_compare` | 100000 | +1.202 | PASS |  |
+| `timing_rsa_oaep_decrypt` | 100000 | -1.615 | PASS |  |
+| `timing_rsa_pss_verify` | 100000 | -2.255 | PASS |  |
+| `timing_pbkdf2` | 100000 | -1.149 | PASS | PBKDF2-HMAC-SHA256; two 16-byte passwords |
+| `timing_sha256` | 100000 | +2.177 | PASS |  |
+| `timing_sha512` | 100000 | -2.088 | PASS |  |
+| `timing_sha3_256` | 200000 | +1.774 | PASS |  |
+| `timing_sha3_512` | 200000 | +1.671 | PASS |  |
+| `timing_blake2b` | 100000 | +1.724 | PASS |  |
+| `timing_blake2s` | 100000 | +2.177 | PASS |  |
+| `timing_blake3` | 100000 | -2.127 | PASS | Single-chunk 64-byte message |
+
+**Not yet wired (printed as `[MISSING]` by `dudect_galdr`):** challenge-response HMAC, PSRAM tag check, XMSS verify, LMS verify.
+
+## 6. Cargo-fuzz (libFuzzer)
+
+**Full matrix command:**
+
+```bash
+rustup run nightly cargo fuzz run <target> \
+  seed_corpus/<target> -- -max_total_time=120
+```
+
+| Target | Exit | Notes |
+|--------|------|-------|
+| `chacha_roundtrip` | 0 | [Recorded run below](#chacha_roundtrip-recorded-120-s-run) |
+| `shamir_split_recover` | 0 | Fixed `data.len() >= 8` guard |
+| `brainpool384_ecdh` | 0 | |
+| `brainpool512_ecdh` | 0 | |
+| `serpent_aead` | 0 | |
+| `twofish_aead` | 0 | |
+| `rsa_oaep_decrypt` | 0 | |
+| `rsa_pss_verify` | 0 | |
+| `rsa_der_import` | 0 | |
+| `fuzz_ephemeral_handshake` | 0 | |
+| `fuzz_cipher_profile` | 0 | |
+| `openpgp_dispatch` | 0 | [Long run below](#openpgp_dispatch-recorded-1-h-run) |
+
+**test-all:** Skipped: run without --no-fuzz to execute all fuzz targets (30s each). 
+
+### chacha_roundtrip (recorded 120 s run)
 
 | Item | Value |
-|------|--------|
-| Seed corpus files (inputs loaded) | 11 |
-| Final corpus size (entries) | 44 |
-| Final corpus total bytes (approx.) | ~27 KiB |
-| Final `cov` (edges) | 703 |
-| Final `ft` (features) | 1162 |
-| `max_len` (libFuzzer default) | 4096 bytes |
+|------|-------|
+| Wall time | ~121 s |
+| Executions | 3 667 006 |
+| exec/s (end) | ~30 000 |
+| Seed corpus files | 11 |
+| Final corpus entries | 44 |
+| Final corpus size | ~27 KiB |
+| Final cov (edges) | 703 |
+| Final ft (features) | 1 162 |
+| Crashes | 0 |
 
-**Harness:** `fuzz/fuzz_targets/chacha_roundtrip.rs` — ChaCha key derive (`ChaChaKey::derive`), encrypt/decrypt round-trip with `FakeTrng`-derived nonce.
+### openpgp_dispatch (recorded 1 h run)
 
-**Note:** Passing **`seed_corpus/chacha_roundtrip`** as the corpus directory causes libFuzzer to **merge new discoveries into that tree** on disk. For a clean checkout, regenerate seeds with `python3 fuzz/scripts/gen_seed_corpus.py` or copy seeds into **`corpus/chacha_roundtrip/`** (gitignored) for long runs.
+| Item | Value |
+|------|-------|
+| Wall time | ~3 600 s (manual stop) |
+| Executions | order of 10^8 |
+| exec/s | ~40 000+ sustained |
+| Starting cov / ft | ~934 / ~1 168 |
+| Ending cov / ft | ~980 / ~1 230 |
+| Corpus entries | ~200 |
+| Crashes | 0 |
+| ASAN findings | 0 |
 
-### openpgp_dispatch (recorded long run)
+## 7. Wycheproof, RFC, BSI, NIST, KAT vectors
 
-**Command:**
+Covered in [Section 4](#4-cryptographic-validation). Raw JSON assets:
 
-```bash
-cd fuzz
-rustup run nightly cargo fuzz run openpgp_dispatch -- -max_total_time=3600 -max_len=512
-```
+| Asset path | Runner |
+|------------|--------|
+| `crates/vault/tests/data/` | `cargo test -p vault wycheproof` |
+| `tests/data/wycheproof/` | same |
+| `crates/vault/tests/rfc_vectors/` | `vault/tests/rfc_vectors.rs` |
+| `crates/vault/tests/bsi_vectors/` | `vault/tests/bsi_brainpool.rs` |
+| `crates/vault/tests/nist_cavp_vectors/` | `vault/tests/nist_cavp.rs` |
+| `crates/vault/tests/blake3_vectors.json` (and related KAT JSON) | `crates/vault/tests/kat_vectors.rs` |
+| `crates/vault/tests/twofish_vectors.json` | `cargo test -p vault twofish_vectors_json_kat` (`twofish_vectors_json_kat` in `crates/vault/src/twofish_cipher.rs`) |
 
-**Outcome:** Run **interrupted manually** (Ctrl+C); log showed **no crashes** and **no ASAN** findings. Metrics are **host-dependent**.
+## 8. Zeroisation tests
 
-| Item | Value (representative log) |
-|------|------------------------------|
-| Executions before stop | order of **10^8** |
-| `exec/s` | **~40k+** sustained |
-| Starting `cov` / `ft` (after seed load) | **~934** / **~1168** |
-| Ending `cov` / `ft` | **~980** / **~1230** |
-| Corpus | **~195** seed files merged; grew to **~200** entries, **~2–3 KiB** total (corpus minimisation active) |
+Simulation only. Hardware verification not yet performed.  
+See `docs/HARDWARE_VERIFICATION.md`.  
+**Status:** PASS (simulation)
 
-**Harness:** `fuzz/fuzz_targets/openpgp_dispatch.rs` — `CommandApdu::parse`, `handle_apdu` on `OpenPgpVaultBackend` with default DOs, `AlgorithmAttributes::parse`, `parse_ecdh_peer_public_key`, dalek Ed25519/X25519 constructors from the first 32 bytes.
+## 9. PIN policy tests
 
-**Interpretation:** **High exec/s** is expected for this workload relative to simpler targets: the harness still completes full dispatch per iteration. **Long stretches of flat `cov`** with occasional **NEW** / **NEW_FUNC** (e.g. `trim_openpgp_pin_padding`, `ResponseApdu::ok_empty`) are **normal**: most random APDUs fail parse or exit early; only a narrow family reaches multi-step flows (VERIFY then PSO, PUT with PW3, etc.). A **seeded corpus** yields a **high starting `cov`**; further gains are **incremental** — consistent with [Corpus health (LibFuzzer output)](../fuzz/README.md#corpus-health-libfuzzer-output) in `fuzz/README.md`. Plateau **does not** imply a broken target.
+Runner: `pin-policy/tests/pin_lifecycle.rs`  
+**Status:** PASS
 
-**Optional follow-ups:** `cargo fuzz cmin openpgp_dispatch corpus/openpgp_dispatch/`; add hand-crafted seeds from `tests/openpgp_command_flow.rs` if deeper coverage is needed; resume with the same corpus path to continue discovery.
+## 10. OpenPGP card application
 
-### Full matrix (`-max_total_time=120` per target, `seed_corpus/<target>/`)
+| Test type | Command | Status |
+|-----------|---------|--------|
+| Crate unit + integration | `cargo test -p usb-personality` | PASS |
+| libFuzzer (`openpgp_dispatch`) | [Section 6](#6-cargo-fuzz-libfuzzer) | PASS |
+| Host GnuPG / PC/SC end-to-end | Manual; `cargo run -p xtask -- test-openpgp` | Not automated |
 
-All **12** binaries in `fuzz/Cargo.toml` were run sequentially with:
+See `docs/OPENPGP_CARD.md` for manual hardware test procedure.
 
-`rustup run nightly cargo fuzz run <target> seed_corpus/<target> -- -max_total_time=120`
+## 11. Not yet automated
 
-Stopping is by **LibFuzzer time limit** (about **121 s** wall per target), not by automatic “corpus plateau” detection (that would need a custom wrapper). Within each window, many **REDUCE** lines with flat `cov` are normal convergence.
-
-| Target | Exit |
-|--------|------|
-| `chacha_roundtrip` | 0 |
-| `shamir_split_recover` | 0 |
-| `brainpool384_ecdh` | 0 |
-| `brainpool512_ecdh` | 0 |
-| `serpent_aead` | 0 |
-| `twofish_aead` | 0 |
-| `rsa_oaep_decrypt` | 0 |
-| `rsa_pss_verify` | 0 |
-| `rsa_der_import` | 0 |
-| `fuzz_ephemeral_handshake` | 0 |
-| `fuzz_cipher_profile` | 0 |
-| `openpgp_dispatch` | 0 |
-
-**Note:** `openpgp_dispatch` is the **12th** target; add `fuzz/seed_corpus/openpgp_dispatch/` (may be empty) if you run this matrix and the path is missing.
-
-**Harness fix:** `shamir_split_recover` required `data.len() >= 8` before reading `data[0..8]` (previously `>= 4`, which could panic under the fuzzer). Host-dependent metrics; re-run locally to refresh numbers.
-
-**Shorter runs via xtask:** `cargo run -p xtask -- fuzz <target> 60` from the repo root uses the default **corpus** path under `fuzz/corpus/`, not `seed_corpus/` (see `fuzz/README.md`).
-
-Full `test-all` without `--no-fuzz` still runs **one** default fuzz target for a bounded time; it does not replace this full-matrix command sequence.
-
-## 11. Zeroisation tests (simulation)
-
-Hardware verification not yet performed. See `docs/HARDWARE_VERIFICATION.md`. Last run: **PASS**.
-
-## 12. PIN policy tests
-
-Integration tests in `pin-policy/tests/pin_lifecycle.rs`. Last run: **PASS**.
-
-## 13. OpenPGP card application (`usb-personality`)
-
-- **Crate tests:** `cargo test -p usb-personality` — CCID `PC_to_RDR` / `RDR_to_PC` helpers, ISO 7816-4 APDU parse/encode, DO encoding, `CardState`, and integration flows in `tests/openpgp_command_flow.rs` (mock backend: `pin-policy` + `vault` Brainpool ECDSA). Last run: **PASS** (when this section was updated).
-- **libFuzzer (`openpgp_dispatch`):** Arbitrary APDU bytes through `handle_apdu` + vault backend; see [Section 10 — openpgp_dispatch](#openpgp_dispatch-recorded-long-run) for a recorded long run and interpretation.
-- **Host GnuPG / PC/SC:** Full `gpg --card-status` against a real CCID enumeration is manual; `cargo run -p xtask -- test-openpgp` only checks for `gpg` and prints guidance (skipped if absent). See `docs/OPENPGP_CARD.md`.
-
-## 14. Missing / not yet run
-
-- **cargo-fuzz:** Full **12-target** matrix (120 s each, `seed_corpus/`) summarised in [Section 10](#10-cargo-fuzz-libfuzzer-summary). Longer runs or `cargo fuzz cmin` / `coverage` are optional pre-release checks (`fuzz/README.md`). The **`openpgp_dispatch`** long sample (1 h wall, `-max_len=512`) is recorded in the same section.
-
-Out of scope or not automated in this run:
-
-- **Hardware zeroisation:** See `docs/HARDWARE_VERIFICATION.md` (simulation-only in CI).
-- **Optional dudect integrations:** USB challenge-response, PSRAM tag check, XMSS/LMS verify (printed as `[MISSING]` by `dudect_galdr`).
-- **OpenPGP end-to-end on hardware:** Requires CCID USB integration and host `pcscd` / GnuPG; not part of `test-all`.
-
----
-
-## Pipeline steps (machine log)
-
-- **check-fw (default):** PASS
-- **check-fw (pq-signatures):** PASS
-- **unit tests (workspace):** PASS
-- **wycheproof:** PASS
-- **rfc_vectors:** PASS
-- **bsi_brainpool:** PASS
-- **nist_cavp:** PASS
-- **kat_vectors:** PASS
-- **key_lifecycle:** PASS
-- **pin_lifecycle:** PASS
-- **zeroise_simulation:** PASS
-- **timing-test:** PASS
-- **cargo-fuzz (12 targets, 120 s each, seed corpus):** PASS (see Section 10; `openpgp_dispatch` long run documented there)
-- **usb-personality (OpenPGP / CCID):** PASS (`cargo test -p usb-personality`; see Section 13)
+| Item | Reference |
+|------|-----------|
+| Hardware zeroisation | `docs/HARDWARE_VERIFICATION.md` |
+| dudect: challenge-response HMAC | Printed `[MISSING]` by `dudect_galdr` |
+| dudect: PSRAM tag check | Printed `[MISSING]` by `dudect_galdr` |
+| dudect: XMSS / LMS verify | Printed `[MISSING]` by `dudect_galdr` |
+| OpenPGP end-to-end on hardware | Requires CCID USB + host pcscd / GnuPG |
+| Longer fuzz runs / `cargo fuzz cmin` | Optional pre-release; see `fuzz/README.md` |
