@@ -13,6 +13,36 @@
 
 It is ready for testing by humans; using a **virtual machine** for that is suggested. There may be bugs that automated tests have not discovered.
 
+## Table of contents
+
+- [About the name](#about-the-name)
+- [What this is](#what-this-is)
+- [Documentation](#documentation)
+- [Build, install, and uninstall](#build-install-and-uninstall)
+  - [Compile firmware](#compile-firmware)
+  - [Flashing](#flashing)
+  - [Compile and install host tools (`galdra`, `galdrad`, `galdra-gtk`)](#compile-and-install-host-tools-galdra-galdrad-galdra-gtk)
+  - [Uninstall host tools](#uninstall-host-tools)
+- [Key capabilities](#key-capabilities)
+  - [What makes this token unusual](#what-makes-this-token-unusual)
+  - [Cryptographic capabilities](#cryptographic-capabilities)
+    - [Asymmetric / key agreement](#asymmetric--key-agreement)
+    - [Symmetric / AEAD](#symmetric--aead)
+    - [Key derivation / MAC / digest](#key-derivation--mac--digest)
+    - [Key management](#key-management)
+  - [Security properties](#security-properties)
+  - [PIN policy](#pin-policy)
+- [Post-quantum status](#post-quantum-status)
+  - [Implemented — unaudited crate (feature-gated)](#implemented--unaudited-crate-feature-gated)
+  - [Pending independent audit — not yet implemented](#pending-independent-audit--not-yet-implemented)
+  - [Will not be implemented](#will-not-be-implemented)
+- [Zeroisation — hardware caveat](#zeroisation--hardware-caveat)
+- [Test results](#test-results)
+- [Workspace layout](#workspace-layout)
+- [Cryptographic dependency policy](#cryptographic-dependency-policy)
+- [Quick start](#quick-start)
+- [License](#license)
+
 ---
 
 ## About the name
