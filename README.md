@@ -160,9 +160,11 @@ It is now up to the reader to judge whether these claims are false or not.
 
 ## Galdralag for dummies
 
-You plug it into a USB port. Your computer sees it as a smart card. You use it with GnuPG or similar software the same way you would use any other hardware security token — the token handles the sensitive cryptographic operations so your private keys never exist unprotected on your computer.
+You plug it into a USB port. From the host's perspective the firmware can present **crypto mode** or **camouflage mode**. In crypto mode your computer sees a smart card: you use GnuPG or similar software the same way you would any other hardware security token — the token handles the sensitive cryptographic operations so your private keys never exist unprotected on your computer. In camouflage mode it can enumerate as ordinary removable storage with innocuous-looking files so a quick look does not reveal its real role; see **Storage camouflage** below.
 
 That is the short version. Here is what makes it different from other tokens you may have encountered.
+
+**Storage camouflage.** The device can act as ordinary removable storage so its real role is not obvious from a quick look. When you plug it into a typical computer, it can show up like a normal USB drive or SD-backed volume; you can fill the visible filesystem with plausible everyday files (for example vacation photos) so casual browsing reinforces the impression that it is only storage. That frustrates superficial inspection at a desk or checkpoint. Figuring out that it is actually a security token usually means taking the housing apart, not just plugging it in.
 
 **Your keys stay on the device.** When you sign an email or decrypt a file, the private key never leaves the token. The computer sends the data in, the token does the work, the result comes back out. An attacker who compromises your computer gets nothing useful.
 
