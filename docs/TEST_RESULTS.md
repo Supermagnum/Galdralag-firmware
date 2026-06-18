@@ -248,6 +248,7 @@ rustup run nightly cargo fuzz run <target> \
 | `fuzz_ephemeral_handshake` | 0 | |
 | `fuzz_cipher_profile` | 0 | |
 | `openpgp_dispatch` | 0 | See long run below |
+| `biometric_dispatch` | 0 | Fuzzes `biometric_api::signed_match_from_bytes` and host validation path |
 
 **test-all:** Skipped: run without --no-fuzz to execute all fuzz targets (30s each). 
 
