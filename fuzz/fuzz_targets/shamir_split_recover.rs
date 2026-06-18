@@ -6,10 +6,10 @@ use rand_core::RngCore;
 use vault::shamir::{shamir_recover, shamir_split};
 
 fuzz_target!(|data: &[u8]| {
-    if data.len() < 4 {
+    if data.len() < 8 {
         return;
     }
-    let seed = u64::from_le_bytes(data[0..8].try_into().unwrap_or([0u8; 8]));
+    let seed = u64::from_le_bytes(data[0..8].try_into().unwrap());
     let mut trng = FakeTrng::from_seed(seed);
     let len = 16 + (data.get(1).copied().unwrap_or(0) as usize % 49);
     if len > 64 {

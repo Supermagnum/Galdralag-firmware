@@ -1,5 +1,9 @@
+fuzz/scripts/__pycache__/
 .tmp-twofish-check/
 /target/
 fuzz/corpus/
+fuzz/target/
+fuzz/coverage/
+fuzz/last_fuzz_matrix.log
 fuzz/artifacts/
 docs/.last_dudect_run.txt

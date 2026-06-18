@@ -6,7 +6,7 @@
 - **Commit:** `b5c905d1ae57133e212ed5f6e67f0646f5018518`
 - **xtask version:** 0.1.0 (fuzz skipped via `--no-fuzz`)
 
-**Section 1** unit-test totals were recomputed at this commit with `cargo test --workspace --exclude xtask` (sum of every `test result:` line). **Section 9** lists t-statistics from **`crates/security-tests/dudect_results.json`** (authoritative PASS cache updated when `cargo run -p xtask -- timing-test` succeeds). Values are host-dependent. For a **full** dudect sweep (~910 s on a typical developer machine), use `timing-test --all`; the default `timing-test` skips harnesses already marked PASS in that JSON file.
+**Section 1** unit-test totals were recomputed at this commit with `cargo test --workspace --exclude xtask` (sum of every `test result:` line). **Section 9** lists t-statistics from **`crates/security-tests/dudect_results.json`** (authoritative PASS cache updated when `cargo run -p xtask -- timing-test` succeeds). Values are host-dependent. For a **full** dudect sweep (~910 s on a typical developer machine), use `timing-test --all`; the default `timing-test` skips harnesses already marked PASS in that JSON file. **Section 10** records **cargo-fuzz** (libFuzzer) runs: a detailed **`chacha_roundtrip`** sample and a **full 11-target** matrix (`-max_total_time=120` each, `seed_corpus/`).
 
 ## 1. Unit tests
 
@@ -349,13 +349,61 @@ Binary: **`dudect_galdr`**, threshold **|t| <= 4.5**. **PASS** rows in **`dudect
 
 **Optional integrations still printed as `[MISSING]` by `dudect_galdr`:** challenge-response HMAC, PSRAM tag check, XMSS verify, LMS verify (not wired as host benchmarks in this workspace).
 
-## 10. cargo-fuzz coverage summary
+## 10. cargo-fuzz (libFuzzer) summary
 
-**Not run** — this report was produced with `cargo run -p xtask -- test-all --no-fuzz`. To run all fuzz targets (~30 seconds each), execute `test-all` without `--no-fuzz`.
+Host: **x86_64-unknown-linux-gnu**, **nightly** toolchain, **`cargo-fuzz`**. Corpus paths are relative to the `fuzz/` directory unless noted. LibFuzzer metrics are **host-dependent**; `cov` = edge coverage, `ft` = feature count.
 
-- Skipped: run without --no-fuzz to execute all fuzz targets (30s each).
-- **fuzz_ephemeral_handshake:** `InitMessage::parse` / `ResponseMessage::parse` (`cargo run -p xtask -- fuzz ephemeral-handshake 60`).
-- **fuzz_cipher_profile:** `CipherProfile::from_bytes` and `cascade_decrypt` (`cargo run -p xtask -- fuzz cipher-profile 60`).
+### chacha_roundtrip (recorded run)
+
+**Command:**
+
+```bash
+cd fuzz
+rustup run nightly cargo fuzz run chacha_roundtrip seed_corpus/chacha_roundtrip -- -max_total_time=120
+```
+
+**Outcome:** Completed normally (no crash; exit 0). Wall time **~121 s** for **3,667,006** executions (~30k exec/s at end of run).
+
+| Item | Value |
+|------|--------|
+| Seed corpus files (inputs loaded) | 11 |
+| Final corpus size (entries) | 44 |
+| Final corpus total bytes (approx.) | ~27 KiB |
+| Final `cov` (edges) | 703 |
+| Final `ft` (features) | 1162 |
+| `max_len` (libFuzzer default) | 4096 bytes |
+
+**Harness:** `fuzz/fuzz_targets/chacha_roundtrip.rs` — ChaCha key derive (`ChaChaKey::derive`), encrypt/decrypt round-trip with `FakeTrng`-derived nonce.
+
+**Note:** Passing **`seed_corpus/chacha_roundtrip`** as the corpus directory causes libFuzzer to **merge new discoveries into that tree** on disk. For a clean checkout, regenerate seeds with `python3 fuzz/scripts/gen_seed_corpus.py` or copy seeds into **`corpus/chacha_roundtrip/`** (gitignored) for long runs.
+
+### Full matrix (`-max_total_time=120` per target, `seed_corpus/<target>/`)
+
+All **11** binaries in `fuzz/Cargo.toml` were run sequentially with:
+
+`rustup run nightly cargo fuzz run <target> seed_corpus/<target> -- -max_total_time=120`
+
+Stopping is by **LibFuzzer time limit** (about **121 s** wall per target), not by automatic “corpus plateau” detection (that would need a custom wrapper). Within each window, many **REDUCE** lines with flat `cov` are normal convergence.
+
+| Target | Exit |
+|--------|------|
+| `chacha_roundtrip` | 0 |
+| `shamir_split_recover` | 0 |
+| `brainpool384_ecdh` | 0 |
+| `brainpool512_ecdh` | 0 |
+| `serpent_aead` | 0 |
+| `twofish_aead` | 0 |
+| `rsa_oaep_decrypt` | 0 |
+| `rsa_pss_verify` | 0 |
+| `rsa_der_import` | 0 |
+| `fuzz_ephemeral_handshake` | 0 |
+| `fuzz_cipher_profile` | 0 |
+
+**Harness fix:** `shamir_split_recover` required `data.len() >= 8` before reading `data[0..8]` (previously `>= 4`, which could panic under the fuzzer). Host-dependent metrics; re-run locally to refresh numbers.
+
+**Shorter runs via xtask:** `cargo run -p xtask -- fuzz <target> 60` from the repo root uses the default **corpus** path under `fuzz/corpus/`, not `seed_corpus/` (see `fuzz/README.md`).
+
+Full `test-all` without `--no-fuzz` still runs **one** default fuzz target for a bounded time; it does not replace this full-matrix command sequence.
 
 ## 11. Zeroisation tests (simulation)
 
@@ -367,7 +415,7 @@ Integration tests in `pin-policy/tests/pin_lifecycle.rs`. Last run: **PASS**.
 
 ## 13. Missing / not yet run
 
-- **cargo-fuzz:** Not executed in this run (intentional). Re-run full `test-all` without `--no-fuzz` before release.
+- **cargo-fuzz:** Full **11-target** matrix (120 s each, `seed_corpus/`) summarised in [Section 10](#10-cargo-fuzz-libfuzzer-summary). Longer runs or `cargo fuzz cmin` / `coverage` are optional pre-release checks (`fuzz/README.md`).
 
 Out of scope or not automated in this run:
 
@@ -390,4 +438,4 @@ Out of scope or not automated in this run:
 - **pin_lifecycle:** PASS
 - **zeroise_simulation:** PASS
 - **timing-test:** PASS
-- **cargo-fuzz (skipped):** PASS
+- **cargo-fuzz (11 targets, 120 s each, seed corpus):** PASS (see Section 10)
