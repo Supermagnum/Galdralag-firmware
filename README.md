@@ -105,6 +105,7 @@ It is now up to the reader to judge whether these claims are false or not.
   - [Signed firmware (Ed25519, boot0)](#signed-firmware-ed25519-boot0)
 - [Is this AI slop?](#is-this-ai-slop)
 - [Galdralag for dummies](#galdralag-for-dummies)
+  - [What is GnuPG?](#what-is-gnupg)
 - [Skipped and ignored tests](#skipped-and-ignored-tests)
 - [Why Rust?](#why-rust)
   - [Memory Safety](#memory-safety)
@@ -160,7 +161,22 @@ It is now up to the reader to judge whether these claims are false or not.
 
 ## Galdralag for dummies
 
-You plug it into a USB port. From the host's perspective the firmware can present **crypto mode** or **camouflage mode**. In crypto mode your computer sees a smart card: you use GnuPG or similar software the same way you would any other hardware security token — the token handles the sensitive cryptographic operations so your private keys never exist unprotected on your computer. In camouflage mode it can enumerate as ordinary removable storage with innocuous-looking files so a quick look does not reveal its real role; see **Storage camouflage** below.
+You plug it into a USB port. From the host's perspective the firmware can present **crypto mode** or **camouflage mode**. In crypto mode your computer sees a smart card: you use **GnuPG** or a compatible OpenPGP stack ([What is GnuPG?](#what-is-gnupg)) the same way you would any other hardware security token — the token handles the sensitive cryptographic operations so your private keys never exist unprotected on your computer. In camouflage mode it can enumerate as ordinary removable storage with innocuous-looking files so a quick look does not reveal its real role; see **Storage camouflage** below.
+
+### What is GnuPG?
+
+**GnuPG** stands for **GNU Privacy Guard**. It is the GNU project's implementation of **OpenPGP**, the open standard for key management and cryptographically protected messages (the same conceptual family as PGP, but specified in documents such as RFC 4880 and community updates). You normally run it as the **`gpg`** command on Linux, BSD, macOS, or Windows; many graphical mail and key utilities wrap this underneath.
+
+People use GnuPG to:
+
+- **Encrypt and decrypt** files or backups so only chosen recipients can read them.
+- **Sign data** so others can check authenticity and integrity — common for software releases, distribution mirrors, and personal documents.
+- **Protect email** end-to-end when paired with a suitable mail client (GnuPG handles the cryptography; the message format on the wire is OpenPGP).
+- **Authenticate**, notably **SSH** logins when **`gpg-agent`** exposes authentication keys from a smart card or local keystore.
+
+By default GnuPG stores keys under **`~/.gnupg`**. With an **OpenPGP smart card**, sensitive **private** keys live on the card; **`scdaemon`** (part of the GnuPG suite) talks **CCID**/**USB** to the card while **`gpg`** still assembles OpenPGP packets on the host.
+
+**What you can use it for.** In **crypto mode** the token is meant for the same work as other OpenPGP smart cards: **signing and decrypting** mail and files, **authenticating** (for example SSH when you use `gpg-agent` as usual), and keeping **long-term private keys** off the machine you type on. Organisations can combine that with **Shamir shares** on the token so no single person holds the entire secret (described further below). **GnuPG** is the primary interoperability target on the host: this firmware implements the **OpenPGP card application** over **CCID**, which `scdaemon` drives (`gpg --card-status`, `gpg --card-edit`, and normal encrypt/sign/decrypt with keys on the card). Other software that speaks the same smart-card protocols may work too; commands, slots, algorithms, and current integration limits are in [OpenPGP and GnuPG compatibility](#openpgp-and-gnupg-compatibility). When **NFC** is brought up on the hardware (**planned** integration — **not** in firmware yet), the same device class can support **physical access**: tapping an NFC reader at a **door, gate, or lock panel** can take part in a policy that only releases the lock after cryptographic checks (often combined with PIN, biometrics, or Shamir-style quorum depending on the deployment). The PN532-oriented sketch for readers and panels is in [docs/NFC_PN532_INTEGRATION.md](docs/NFC_PN532_INTEGRATION.md).
 
 That is the short version. Here is what makes it different from other tokens you may have encountered.
 
@@ -180,7 +196,7 @@ My personal recommendation is **BrainpoolP256r1 + ChaCha20-Poly1305 + BLAKE3**. 
 
 **A wrong PIN locks you out properly.** The token counts failed PIN attempts before it checks whether the PIN is correct, not after. This means a crash or power loss mid-attempt cannot be exploited to reset the counter. After too many wrong attempts the token zeroises sensitive material.
 
-**What it does not do yet.** There is no hardware available yet — this is firmware under active development. End-to-end testing with real USB hardware and GnuPG is a future milestone. The biometric third factor described in the documentation is not yet implemented. Some timing side-channel tests that require real hardware cannot be completed until a device exists.
+**What it does not do yet.** There is no hardware available yet — this is firmware under active development. End-to-end testing with real USB hardware and GnuPG is a future milestone. **NFC** transport and **door-style access readers** are described in the documentation as **integration targets**, not shipped behaviour yet. The biometric third factor described in the documentation is not yet implemented. Some timing side-channel tests that require real hardware cannot be completed until a device exists.
 
 ---
 
