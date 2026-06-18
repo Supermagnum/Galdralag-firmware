@@ -94,4 +94,20 @@ pub enum GaldraError {
     /// age format not applicable for this recipient set.
     #[error("age format error: {0}")]
     AgeFormat(String),
+
+    /// Cipher profile construction, cascade, or registry error.
+    #[error("cipher profile: {0}")]
+    CipherProfile(String),
+
+    /// Named profile is not in the local registry.
+    #[error("profile not found: {0}")]
+    ProfileNotFound(String),
+
+    /// User profile name already exists.
+    #[error("profile already exists: {0}")]
+    ProfileDuplicate(String),
+
+    /// Shamir share export, recovery, or vault Shamir error.
+    #[error("Shamir: {0}")]
+    Shamir(String),
 }

@@ -6,15 +6,17 @@
 //
 // Operational note: baseline; less critical than AEAD tag or ECDH.
 
-use crate::dudect_stats::{update_ct_stats, Class, CtRunner, CtSummary, DUDECT_SAMPLES};
+use crate::dudect_sample_counts::samples_for_harness;
+use crate::dudect_stats::{update_ct_stats, Class, CtRunner, CtSummary};
 use rand::prelude::*;
 use std::hint::black_box;
 
 /// BLAKE3 over 64-byte inputs (single chunk).
 pub fn bench_timing_blake3() -> CtSummary {
+    let n = samples_for_harness("timing_blake3");
     let mut rng = StdRng::seed_from_u64(0x424C4B3333);
-    let mut work = Vec::with_capacity(DUDECT_SAMPLES);
-    for _ in 0..DUDECT_SAMPLES {
+    let mut work = Vec::with_capacity(n);
+    for _ in 0..n {
         if rng.gen_bool(0.5) {
             work.push((Class::Left, [0u8; 64]));
         } else {

@@ -29,6 +29,8 @@ fn all_key_purposes_have_distinct_hkdf_info() {
         KeyPurpose::SerpentStorage,
         KeyPurpose::TwofishStorage,
         KeyPurpose::RsaKeyWrap,
+        KeyPurpose::SessionLongTermSign,
+        KeyPurpose::EphemeralSessionPrk,
     ];
     for i in 0..purposes.len() {
         for j in i + 1..purposes.len() {
@@ -52,6 +54,8 @@ proptest! {
             KeyPurpose::SerpentStorage,
             KeyPurpose::TwofishStorage,
             KeyPurpose::RsaKeyWrap,
+            KeyPurpose::SessionLongTermSign,
+            KeyPurpose::EphemeralSessionPrk,
         ] {
             prop_assert!(!p.info().is_empty());
         }
@@ -86,6 +90,25 @@ fn hkdf_sha256_twofish_distinct_from_serpent_storage() {
     hk.expand(KeyPurpose::TwofishStorage.info(), &mut a).unwrap();
     hk.expand(KeyPurpose::SerpentStorage.info(), &mut b).unwrap();
     assert_ne!(a, b);
+}
+
+#[test]
+fn hkdf_sha512_session_long_term_sign_distinct_from_ephemeral_prk_and_others() {
+    let mut a = [0u8; 32];
+    let mut b = [0u8; 32];
+    let mut c = [0u8; 32];
+    let mut d = [0u8; 32];
+    let hk = Hkdf::<Sha512>::new(Some(b"salt"), b"ikm");
+    hk.expand(KeyPurpose::SessionLongTermSign.info(), &mut a)
+        .unwrap();
+    hk.expand(KeyPurpose::EphemeralSessionPrk.info(), &mut b)
+        .unwrap();
+    hk.expand(KeyPurpose::OpenPgpSigning.info(), &mut c).unwrap();
+    hk.expand(KeyPurpose::UsbSession.info(), &mut d).unwrap();
+    assert_ne!(a, b);
+    assert_ne!(a, c);
+    assert_ne!(a, d);
+    assert_ne!(b, c);
 }
 
 #[test]

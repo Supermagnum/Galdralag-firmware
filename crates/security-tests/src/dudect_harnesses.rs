@@ -1,14 +1,23 @@
 //! Host-side dudect-style timing harnesses (Welch t-statistic; threshold |t| <= 4.5; most runs use
-//! 100k timings; Brainpool ECDH uses `DUDECT_SAMPLES_BRAINPOOL_REDUCED` / `DUDECT_SAMPLES_BRAINPOOL_SLOW`).
+//! 100k timings; Brainpool ECDH uses `DUDECT_SAMPLES_BRAINPOOL_REDUCED` / `DUDECT_SAMPLES_BRAINPOOL_SLOW`;
+//! `timing_signature_verify` uses `DUDECT_SAMPLES_SIGNATURE_VERIFY` (10k).
+//!
+//! Set **`DUDECT_HARNESSES`** to a comma-separated list of harness names (e.g. `timing_signature_verify`)
+//! to run **only** those harnesses and skip the rest (for new or targeted timing work).
 
 use crate::timing_blake2::{bench_timing_blake2b, bench_timing_blake2s};
+use crate::dudect_sample_counts::samples_for_harness;
 use crate::timing_blake3::bench_timing_blake3;
+use crate::timing_cascade::{
+    bench_timing_cascade_auth_failure, bench_timing_cascade_inner_vs_outer_failure,
+};
 use crate::timing_pbkdf2::bench_timing_pbkdf2;
 use crate::timing_sha2::{bench_timing_sha256, bench_timing_sha512};
 use crate::timing_sha3::{bench_timing_sha3_256, bench_timing_sha3_512};
 use crate::dudect_stats::{
     update_ct_stats, Class, CtRunner, CtSummary, DUDECT_SAMPLES, DUDECT_SAMPLES_BRAINPOOL_REDUCED,
-    DUDECT_SAMPLES_BRAINPOOL_SLOW, DUDECT_SAMPLES_PBKDF2, DUDECT_SAMPLES_SHA3, DUDECT_THRESHOLD,
+    DUDECT_SAMPLES_BRAINPOOL_SLOW, DUDECT_SAMPLES_EPHEMERAL_ECDH, DUDECT_SAMPLES_SIGNATURE_VERIFY,
+    DUDECT_THRESHOLD,
 };
 use hmac::digest::generic_array::typenum::U32;
 use hmac::digest::generic_array::GenericArray;
@@ -33,16 +42,21 @@ fn subtle_ct_eq_bytes_32(a: &[u8], b: &[u8]) {
     black_box(acc);
 }
 
-fn sample_count_for_harness(name: &str) -> usize {
-    match name {
-        "timing_brainpool256_scalar_mult" | "timing_brainpool384_scalar_mult" => {
-            DUDECT_SAMPLES_BRAINPOOL_REDUCED
-        }
-        "timing_brainpool512_scalar_mult" => DUDECT_SAMPLES_BRAINPOOL_SLOW,
-        "timing_pbkdf2" => DUDECT_SAMPLES_PBKDF2,
-        "timing_sha3_256" | "timing_sha3_512" => DUDECT_SAMPLES_SHA3,
-        _ => DUDECT_SAMPLES,
+/// When `DUDECT_HARNESSES` is set to a non-empty comma-separated list, only those harness names run.
+fn harness_in_filter(name: &str) -> bool {
+    use std::env;
+    let Ok(raw) = env::var("DUDECT_HARNESSES") else {
+        return true;
+    };
+    let names: Vec<&str> = raw
+        .split(',')
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+        .collect();
+    if names.is_empty() {
+        return true;
     }
+    names.contains(&name)
 }
 
 fn print_result(name: &str, summ: &CtSummary) -> bool {
@@ -58,6 +72,15 @@ fn print_result(name: &str, summ: &CtSummary) -> bool {
         println!("  Result:        FAIL — |t| exceeds threshold; investigate before release");
     }
     println!();
+    if std::env::var("DUDECT_JSON_OUTPUT").as_deref() == Ok("1") {
+        let line = serde_json::json!({
+            "harness": name,
+            "samples": n,
+            "t": summ.max_t,
+            "status": if pass { "PASS" } else { "FAIL" },
+        });
+        println!("{line}");
+    }
     let _ = std::io::stdout().flush();
     pass
 }
@@ -70,10 +93,11 @@ fn print_missing(name: &str, reason: &str) {
 
 fn bench_subtle_eq_u256() -> CtSummary {
     use subtle::ConstantTimeEq;
+    let n = samples_for_harness("timing_subtle_eq_u256");
     let mut rng = StdRng::seed_from_u64(0x67616c6472616741);
     let mut runner = CtRunner::default();
-    let mut work = Vec::with_capacity(DUDECT_SAMPLES);
-    for _ in 0..DUDECT_SAMPLES {
+    let mut work = Vec::with_capacity(n);
+    for _ in 0..n {
         let mut a = [0u8; 32];
         rng.fill_bytes(&mut a);
         if rng.gen_bool(0.5) {
@@ -108,9 +132,10 @@ fn bench_timing_chacha_tag_check() -> CtSummary {
     let mut tag_bad = tag_good;
     tag_bad[15] ^= 0x01;
 
+    let n = samples_for_harness("timing_chacha_tag_check");
     let mut rng = StdRng::seed_from_u64(0xC4A4);
-    let mut work = Vec::with_capacity(DUDECT_SAMPLES);
-    for _ in 0..DUDECT_SAMPLES {
+    let mut work = Vec::with_capacity(n);
+    for _ in 0..n {
         if rng.gen_bool(0.5) {
             work.push((Class::Left, tag_good, tag_good));
         } else {
@@ -146,9 +171,10 @@ fn bench_timing_aes_gcm_tag_check() -> CtSummary {
     let tag_good: [u8; 16] = ct[ct.len() - 16..].try_into().expect("tag len");
     let mut tag_bad = tag_good;
     tag_bad[15] ^= 0x01;
+    let n = samples_for_harness("timing_aes_gcm_tag_check");
     let mut rng = StdRng::seed_from_u64(0xA5E5);
-    let mut work = Vec::with_capacity(DUDECT_SAMPLES);
-    for _ in 0..DUDECT_SAMPLES {
+    let mut work = Vec::with_capacity(n);
+    for _ in 0..n {
         if rng.gen_bool(0.5) {
             work.push((Class::Left, tag_good, tag_good));
         } else {
@@ -182,9 +208,10 @@ fn bench_timing_hmac_verify() -> CtSummary {
     let mut tag_bad = tag_good;
     tag_bad[31] ^= 0x01;
 
+    let n = samples_for_harness("timing_hmac_verify");
     let mut rng = StdRng::seed_from_u64(0x484D4143);
-    let mut work = Vec::with_capacity(DUDECT_SAMPLES);
-    for _ in 0..DUDECT_SAMPLES {
+    let mut work = Vec::with_capacity(n);
+    for _ in 0..n {
         if rng.gen_bool(0.5) {
             work.push((Class::Left, tag_good, tag_good));
         } else {
@@ -212,9 +239,10 @@ fn bench_timing_hkdf_derive() -> CtSummary {
     let salt_a = [1u8; 16];
     let salt_b = [2u8; 16];
     let info = b"galdr-dudect/hkdf";
+    let n = samples_for_harness("timing_hkdf_derive");
     let mut rng = StdRng::seed_from_u64(0x484B_4446);
     let mut runner = CtRunner::default();
-    for _ in 0..DUDECT_SAMPLES {
+    for _ in 0..n {
         let left = rng.gen_bool(0.5);
         let c = if left { Class::Left } else { Class::Right };
         let salt = if left { salt_a } else { salt_b };
@@ -239,9 +267,10 @@ fn bench_timing_ed25519_verify() -> CtSummary {
     let mut sig_bad = sig_good;
     sig_bad[0] ^= 0x01;
 
+    let n = samples_for_harness("timing_ed25519_verify");
     let mut rng = StdRng::seed_from_u64(0xED15);
-    let mut work = Vec::with_capacity(DUDECT_SAMPLES);
-    for _ in 0..DUDECT_SAMPLES {
+    let mut work = Vec::with_capacity(n);
+    for _ in 0..n {
         if rng.gen_bool(0.5) {
             work.push((Class::Left, sig_good, sig_good));
         } else {
@@ -273,9 +302,10 @@ fn bench_timing_x25519_ecdh() -> CtSummary {
     let good: [u8; 32] = *shared.as_bytes();
     let mut bad = good;
     bad[31] ^= 1;
+    let n = samples_for_harness("timing_x25519_ecdh");
     let mut rng = StdRng::seed_from_u64(0x25519);
-    let mut work = Vec::with_capacity(DUDECT_SAMPLES);
-    for _ in 0..DUDECT_SAMPLES {
+    let mut work = Vec::with_capacity(n);
+    for _ in 0..n {
         if rng.gen_bool(0.5) {
             work.push((Class::Left, good, good));
         } else {
@@ -307,9 +337,10 @@ fn bench_brainpool_ecdh_p256() -> CtSummary {
     let c = BrainpoolScalar::generate(&mut t3).expect("c");
     let pb = b.public_key().expect("pb");
     let pc = c.public_key().expect("pc");
+    let n = samples_for_harness("timing_brainpool256_scalar_mult");
     let mut rng = StdRng::seed_from_u64(0xB256);
     let mut runner = CtRunner::default();
-    for _ in 0..DUDECT_SAMPLES_BRAINPOOL_REDUCED {
+    for _ in 0..n {
         let left = rng.gen_bool(0.5);
         let cl = if left { Class::Left } else { Class::Right };
         if left {
@@ -337,9 +368,10 @@ fn bench_brainpool_ecdh_p384() -> CtSummary {
     let c = BrainpoolP384Scalar::generate(&mut t3).expect("c");
     let pb = b.public_key().expect("pb");
     let pc = c.public_key().expect("pc");
+    let n = samples_for_harness("timing_brainpool384_scalar_mult");
     let mut rng = StdRng::seed_from_u64(0xB384);
     let mut runner = CtRunner::default();
-    for _ in 0..DUDECT_SAMPLES_BRAINPOOL_REDUCED {
+    for _ in 0..n {
         let left = rng.gen_bool(0.5);
         let cl = if left { Class::Left } else { Class::Right };
         if left {
@@ -356,6 +388,113 @@ fn bench_brainpool_ecdh_p384() -> CtSummary {
     update_ct_stats(None, l, r).0
 }
 
+/// Paired samples: same TRNG seed yields the same ephemeral keypair; ECDH runs against two
+/// different valid peer SEC1 keys (same primitive stack as `EphemeralKeyPair::ecdh`).
+fn bench_timing_ephemeral_ecdh() -> CtSummary {
+    use ephemeral_session::{EphemeralKeyPair, SessionCurve};
+    use galdr_core::fake_hal::FakeTrng;
+    let curve = SessionCurve::BrainpoolP256r1;
+    let mut t2 = FakeTrng::from_seed(0x000E_E0ED);
+    let mut t3 = FakeTrng::from_seed(0x000E_E0EE);
+    let b = EphemeralKeyPair::generate(curve, &mut t2).expect("b");
+    let c = EphemeralKeyPair::generate(curve, &mut t3).expect("c");
+    let pb = b.public_key_bytes().to_vec();
+    let pc = c.public_key_bytes().to_vec();
+    let n_timings = samples_for_harness("timing_ephemeral_ecdh");
+    let pairs = n_timings / 2;
+    let mut rng = StdRng::seed_from_u64(0x000E_E0EC);
+    let mut runner = CtRunner::default();
+    for _ in 0..pairs {
+        let seed = rng.gen::<u64>();
+        let mut trng_l = FakeTrng::from_seed(seed);
+        let epk_l = EphemeralKeyPair::generate(curve, &mut trng_l).expect("epk_l");
+        let pb_l = pb.clone();
+        runner.run_one(Class::Left, move || {
+            let _ = epk_l.ecdh(pb_l.as_slice());
+        });
+        let mut trng_r = FakeTrng::from_seed(seed);
+        let epk_r = EphemeralKeyPair::generate(curve, &mut trng_r).expect("epk_r");
+        let pc_r = pc.clone();
+        runner.run_one(Class::Right, move || {
+            let _ = epk_r.ecdh(pc_r.as_slice());
+        });
+    }
+    let (l, r) = runner.left_right();
+    update_ct_stats(None, l, r).0
+}
+
+/// [`BrainpoolVerifyingKey::verify_handshake_sha256_prehash`] (same primitive as handshake verification).
+fn bench_timing_signature_verify() -> CtSummary {
+    use galdr_core::fake_hal::FakeTrng;
+    use vault::ecdsa_brainpool::{BrainpoolSignature, BrainpoolSigningKey};
+    let mut trng = FakeTrng::from_seed(0x534947);
+    let sk = BrainpoolSigningKey::generate(&mut trng).expect("sk");
+    let vk = sk.verifying_key();
+    let preimage_ok = b"dudect verify preimage ok";
+    let preimage_bad = b"dudect verify preimage bad distinct";
+    let sig = sk
+        .sign_handshake_sha256_prehash(preimage_ok, &mut trng)
+        .expect("sign");
+    let sig_obj = BrainpoolSignature::from_der_bytes(sig.der_bytes()).expect("parse sig");
+    let n = samples_for_harness("timing_signature_verify");
+    let mut rng = StdRng::seed_from_u64(0x564552);
+    let mut runner = CtRunner::default();
+    for _ in 0..n {
+        let left = rng.gen_bool(0.5);
+        let cl = if left { Class::Left } else { Class::Right };
+        if left {
+            runner.run_one(cl, || {
+                let _ = vk.verify_handshake_sha256_prehash(preimage_ok, &sig_obj);
+            });
+        } else {
+            runner.run_one(cl, || {
+                let _ = vk.verify_handshake_sha256_prehash(preimage_bad, &sig_obj);
+            });
+        }
+    }
+    let (l, r) = runner.left_right();
+    update_ct_stats(None, l, r).0
+}
+
+fn bench_timing_fingerprint_lookup() -> CtSummary {
+    use ephemeral_session::{InMemoryTrustStore, LongTermCert, SessionCurve, TrustStore, MAX_SEC1};
+    use galdr_core::fake_hal::FakeTrng;
+    use heapless::Vec as HVec;
+    use vault::ecdsa_brainpool::BrainpoolSigningKey;
+    // Same absent fingerprint for both classes: full scan, no hit, identical work (Welch null).
+    let mut trng = FakeTrng::from_seed(0x545255);
+    let sk = BrainpoolSigningKey::generate(&mut trng).expect("sk");
+    let vk = sk.verifying_key();
+    let sec1 = vk.to_sec1_uncompressed();
+    let mut verifying_key = HVec::<u8, { MAX_SEC1 }>::new();
+    verifying_key.extend_from_slice(&sec1).expect("vk");
+    let fp = LongTermCert::fingerprint_of(&sec1);
+    let cert = LongTermCert {
+        fingerprint: fp.clone(),
+        curve: SessionCurve::BrainpoolP256r1,
+        verifying_key,
+    };
+    let mut store = InMemoryTrustStore::<4>::new();
+    store.add(cert).expect("add");
+
+    let mut absent = [0u8; 32];
+    absent.copy_from_slice(fp.as_slice());
+    absent[0] ^= 0x01;
+
+    let n = samples_for_harness("timing_fingerprint_lookup");
+    let mut rng = StdRng::seed_from_u64(0x4C4F4F4B);
+    let mut runner = CtRunner::default();
+    for _ in 0..n {
+        let left = rng.gen_bool(0.5);
+        let cl = if left { Class::Left } else { Class::Right };
+        runner.run_one(cl, || {
+            let _ = black_box(store.lookup(absent.as_slice()));
+        });
+    }
+    let (l, r) = runner.left_right();
+    update_ct_stats(None, l, r).0
+}
+
 fn bench_brainpool_ecdh_p512() -> CtSummary {
     use galdr_core::fake_hal::FakeTrng;
     use vault::brainpool512::BrainpoolP512Scalar;
@@ -367,9 +506,10 @@ fn bench_brainpool_ecdh_p512() -> CtSummary {
     let c = BrainpoolP512Scalar::generate(&mut t3).expect("c");
     let pb = b.public_key().expect("pb");
     let pc = c.public_key().expect("pc");
+    let n = samples_for_harness("timing_brainpool512_scalar_mult");
     let mut rng = StdRng::seed_from_u64(0xB512);
     let mut runner = CtRunner::default();
-    for _ in 0..DUDECT_SAMPLES_BRAINPOOL_SLOW {
+    for _ in 0..n {
         let left = rng.gen_bool(0.5);
         let cl = if left { Class::Left } else { Class::Right };
         if left {
@@ -432,9 +572,10 @@ fn bench_timing_shamir_recover() -> CtSummary {
         .try_into()
         .expect("left share 2 must be 32 bytes");
 
+    let n = samples_for_harness("timing_shamir_recover");
     let mut rng = StdRng::seed_from_u64(0x5348414D);
     let mut runner = CtRunner::default();
-    for i in 0..DUDECT_SAMPLES {
+    for i in 0..n {
         let left = rng.gen_bool(0.5);
         let c = if left { Class::Left } else { Class::Right };
         if left {
@@ -473,9 +614,10 @@ fn bench_timing_serpent_tag_check() -> CtSummary {
         .expect("serpent tag len");
     let mut tag_bad = tag_good;
     tag_bad[SERPENT_TAG_LEN - 1] ^= 0x01;
+    let n = samples_for_harness("timing_serpent_tag_check");
     let mut rng = StdRng::seed_from_u64(0x53455250);
-    let mut work = Vec::with_capacity(DUDECT_SAMPLES);
-    for _ in 0..DUDECT_SAMPLES {
+    let mut work = Vec::with_capacity(n);
+    for _ in 0..n {
         if rng.gen_bool(0.5) {
             work.push((Class::Left, tag_good, tag_good));
         } else {
@@ -513,9 +655,10 @@ fn bench_timing_twofish_tag_check() -> CtSummary {
         .expect("twofish tag len");
     let mut tag_bad = tag_good;
     tag_bad[TWOFISH_TAG_LEN - 1] ^= 0x01;
+    let n = samples_for_harness("timing_twofish_tag_check");
     let mut rng = StdRng::seed_from_u64(0x54574F46);
-    let mut work = Vec::with_capacity(DUDECT_SAMPLES);
-    for _ in 0..DUDECT_SAMPLES {
+    let mut work = Vec::with_capacity(n);
+    for _ in 0..n {
         if rng.gen_bool(0.5) {
             work.push((Class::Left, tag_good, tag_good));
         } else {
@@ -538,9 +681,10 @@ fn bench_timing_twofish_tag_check() -> CtSummary {
 
 fn bench_timing_pin_compare() -> CtSummary {
     use pin_policy::pin_compare;
+    let n = samples_for_harness("timing_pin_compare");
     let mut rng = StdRng::seed_from_u64(0x50494E30);
-    let mut work = Vec::with_capacity(DUDECT_SAMPLES);
-    for _ in 0..DUDECT_SAMPLES {
+    let mut work = Vec::with_capacity(n);
+    for _ in 0..n {
         let mut pin = [0u8; 16];
         rng.fill_bytes(&mut pin);
         if rng.gen_bool(0.5) {
@@ -577,9 +721,10 @@ fn bench_timing_rsa_oaep_decrypt() -> CtSummary {
     let mut bad = good.clone();
     // Same flip position as `bench_timing_rsa_pss_verify` (first byte).
     bad[0] ^= 0x01;
+    let n = samples_for_harness("timing_rsa_oaep_decrypt");
     let mut rng = StdRng::seed_from_u64(0x04E4);
-    let mut work = Vec::with_capacity(DUDECT_SAMPLES);
-    for _ in 0..DUDECT_SAMPLES {
+    let mut work = Vec::with_capacity(n);
+    for _ in 0..n {
         let left = rng.gen_bool(0.5);
         if left {
             work.push((Class::Left, good.clone(), good.clone()));
@@ -609,9 +754,10 @@ fn bench_timing_rsa_pss_verify() -> CtSummary {
     assert_eq!(good.len() % 32, 0, "RSA modulus-sized sig for subtle_ct_eq_bytes_32");
     let mut bad = good.clone();
     bad[0] ^= 0x01;
+    let n = samples_for_harness("timing_rsa_pss_verify");
     let mut rng = StdRng::seed_from_u64(0x5056);
-    let mut work = Vec::with_capacity(DUDECT_SAMPLES);
-    for _ in 0..DUDECT_SAMPLES {
+    let mut work = Vec::with_capacity(n);
+    for _ in 0..n {
         let left = rng.gen_bool(0.5);
         if left {
             work.push((Class::Left, good.clone(), good.clone()));
@@ -641,19 +787,22 @@ pub fn run_all() -> i32 {
         DUDECT_THRESHOLD
     );
     println!();
-    eprintln!(
-        "Note: each harness prints to stdout when it finishes. Brainpool P256/P384 ECDH use {} timings; P512 uses {} (not {}); other harnesses use {}. RSA benches can still take minutes. Progress is announced on stderr before each run.",
+    println!(
+        "Note: each harness prints to stdout when it finishes. Brainpool P256/P384 ECDH use {} timings; P512 uses {} (not {}); ephemeral-session ECDH uses {} total timings; timing_signature_verify uses {}; other default harnesses use {}. RSA benches can still take minutes. Set DUDECT_HARNESSES=name1,name2 to run only listed harnesses.",
         DUDECT_SAMPLES_BRAINPOOL_REDUCED,
         DUDECT_SAMPLES_BRAINPOOL_SLOW,
         DUDECT_SAMPLES,
+        DUDECT_SAMPLES_EPHEMERAL_ECDH,
+        DUDECT_SAMPLES_SIGNATURE_VERIFY,
         DUDECT_SAMPLES
     );
-    let _ = std::io::stderr().flush();
+    let _ = std::io::stdout().flush();
 
     let mut failed = 0u32;
+    let mut executed = 0usize;
 
     type HarnessFn = fn() -> CtSummary;
-    let harnesses: [(&str, HarnessFn); 24] = [
+    let harnesses: [(&str, HarnessFn); 29] = [
         ("timing_subtle_eq_u256", bench_subtle_eq_u256),
         ("timing_chacha_tag_check", bench_timing_chacha_tag_check),
         ("timing_aes_gcm_tag_check", bench_timing_aes_gcm_tag_check),
@@ -664,9 +813,17 @@ pub fn run_all() -> i32 {
         ("timing_brainpool256_scalar_mult", bench_brainpool_ecdh_p256),
         ("timing_brainpool384_scalar_mult", bench_brainpool_ecdh_p384),
         ("timing_brainpool512_scalar_mult", bench_brainpool_ecdh_p512),
+        ("timing_ephemeral_ecdh", bench_timing_ephemeral_ecdh),
+        ("timing_signature_verify", bench_timing_signature_verify),
+        ("timing_fingerprint_lookup", bench_timing_fingerprint_lookup),
         ("timing_shamir_recover", bench_timing_shamir_recover),
         ("timing_serpent_tag_check", bench_timing_serpent_tag_check),
         ("timing_twofish_tag_check", bench_timing_twofish_tag_check),
+        ("timing_cascade_auth_failure", bench_timing_cascade_auth_failure),
+        (
+            "timing_cascade_inner_vs_outer_failure",
+            bench_timing_cascade_inner_vs_outer_failure,
+        ),
         ("timing_pin_compare", bench_timing_pin_compare),
         ("timing_rsa_oaep_decrypt", bench_timing_rsa_oaep_decrypt),
         ("timing_rsa_pss_verify", bench_timing_rsa_pss_verify),
@@ -681,13 +838,25 @@ pub fn run_all() -> i32 {
     ];
 
     for (name, f) in harnesses {
-        let n = sample_count_for_harness(name);
-        eprintln!("[DUDECT] Running {name} ({n} samples) ...");
-        let _ = std::io::stderr().flush();
+        if !harness_in_filter(name) {
+            continue;
+        }
+        executed += 1;
+        let n = samples_for_harness(name);
+        println!("[DUDECT] Running {name} ({n} samples) ...");
+        let _ = std::io::stdout().flush();
         let summ = f();
         if !print_result(name, &summ) {
             failed += 1;
         }
+    }
+
+    if executed == 0 {
+        println!(
+            "[DUDECT] No harness ran. Check DUDECT_HARNESSES spelling (comma-separated names must match exactly)."
+        );
+        let _ = std::io::stdout().flush();
+        return 2;
     }
 
     print_missing(
@@ -708,20 +877,20 @@ pub fn run_all() -> i32 {
     );
 
     let elapsed = started.elapsed().as_secs_f64();
-    let total = harnesses.len();
+    let total = executed;
     let passed = total - failed as usize;
     println!();
     println!(
         "[DUDECT] Summary: {passed}/{total} executed harnesses passed threshold (|t| <= {DUDECT_THRESHOLD}). Elapsed: {elapsed:.1}s."
     );
     if failed > 0 {
-        eprintln!("dudect: {failed} harness(es) exceeded |t| > {DUDECT_THRESHOLD} — exit code 1");
-        let _ = std::io::stderr().flush();
+        println!(
+            "dudect: {failed} harness(es) exceeded |t| > {DUDECT_THRESHOLD} — exit code 1"
+        );
         let _ = std::io::stdout().flush();
         return 1;
     }
     println!("[DUDECT] Done — all executed harnesses passed. Exit code 0.");
     let _ = std::io::stdout().flush();
-    let _ = std::io::stderr().flush();
     0
 }

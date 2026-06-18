@@ -1,0 +1,22 @@
+[package]
+name = "ephemeral-session"
+version = "0.1.0"
+edition = "2021"
+license = "GPL-3.0"
+description = "Authenticated ephemeral ECDH session protocol (Brainpool, forward secrecy)"
+
+[dependencies]
+galdr-core = { path = "../galdr-core" }
+vault = { path = "../vault" }
+hkdf = { workspace = true }
+hmac = { workspace = true }
+sha2 = { workspace = true }
+zeroize = { workspace = true }
+subtle = { workspace = true }
+heapless = { workspace = true }
+
+[dev-dependencies]
+galdr-core = { path = "../galdr-core", features = ["test-hal"] }
+
+[lints]
+workspace = true

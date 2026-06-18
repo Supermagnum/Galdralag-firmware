@@ -12,6 +12,9 @@ libfuzzer-sys = "0.4"
 galdr-core = { path = "../crates/galdr-core", features = ["test-hal"] }
 rand_core = { version = "0.6", default-features = false }
 vault = { path = "../crates/vault" }
+ephemeral-session = { path = "../crates/ephemeral-session" }
+cipher-profile = { path = "../crates/cipher-profile" }
+heapless = { version = "0.8", default-features = false }
 
 [[bin]]
 name = "chacha_roundtrip"
@@ -72,6 +75,20 @@ bench = false
 [[bin]]
 name = "rsa_der_import"
 path = "fuzz_targets/rsa_der_import.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "fuzz_ephemeral_handshake"
+path = "fuzz_targets/fuzz_ephemeral_handshake.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "fuzz_cipher_profile"
+path = "fuzz_targets/fuzz_cipher_profile.rs"
 test = false
 doc = false
 bench = false

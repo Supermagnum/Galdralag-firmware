@@ -4,6 +4,8 @@ members = [
     "crates/galdr-core",
     "crates/bp512",
     "crates/vault",
+    "crates/ephemeral-session",
+    "crates/cipher-profile",
     "crates/pin-policy",
     "crates/usb-personality",
     "crates/host-tools",
@@ -23,6 +25,8 @@ license = "GPL-3.0"
 [workspace.dependencies]
 galdr-core = { path = "crates/galdr-core" }
 vault = { path = "crates/vault" }
+ephemeral-session = { path = "crates/ephemeral-session" }
+cipher-profile = { path = "crates/cipher-profile" }
 pin-policy = { path = "crates/pin-policy" }
 usb-personality = { path = "crates/usb-personality" }
 

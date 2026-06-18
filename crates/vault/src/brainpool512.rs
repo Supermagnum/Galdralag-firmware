@@ -15,9 +15,11 @@ use bp512::elliptic_curve::pkcs8::DecodePublicKey;
 use bp512::elliptic_curve::sec1::{FromSec1Point, Sec1Point, ToSec1Point};
 use bp512::elliptic_curve::{PublicKey, SecretKey};
 use ecdsa::der;
+use ecdsa::signature::hazmat::{PrehashSigner, PrehashVerifier};
 use ecdsa::signature::{Signer, Verifier};
 use ecdsa::{SigningKey, VerifyingKey};
 use galdr_core::hal::HardwareTrng;
+use sha2::{Digest, Sha256};
 use subtle::ConstantTimeEq;
 use zeroize::Zeroize;
 
@@ -50,6 +52,22 @@ pub struct BrainpoolP512VerifyingKey(VerifyingKey<BrainpoolP512r1>);
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct BrainpoolP512Signature {
     der: heapless::Vec<u8, MAX_DER_SIG_P512>,
+}
+
+impl BrainpoolP512Signature {
+    /// DER-encoded signature bytes.
+    pub fn from_der_bytes(bytes: &[u8]) -> Result<Self, BrainpoolError> {
+        let mut der = heapless::Vec::new();
+        for b in bytes {
+            der.push(*b).map_err(|_| BrainpoolError::InvalidSignature)?;
+        }
+        Ok(BrainpoolP512Signature { der })
+    }
+
+    /// Borrow the DER-encoded signature.
+    pub fn der_bytes(&self) -> &[u8] {
+        self.der.as_slice()
+    }
 }
 
 #[cfg(test)]
@@ -220,6 +238,24 @@ impl BrainpoolP512SigningKey {
         Ok(BrainpoolP512Signature { der: v })
     }
 
+    /// Sign `SHA256(preimage)` using ECDSA prehash signing (RFC 6979 over the digest bytes).
+    pub fn sign_handshake_sha256_prehash<T: HardwareTrng>(
+        &self,
+        preimage: &[u8],
+        #[allow(unused_variables)] trng: &mut T,
+    ) -> Result<BrainpoolP512Signature, BrainpoolError> {
+        let digest = Sha256::digest(preimage);
+        let sig: der::Signature<BrainpoolP512r1> = self
+            .0
+            .sign_prehash(digest.as_slice())
+            .map_err(|_| BrainpoolError::InvalidSignature)?;
+        let mut v = heapless::Vec::new();
+        for b in sig.as_bytes() {
+            v.push(*b).map_err(|_| BrainpoolError::InvalidSignature)?;
+        }
+        Ok(BrainpoolP512Signature { der: v })
+    }
+
     #[doc(hidden)]
     pub fn to_scalar_bytes_for_test(&self) -> [u8; 64] {
         let fb = self.0.to_bytes();
@@ -253,6 +289,20 @@ impl BrainpoolP512VerifyingKey {
             .map_err(|_| BrainpoolError::InvalidSignature)?;
         self.0
             .verify(message, &sig)
+            .map_err(|_| BrainpoolError::InvalidSignature)
+    }
+
+    /// Verify a signature over `SHA256(preimage)` (paired with [`BrainpoolP512SigningKey::sign_handshake_sha256_prehash`]).
+    pub fn verify_handshake_sha256_prehash(
+        &self,
+        preimage: &[u8],
+        signature: &BrainpoolP512Signature,
+    ) -> Result<(), BrainpoolError> {
+        let digest = Sha256::digest(preimage);
+        let sig = der::Signature::from_bytes(signature.der.as_slice())
+            .map_err(|_| BrainpoolError::InvalidSignature)?;
+        self.0
+            .verify_prehash(digest.as_slice(), &sig)
             .map_err(|_| BrainpoolError::InvalidSignature)
     }
 

@@ -4,6 +4,7 @@
 //! hashes per Baochip README verification section.
 
 mod test_all;
+mod timing_test;
 
 use std::path::Path;
 use std::process::{Command, Stdio};
@@ -13,6 +14,32 @@ fn main() {
     match a.next().as_deref() {
         Some("build-fw") => run_embedded(&["build"]),
         Some("check-fw") => run_embedded(&["check"]),
+        Some("test-profiles") => {
+            let st = Command::new("cargo")
+                .args(["test", "-p", "cipher-profile", "--", "--test-threads=1"])
+                .stdin(Stdio::inherit())
+                .stdout(Stdio::inherit())
+                .stderr(Stdio::inherit())
+                .status()
+                .expect("cargo");
+            std::process::exit(st.code().unwrap_or(1));
+        }
+        Some("test-session") => {
+            let st = Command::new("cargo")
+                .args([
+                    "test",
+                    "-p",
+                    "ephemeral-session",
+                    "--",
+                    "--test-threads=1",
+                ])
+                .stdin(Stdio::inherit())
+                .stdout(Stdio::inherit())
+                .stderr(Stdio::inherit())
+                .status()
+                .expect("cargo");
+            std::process::exit(st.code().unwrap_or(1));
+        }
         Some("test-host") => {
             let st = Command::new("cargo")
                 .args(["test", "--workspace", "--exclude", "xtask"])
@@ -52,23 +79,8 @@ fn main() {
             std::process::exit(st.code().unwrap_or(1));
         }
         Some("timing-test") => {
-            let st = Command::new("cargo")
-                .args([
-                    "run",
-                    "-p",
-                    "security-tests",
-                    "--features",
-                    "dudect",
-                    "--bin",
-                    "dudect_galdr",
-                    "--",
-                ])
-                .stdin(Stdio::inherit())
-                .stdout(Stdio::inherit())
-                .stderr(Stdio::inherit())
-                .status()
-                .expect("cargo");
-            std::process::exit(st.code().unwrap_or(1));
+            let code = timing_test::run(workspace_root(), a);
+            std::process::exit(code);
         }
         Some("fuzz") => {
             let name = a
@@ -110,7 +122,7 @@ fn main() {
         }
         _ => {
             eprintln!(
-                "usage: cargo run -p xtask -- <build-fw|check-fw|test-host|test-crypto|test-all [--no-fuzz]|wycheproof|timing-test|bench-rsa|fuzz [TARGET] [SECS]|fuzz-chacha [SECS]|fuzz-shamir [SECS]>"
+                "usage: cargo run -p xtask -- <build-fw|check-fw|test-session|test-profiles|test-host|test-crypto|test-all [--no-fuzz]|wycheproof|timing-test [--all] [--full] [HARNESS...]|bench-rsa|fuzz [TARGET] [SECS]|fuzz-chacha [SECS]|fuzz-shamir [SECS]>"
             );
             std::process::exit(2);
         }
@@ -134,6 +146,10 @@ fn fuzz_bin_name(name: &str) -> &str {
         "rsa-oaep-decrypt" | "rsa_oaep_decrypt" => "rsa_oaep_decrypt",
         "rsa-pss-verify" | "rsa_pss_verify" => "rsa_pss_verify",
         "rsa-der-import" | "rsa_der_import" => "rsa_der_import",
+        "ephemeral-handshake" | "ephemeral_handshake" | "fuzz_ephemeral_handshake" => {
+            "fuzz_ephemeral_handshake"
+        }
+        "cipher-profile" | "fuzz_cipher_profile" => "fuzz_cipher_profile",
         other => other,
     }
 }
@@ -185,6 +201,10 @@ fn run_embedded(sub: &[&str]) {
             "pin-policy",
             "-p",
             "usb-personality",
+            "-p",
+            "ephemeral-session",
+            "-p",
+            "cipher-profile",
             "--target",
             "riscv32imac-unknown-none-elf",
         ])

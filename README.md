@@ -44,6 +44,7 @@ Portions of this repository (including documentation, tests, and tooling) may ha
   - [HKDF, HMAC, PBKDF2](#hkdf-hmac-pbkdf2)
   - [SHA-2, SHA-3, BLAKE2, BLAKE3](#sha-2-sha-3-blake2-blake3)
   - [Shamir secret sharing](#shamir-secret-sharing)
+  - [Example: Serpent-256, ChaCha20-Poly1305, ECDHE, and Shamir](#example-serpent-256-chacha20-poly1305-ecdhe-and-shamir)
   - [PIN policy (not a cipher)](#pin-policy-not-a-cipher)
   - [PSRAM block device (optional, not in tree)](#psram-block-device-optional-not-in-tree)
 - [Workspace Cargo features](#workspace-cargo-features)
@@ -257,6 +258,8 @@ You can combine both: establish trust and distribute **public** certificates wit
 
 The table above lists **what** is wired and **how** it is tested. This section explains **why** each primitive exists and how it fits the threat model. Curves and ciphers are **not** interchangeable: keys and parameters are type-separated in code.
 
+As an **example**, a **Galdra cipher profile** may combine **Serpent-256**, **ChaCha20-Poly1305**, **ECDHE** (authenticated ephemeral Brainpool ECDH for session key agreement), and **Shamir's secret sharing** (K-of-N for long-term key recovery) in one policy—see [Example: Serpent-256, ChaCha20-Poly1305, ECDHE, and Shamir](#example-serpent-256-chacha20-poly1305-ecdhe-and-shamir) and [docs/CIPHER_PROFILES.md](docs/CIPHER_PROFILES.md).
+
 ### Brainpool P-256r1, P-384r1, P-512r1 (ECDH and ECDSA)
 
 **Brainpool** curves are prime-field **short Weierstrass** curves standardized in **RFC 5639** (parameters) and used heavily in **BSI TR-03111** and European PKI. This firmware implements **ECDH** (shared secret from a static/ephemeral scalar and a peer public point) and **ECDSA** (sign/verify with a hash matched to the field size: **SHA-256** for P-256, **SHA-384** for P-384, **SHA-512** for P-512). The three curves differ in field size and performance; they address deployments that require **non-NIST** curves or national-profile interoperability.
@@ -306,6 +309,16 @@ In the vault, every operational subkey uses a distinct **`KeyPurpose`** label as
 ### Shamir secret sharing
 
 **Shamir** splitting stores a secret as the constant term of a polynomial over a finite field; **k** of **n** shares reconstruct; fewer than **k** reveal no information in the ideal model. Used for recovery/backup flows that require a threshold.
+
+### Example: Serpent-256, ChaCha20-Poly1305, ECDHE, and Shamir
+
+You can combine **Serpent-256**, **ChaCha20-Poly1305**, **ECDHE**, and **Shamir's secret sharing** in one **Galdra cipher profile** (session agreement + layered bulk encryption + threshold recovery of the long-term key). Details (see [docs/CIPHER_PROFILES.md](docs/CIPHER_PROFILES.md) for full rules and CLI examples):
+
+- **ECDHE (ephemeral ECDH):** Session keys use **authenticated ephemeral ECDH** on the profile’s Brainpool curve (for example **Brainpool P-256r1**); each session uses fresh ephemeral material for **forward secrecy** (see [Ephemeral ECDH](#ephemeral-ecdh-ecdhe-style-and-tls)).
+- **Serpent-256 and ChaCha20-Poly1305:** The **bulk** ciphertext is protected by a **cascade** of layers (encrypt outer-to-inner, decrypt inner-to-outer with authentication at each step). A concrete pattern is **Serpent-256** then **ChaCha20-Poly1305**—the same ordering as the built-in **`conservative`** / **`conservative-shamir`** profiles (Serpent outer, ChaCha inner).
+- **Shamir:** **K-of-N** Shamir applies to the **long-term** signing key (splitting and recovery for backup/restore), not to the per-message symmetric stack. The built-in **`conservative-shamir`** profile uses **3-of-5** Shamir together with that Serpent–ChaCha cascade on **BP256r1**.
+
+**Custom profile:** `galdra profile add … --layer serpent256 --layer chacha20poly1305 --shamir-threshold K --shamir-total N` (with `--curve` as needed) defines a user profile with the same kind of composition.
 
 ### PIN policy (not a cipher)
 
@@ -389,7 +402,13 @@ Rust's ownership model prevents memory corruption but panics and logic
 errors remain in scope.
 
 #### dudect (timing side-channel analysis)
-`cargo run -p xtask -- timing-test` builds and runs the `dudect_galdr` binary from `crates/security-tests` (Welch t-statistic on timing samples; pass when |t| <= **4.5**). Most harnesses use **100,000** timings (including **PBKDF2**, where each sample is expensive); **Brainpool P256 and P384** ECDH use **5,000** each; **Brainpool P512** uses **15,000**; **SHA3-256 and SHA3-512** use **200,000** each (reduced counts on slow Brainpool curves; larger N on SHA3 to reduce host jitter). Harnesses cover constant-time buffer/tag comparisons, AEAD tag checks (ChaCha20-Poly1305, AES-GCM, Serpent, Twofish), HMAC verify, HKDF, Ed25519 verify, X25519 ECDH, Brainpool ECDH, Shamir recover, PBKDF2-HMAC-SHA256, SHA-256/SHA-512, SHA3-256/SHA3-512, BLAKE2b/BLAKE2s, BLAKE3 (single-chunk inputs), PIN compare, and RSA-related **constant-time equality** on modulus-sized ciphertext/signature bytes (not full OAEP decrypt or PSS verify latency). **stderr** prints `[DUDECT] Running …` before each harness; stdout prints per-harness t-statistics and a **Summary**. Wall time is often on the order of **~15 minutes** on a developer machine (one full run recorded ~910 s after PBKDF2 sample count aligned to 100k). Exit code **0** when all executed harnesses pass; **1** if any |t| exceeds the threshold. The capability table marks primitives exercised by `timing-test` as **dudect host** with representative t-statistics from a recorded run (your machine will differ). Stub APIs in `security-tests` stay `DudectStatus::NotRun` when the `dudect` feature is disabled. Full stdout-oriented results and dates are recorded in **[docs/TEST_RESULTS.md](docs/TEST_RESULTS.md)**; Section 9 can be updated by pasting `dudect_galdr` output without re-running the whole pipeline.
+`cargo run -p xtask -- timing-test` builds and runs the `dudect_galdr` binary from `crates/security-tests` (Welch t-statistic on timing samples; pass when |t| <= **4.5**). **PASS** results for each harness are stored in **[`crates/security-tests/dudect_results.json`](crates/security-tests/dudect_results.json)**. The default `timing-test` only runs harnesses **not** yet marked PASS in that file (fast on routine commits). Use **`timing-test --all`** for a full suite (**~910 s** on a typical developer machine). Use **`timing-test --full`** to apply a **3x** sample multiplier (`DUDECT_SAMPLE_MULTIPLIER`); combine with **`--all`** for a pre-release sweep. Pass harness names as extra arguments (for example `timing-test timing_sha256`) to run **only** those, ignoring the cache for those names. On success, `xtask` merges **JSON** result lines from the child into `dudect_results.json` (set internally via `DUDECT_JSON_OUTPUT=1`).
+
+Most harnesses use **100,000** timings (including **PBKDF2**, where each sample is expensive); **Brainpool P256 and P384** ECDH use **5,000** each; **Brainpool P512** uses **15,000**; **ephemeral-session ECDH** and **`timing_signature_verify`** use **10,000**; **SHA3-256 and SHA3-512** use **200,000** each (reduced counts on slow Brainpool curves; larger N on SHA3 to reduce host jitter). Harnesses cover constant-time buffer/tag comparisons, AEAD tag checks (ChaCha20-Poly1305, AES-GCM, Serpent, Twofish), HMAC verify, HKDF, Ed25519 verify, X25519 ECDH, Brainpool ECDH, ephemeral ECDH, Brainpool handshake verify, trust-store lookup (null pairing), cascade decrypt (null pairings), Shamir recover, PBKDF2-HMAC-SHA256, SHA-256/SHA-512, SHA3-256/SHA3-512, BLAKE2b/BLAKE2s, BLAKE3 (single-chunk inputs), PIN compare, and RSA-related **constant-time equality** on modulus-sized ciphertext/signature bytes (not full OAEP decrypt or PSS verify latency). Progress and results use **stdout** (including `[DUDECT] Running …` per harness) so output stays ordered when piped. Exit code **0** when all executed harnesses pass; **1** if any |t| exceeds the threshold. Stub APIs in `security-tests` stay `DudectStatus::NotRun` when the `dudect` feature is disabled. **[docs/TEST_RESULTS.md](docs/TEST_RESULTS.md)** Section 9 documents the checked-in cache and commands.
+
+**`test-all`** invokes `dudect_galdr` **without** the PASS cache (full harness list every time), so CI-style runs still exercise all benchmarks.
+
+**Development policy:** when you land a change, add or extend **dudect** harnesses **only** for **new** timing-sensitive paths introduced by that change. Do **not** add redundant harnesses or duplicate work for primitives already covered by existing harnesses; avoid gratuitous full-suite reruns or sample-count inflation unless you are checking a regression or a genuinely new surface. You can still set **`DUDECT_HARNESSES`** when running `dudect_galdr` directly (comma-separated names); `timing_signature_verify` uses **10,000** samples (not 100,000) to limit wall time.
 
 ### Coverage summary
 
@@ -423,7 +442,7 @@ Full test vector coverage, known-answer test results, Wycheproof run
 summaries, RFC vector pass/fail tables, BSI vector results, and dudect
 t-statistic records are maintained in:
 
-**[docs/TEST_RESULTS.md](docs/TEST_RESULTS.md)**
+**[docs/TEST_RESULTS.md](docs/TEST_RESULTS.md)** (Section 9 aligns with [`crates/security-tests/dudect_results.json`](crates/security-tests/dudect_results.json) for dudect t-statistics.)
 
 Run the full suite at any time:
 
@@ -524,7 +543,7 @@ hardware verification status in `docs/HARDWARE_VERIFICATION.md`.
 | `pin-policy` | PIN state machine; **counter increment before** `subtle::ConstantTimeEq` PIN check; threshold zeroisation |
 | `usb-personality` | Mass-storage vs authenticated-unlock personalities; no secret leakage to uninformed hosts (scaffold) |
 | `host-tools` | Host manifest hashing / update verification stubs (`std`) |
-| `security-tests` | Dudect (`dudect_galdr` via `--features dudect`) and timing-analysis stubs |
+| `security-tests` | Dudect (`dudect_galdr` via `--features dudect`), `dudect_results.json` PASS cache, timing-analysis stubs |
 | `xtask` | Embedded `cargo build` / `check` / `test-host` / `test-all` / crypto and fuzz helpers |
 
 ## Where key functions are implemented (quick code map)
@@ -653,7 +672,9 @@ No crypto logic in the GUI: it only displays JSON from **`galdrad`**. Review beh
 
 ### Timing analysis (dudect)
 
-**Harnesses:** [`crates/security-tests/src/dudect_harnesses.rs`](crates/security-tests/src/dudect_harnesses.rs) — HKDF, ChaCha20-Poly1305 tag checks, and other primitives exercised by `cargo run -p xtask -- timing-test`.
+**Harnesses:** [`crates/security-tests/src/dudect_harnesses.rs`](crates/security-tests/src/dudect_harnesses.rs) — HKDF, ChaCha20-Poly1305 tag checks, and other primitives exercised by **`cargo run -p xtask -- timing-test`**. Cached PASS rows live in [`crates/security-tests/dudect_results.json`](crates/security-tests/dudect_results.json); use **`timing-test --all`** when you need a full sweep.
+
+**Scope:** extend or add harnesses **only** for **new** timing-sensitive code; the incremental `timing-test` avoids re-running harnesses already marked PASS in the JSON (see [dudect (timing side-channel analysis)](#dudect-timing-side-channel-analysis)).
 
 **Fuzz targets** (libFuzzer): [`fuzz/fuzz_targets/`](fuzz/fuzz_targets/).
 
@@ -670,9 +691,13 @@ cargo run -p xtask -- test-host
 cargo run -p xtask -- test-crypto
 cargo run -p xtask -- wycheproof
 cargo run -p xtask -- test-all
+cargo run -p xtask -- timing-test
+cargo run -p xtask -- timing-test --all
 ```
 
-Additional **xtask** entry points (timing, RSA bench, libFuzzer wrappers): run
+**Timing (`dudect`):** default `timing-test` skips harnesses with PASS in `crates/security-tests/dudect_results.json`; `timing-test --all` runs everything; `timing-test --full` uses 3x samples; optional harness names limit the run.
+
+Additional **xtask** entry points (RSA bench, libFuzzer wrappers): run
 `cargo run -p xtask --` with no subcommand to print the full usage line
 (`timing-test`, `bench-rsa`, `fuzz`, `fuzz-chacha`, `fuzz-shamir`, etc.).
 

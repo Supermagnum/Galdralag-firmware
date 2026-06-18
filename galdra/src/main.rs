@@ -2,7 +2,9 @@
 
 mod common;
 mod crypto_cmds;
+mod profile_cmds;
 mod qr;
+mod shamir_cmds;
 
 use clap::{Parser, Subcommand};
 use common::{
@@ -30,9 +32,9 @@ use std::process::ExitCode;
 #[derive(Parser)]
 #[command(name = "galdra", version, about)]
 struct Cli {
-    /// Machine-readable JSON on stdout for supported commands.
-    #[arg(long, global = true, value_name = "FORMAT")]
-    output: Option<String>,
+    /// Machine-readable JSON on stdout for supported commands (`json`; default is human text).
+    #[arg(long = "emit", global = true, value_name = "FORMAT")]
+    emit: Option<String>,
     /// Suppress informational messages (errors still print).
     #[arg(long, global = true)]
     quiet: bool,
@@ -78,6 +80,16 @@ enum Commands {
         #[command(subcommand)]
         cmd: AuditCmd,
     },
+    /// Cipher profile registry (built-in and user-defined).
+    Profile {
+        #[command(subcommand)]
+        cmd: ProfileCmd,
+    },
+    /// Shamir share export and recovery (requires unlocked token when implemented).
+    Shamir {
+        #[command(subcommand)]
+        cmd: ShamirCmd,
+    },
     /// Encrypt a file to a group or explicit contacts (OpenPGP or age).
     Encrypt {
         #[arg(long, value_name = "FORMAT")]
@@ -98,6 +110,8 @@ enum Commands {
         hidden_recipient: bool,
         #[arg(long)]
         sign: bool,
+        #[arg(long)]
+        profile: Option<String>,
     },
     /// Decrypt an OpenPGP or age message.
     Decrypt {
@@ -111,6 +125,8 @@ enum Commands {
         input: PathBuf,
         #[arg(long)]
         output: PathBuf,
+        #[arg(long)]
+        profile: Option<String>,
     },
     /// Sign a file (token integration pending).
     Sign {
@@ -367,6 +383,75 @@ enum AuditCmd {
     Verify,
 }
 
+#[derive(Subcommand)]
+pub enum ProfileCmd {
+    /// List all profiles (built-in and user-defined).
+    List,
+    /// Show details for one profile.
+    Show {
+        name: String,
+    },
+    /// Add a user-defined profile.
+    Add {
+        name: String,
+        #[arg(long)]
+        description: Option<String>,
+        #[arg(long)]
+        curve: String,
+        #[arg(long = "layer")]
+        layer: Vec<String>,
+        #[arg(long)]
+        shamir_threshold: Option<u8>,
+        #[arg(long)]
+        shamir_total: Option<u8>,
+    },
+    /// Remove a user-defined profile.
+    Remove {
+        name: String,
+        #[arg(long)]
+        confirm: bool,
+    },
+}
+
+#[derive(Subcommand)]
+pub enum ShamirCmd {
+    /// Split a long-term key into Shamir shares.
+    Split {
+        #[arg(long)]
+        slot: u32,
+        #[arg(long)]
+        profile: String,
+        #[arg(long)]
+        output_dir: PathBuf,
+    },
+    /// Recover a key from share files.
+    Recover {
+        #[arg(long)]
+        slot: u32,
+        #[arg(long = "share")]
+        share: Vec<PathBuf>,
+        #[arg(long)]
+        confirm: bool,
+    },
+    /// Show metadata of a share file (no secret value).
+    ShowShare {
+        #[arg(long)]
+        input: PathBuf,
+    },
+    /// Write a share as a QR code PNG image.
+    ExportQr {
+        #[arg(long)]
+        share: PathBuf,
+        #[arg(long)]
+        output: PathBuf,
+    },
+    /// Read a share from a QR code image.
+    ImportQr {
+        #[arg(long)]
+        input: PathBuf,
+    },
+}
+
 fn parse_audit_action(s: &str) -> Result<AuditAction, GaldraError> {
     match s.to_ascii_lowercase().as_str() {
         "device_unlock" => Ok(AuditAction::DeviceUnlock),
@@ -392,11 +477,11 @@ fn parse_audit_action(s: &str) -> Result<AuditAction, GaldraError> {
 
 fn main() -> ExitCode {
     let cli = Cli::parse();
-    let output_mode = match cli.output.as_deref() {
+    let output_mode = match cli.emit.as_deref() {
         None | Some("human") => OutputMode::Human,
         Some("json") => OutputMode::Json,
         Some(other) => {
-            eprintln!("Unknown --output mode: {}", other);
+            eprintln!("Unknown --emit mode: {}", other);
             return ExitCode::from(1);
         }
     };
@@ -423,6 +508,8 @@ fn run(cli: Cli, output_mode: OutputMode) -> Result<(), GaldraError> {
         Commands::Group { cmd } => run_group(cmd, output_mode, quiet, &mut db),
         Commands::Sync { cmd } => run_sync(cmd, output_mode, quiet, &mut db),
         Commands::Audit { cmd } => run_audit(cmd, output_mode, quiet, &mut db),
+        Commands::Profile { cmd } => profile_cmds::run_profile(cmd, output_mode, quiet, &mut db),
+        Commands::Shamir { cmd } => shamir_cmds::run_shamir(cmd, output_mode, quiet, &mut db),
         Commands::Encrypt {
             format,
             age_recipient,
@@ -433,6 +520,7 @@ fn run(cli: Cli, output_mode: OutputMode) -> Result<(), GaldraError> {
             strict,
             hidden_recipient,
             sign,
+            profile,
         } => crypto_cmds::run_encrypt(
             &mut db,
             output_mode,
@@ -446,6 +534,7 @@ fn run(cli: Cli, output_mode: OutputMode) -> Result<(), GaldraError> {
             strict,
             hidden_recipient,
             sign,
+            profile,
         ),
         Commands::Decrypt {
             format,
@@ -453,6 +542,7 @@ fn run(cli: Cli, output_mode: OutputMode) -> Result<(), GaldraError> {
             recipient,
             input,
             output,
+            profile,
         } => crypto_cmds::run_decrypt(
             &mut db,
             output_mode,
@@ -462,6 +552,7 @@ fn run(cli: Cli, output_mode: OutputMode) -> Result<(), GaldraError> {
             recipient,
             input,
             output,
+            profile,
         ),
         Commands::Sign {
             input,
@@ -1353,12 +1444,28 @@ fn run_audit(
                 print_json(&rows)?;
             } else {
                 for r in rows {
+                    let subj = r.subject.as_deref().unwrap_or("");
+                    let det = r.detail.as_deref().unwrap_or("");
+                    if let Some(d) = r.detail.as_deref() {
+                        if d.contains('\n') {
+                            println!(
+                                "{}  {}  {}",
+                                r.timestamp.to_rfc3339(),
+                                r.action.as_str(),
+                                subj
+                            );
+                            for line in d.lines() {
+                                println!("  {line}");
+                            }
+                            continue;
+                        }
+                    }
                     println!(
                         "{}  {}  {}  {}",
                         r.timestamp.to_rfc3339(),
                         r.action.as_str(),
-                        r.subject.as_deref().unwrap_or(""),
-                        r.detail.as_deref().unwrap_or("")
+                        subj,
+                        det
                     );
                 }
             }

@@ -209,3 +209,10 @@ pub const DUDECT_SAMPLES_BRAINPOOL_SLOW: usize = 15_000;
 
 /// Brainpool P256/P384 ECDH: fewer timings than P512 (and than 100k default harnesses).
 pub const DUDECT_SAMPLES_BRAINPOOL_REDUCED: usize = 5_000;
+
+/// Ephemeral `EphemeralKeyPair::ecdh` paired samples (10_000 total timings: two ECDH calls per pair).
+pub const DUDECT_SAMPLES_EPHEMERAL_ECDH: usize = 10_000;
+
+/// Brainpool ECDSA verify (`timing_signature_verify`): verify is slower per sample than tag checks;
+/// 10k timings keep wall time practical; Welch threshold unchanged.
+pub const DUDECT_SAMPLES_SIGNATURE_VERIFY: usize = 10_000;

@@ -34,6 +34,12 @@ pub enum KeyPurpose {
     TwofishStorage,
     /// AEAD key used to wrap RSA private key material before RRAM storage (`rsa_vault`).
     RsaKeyWrap,
+    /// Long-term Brainpool signing key used to authenticate ephemeral offers (HKDF policy surface).
+    /// info: `b"galdralag/session/long-term-sign/v1"`
+    SessionLongTermSign,
+    /// HKDF PRK input label for ephemeral session material (vault policy; distinct from `ephemeral-session` HKDF-SHA256 labels).
+    /// info: `b"galdralag/session/ephemeral-prk/v1"`
+    EphemeralSessionPrk,
 }
 
 impl KeyPurpose {
@@ -51,6 +57,8 @@ impl KeyPurpose {
             KeyPurpose::SerpentStorage => b"galdralag/serpent/storage/v1",
             KeyPurpose::TwofishStorage => b"galdralag/twofish/storage/v1",
             KeyPurpose::RsaKeyWrap => b"galdralag/rsa/key-wrap/v1",
+            KeyPurpose::SessionLongTermSign => b"galdralag/session/long-term-sign/v1",
+            KeyPurpose::EphemeralSessionPrk => b"galdralag/session/ephemeral-prk/v1",
         }
     }
 }

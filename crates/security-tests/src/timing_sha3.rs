@@ -8,9 +8,8 @@
 //
 // Operational note: baseline only; less critical than AEAD/ECDH timing paths.
 
-use crate::dudect_stats::{
-    update_ct_stats, Class, CtRunner, CtSummary, DUDECT_SAMPLES_SHA3,
-};
+use crate::dudect_sample_counts::samples_for_harness;
+use crate::dudect_stats::{update_ct_stats, Class, CtRunner, CtSummary};
 use rand::prelude::*;
 use sha3::{Digest, Sha3_256, Sha3_512};
 use std::hint::black_box;
@@ -22,8 +21,9 @@ pub fn bench_timing_sha3_256() -> CtSummary {
     let mut block_b = [0u8; 64];
     rng.fill_bytes(&mut block_a);
     rng.fill_bytes(&mut block_b);
-    let mut work = Vec::with_capacity(DUDECT_SAMPLES_SHA3);
-    for _ in 0..DUDECT_SAMPLES_SHA3 {
+    let n = samples_for_harness("timing_sha3_256");
+    let mut work = Vec::with_capacity(n);
+    for _ in 0..n {
         if rng.gen_bool(0.5) {
             work.push((Class::Left, block_a));
         } else {
@@ -49,8 +49,9 @@ pub fn bench_timing_sha3_512() -> CtSummary {
     let mut block_b = [0u8; 64];
     rng.fill_bytes(&mut block_a);
     rng.fill_bytes(&mut block_b);
-    let mut work = Vec::with_capacity(DUDECT_SAMPLES_SHA3);
-    for _ in 0..DUDECT_SAMPLES_SHA3 {
+    let n = samples_for_harness("timing_sha3_512");
+    let mut work = Vec::with_capacity(n);
+    for _ in 0..n {
         if rng.gen_bool(0.5) {
             work.push((Class::Left, block_a));
         } else {

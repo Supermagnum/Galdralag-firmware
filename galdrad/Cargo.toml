@@ -8,6 +8,8 @@ description = "Local REST daemon for Galdra (HTTP JSON API for GUI and integrati
 [dependencies]
 galdra-core-host = { path = "../galdra-core-host" }
 axum = { workspace = true }
+base64 = { version = "0.22", default-features = false, features = ["std"] }
+sequoia-openpgp = { workspace = true }
 tokio = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
@@ -19,6 +21,8 @@ tower = { workspace = true }
 tower-http = { workspace = true }
 clap = { workspace = true }
 chrono = { workspace = true }
+hex = { workspace = true }
+sha2 = { workspace = true }
 
 [lints.rust]
 unsafe_code = "forbid"

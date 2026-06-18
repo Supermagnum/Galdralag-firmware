@@ -17,14 +17,18 @@ rpassword = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 chrono = { workspace = true }
+hex = { workspace = true }
+sha2 = { workspace = true, features = ["std"] }
 tokio = { workspace = true }
 image = { workspace = true }
 rqrr = { workspace = true }
 age = { workspace = true }
+qrcode = { version = "0.14", default-features = false, features = ["image"] }
 
 [dev-dependencies]
 assert_cmd = { workspace = true }
 predicates = { workspace = true }
+sequoia-openpgp = { workspace = true }
 tempfile = "3.14.0"
 
 [lints.rust]

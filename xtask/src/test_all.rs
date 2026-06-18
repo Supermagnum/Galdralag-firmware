@@ -511,6 +511,8 @@ fn run_embedded_check(root: &Path, sub: &[&str], pq: bool) -> bool {
         "pin-policy",
         "-p",
         "usb-personality",
+        "-p",
+        "ephemeral-session",
         "--target",
         "riscv32imac-unknown-none-elf",
     ]);

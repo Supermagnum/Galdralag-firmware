@@ -1,6 +1,11 @@
 //! GTK4 desktop client for Galdra via the local `galdrad` HTTP API.
 
 mod client;
+mod crypto_ui;
+mod gtk_config;
+mod profile_row;
+mod profiles_ui;
+mod shamir_ui;
 
 use clap::Parser;
 use gtk::gio::spawn_blocking;
@@ -100,6 +105,20 @@ fn build_window(app: &gtk::Application, base_url: &str) -> Result<gtk::Applicati
     let audit_page = scrolled(&audit_text);
     stack.add_titled(&audit_page, Some("audit"), "Audit");
 
+    let (crypto_page, crypto_reload) = crypto_ui::build(client.clone(), &window);
+    let (profiles_page, profiles_refresh) = profiles_ui::build(
+        client.clone(),
+        err_label.clone(),
+        window.clone(),
+        crypto_reload.clone(),
+    );
+    stack.add_titled(&profiles_page, Some("profiles"), "Profiles");
+
+    stack.add_titled(&crypto_page, Some("crypto"), "Crypto");
+
+    let shamir_page = shamir_ui::build(client.clone());
+    stack.add_titled(&shamir_page, Some("shamir"), "Shamir");
+
     let root = gtk::Box::new(gtk::Orientation::Vertical, 0);
     root.append(&err_label);
     root.append(&header);
@@ -118,6 +137,8 @@ fn build_window(app: &gtk::Application, base_url: &str) -> Result<gtk::Applicati
         let contacts_list = contacts_list.clone();
         let groups_list = groups_list.clone();
         let audit_text = audit_text.clone();
+        let profiles_refresh = profiles_refresh.clone();
+        let crypto_reload = crypto_reload.clone();
         move || {
             let name = stack
                 .visible_child_name()
@@ -133,6 +154,8 @@ fn build_window(app: &gtk::Application, base_url: &str) -> Result<gtk::Applicati
                 "contacts" => refresh_contacts(&client, &err_label, &contacts_list),
                 "groups" => refresh_groups(&client, &err_label, &groups_list),
                 "audit" => refresh_audit(&client, &err_label, &audit_text),
+                "profiles" => profiles_refresh(),
+                "crypto" => crypto_reload(),
                 _ => {}
             }
         }

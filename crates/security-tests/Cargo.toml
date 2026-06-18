@@ -24,6 +24,10 @@ pbkdf2 = { workspace = true, optional = true, features = ["hmac"] }
 sha3 = { workspace = true, optional = true }
 blake2 = { workspace = true, optional = true }
 blake3 = { workspace = true, optional = true }
+ephemeral-session = { workspace = true, optional = true }
+cipher-profile = { workspace = true, optional = true }
+heapless = { workspace = true, optional = true }
+serde_json = { workspace = true, optional = true }
 
 [features]
 default = []
@@ -46,6 +50,10 @@ dudect = [
     "dep:sha3",
     "dep:blake2",
     "dep:blake3",
+    "dep:ephemeral-session",
+    "dep:cipher-profile",
+    "dep:heapless",
+    "dep:serde_json",
 ]
 
 [[bin]]
