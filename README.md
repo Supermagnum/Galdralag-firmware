@@ -39,6 +39,7 @@ This project is **registered with the [Open Invention Network (OIN)](https://ope
 - [Token session and key export](#token-session-and-key-export)
 - [Standards vs. firmware-specific features](#standards-vs-firmware-specific-features)
 - [Shamir secret sharing and drive encryption](#shamir-secret-sharing-and-drive-encryption)
+- [German eID and Governikus as a trust anchor for public keys](#german-eid-and-governikus-as-a-trust-anchor-for-public-keys)
 - [Standards process: Shamir and ephemeral key exchange](#standards-process-shamir-and-ephemeral-key-exchange)
   - [CESS (related open standard)](#cess-related-open-standard)
 - [Sequoia PGP (if this repository is unresponsive)](#sequoia-pgp-if-this-repository-is-unresponsive)
@@ -495,6 +496,23 @@ One concrete pattern is a **drive or volume** encrypted using **Brainpool** curv
 | Corporate key escrow | **Auditable** split; no single administrator has complete access |
 | Hardware seizure | Media may be captured without capturing **K** of **N** shares |
 | Regulatory alignment (EU / BSI) | Brainpool satisfies many **German and EU** government cryptography requirements |
+
+## German eID and Governikus as a trust anchor for public keys
+
+[Governikus OpenPGP key authentication](https://pgp.governikus.de/?lang=EN) is an online service run on behalf of the **BSI** (Germany's Federal Office for Information Security). After the submitter authenticates with a **German eID**-capable ID card, an EU **eID** card for EU citizens, or an **electronic residence permit**, the service checks that the authenticated **legal name** matches the OpenPGP **User ID** on the uploaded public key. If it matches, Governikus signs that public key with the service signing key so third parties can verify the attestation.
+
+A practical workflow with this firmware: generate a **Brainpool** asymmetric key on the token (OpenPGP card generation as usual), export the **public** key or certificate to the host, complete the Governikus submission flow including **eID** authentication (typically AusweisApp and NFC card read), and use the signed public key returned by the service (for example from e-mail distribution). The private key stays on Galdralag throughout.
+
+Neither path replaces the other. **eID** and the Governikus step bind the public key to **identity verified against the chip** at submission time; they do not supply **forward secrecy**, **Shamir K-of-N** for long-term key material, or **cipher profiles** for bulk data—those are [firmware-specific features](#standards-vs-firmware-specific-features) described elsewhere in this README. The **eID** chip and surrounding issuance process also do not, by themselves, implement the token's ephemeral ECDH and cascade behaviour. Conversely, a Brainpool OpenPGP key generated on-device aligns with the **BSI**/**EU** deployment context already discussed for [Brainpool institutional use](#shamir-plus-brainpool-example-and-institutional-fit), but without an external attestation step correspondents must rely on other means to connect a fingerprint to a **legal person**.
+
+| Layer | Role |
+|-------|------|
+| OpenPGP public key (e.g. Brainpool on Galdralag) | Cryptographic structure and on-token private-key control; curve choices track **BSI TR-03111**-class expectations (see the [Brainpool capability rows](#asymmetric--key-agreement) and TR-03111 discussion in [Is this AI slop?](#is-this-ai-slop)) |
+| Governikus signature | Confirms the **name** on the certificate matched chip-authenticated identity when the user completed the flow |
+
+**Limitation:** Verification is **name-based**. If two people share the same legal name in the fields the service compares, the attestation does not distinguish them; it confirms **identity linkage to that name at attestation time**, not global **uniqueness**. Routine OpenPGP concerns (e-mail binding, key rollover, revocation) remain in force.
+
+Policy alignment: the same **BSI** that defines Brainpool-related technical guidance (**BSI TR-03111**; conformance vectors under `crates/vault/tests/bsi_vectors/`) also stands behind the Governikus **eID** signing process, which often matters in **German and EU** settings where Brainpool is already required or preferred—see [Shamir plus Brainpool: example and institutional fit](#shamir-plus-brainpool-example-and-institutional-fit).
 
 ---
 
