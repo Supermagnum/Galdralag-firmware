@@ -1,0 +1,10 @@
+{
+  "description": "RFC 2104 Appendix example (HMAC-SHA1)",
+  "vectors": [
+    {
+      "key": "0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b",
+      "data": "4869205468657265",
+      "hmac_sha1": "b617318655057264e28bc0b6fb378c8ef146be00"
+    }
+  ]
+}

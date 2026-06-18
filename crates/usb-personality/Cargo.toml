@@ -8,6 +8,7 @@ description = "USB mass-storage vs authenticated-unlock personalities (Galdr)"
 [features]
 default = []
 profile-hardened = []
+pq-signatures = []
 
 [dependencies]
 galdr-core.workspace = true

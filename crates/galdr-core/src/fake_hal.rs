@@ -40,6 +40,11 @@ impl MonotonicCounter for FakeMonotonicCounter {
         self.n = self.n.saturating_add(1);
         Ok(self.n)
     }
+
+    fn refund_on_success(&mut self) -> Result<(), HalError> {
+        self.n = self.n.saturating_sub(1);
+        Ok(())
+    }
 }
 
 /// Linear congruential **non-cryptographic** RNG for tests only.
@@ -106,13 +111,30 @@ impl ZeroiseController for FakeZeroiseController {
 /// In-memory vault backing store.
 pub struct FakeVaultStorage {
     mem: alloc::vec::Vec<u8>,
+    fail_next_write: bool,
 }
 
 impl FakeVaultStorage {
     pub fn new(size: usize) -> Self {
         Self {
             mem: alloc::vec![0u8; size],
+            fail_next_write: false,
         }
+    }
+
+    /// When set, the next [`VaultStorage::write`] returns [`HalError::EccUncorrectable`] and clears the flag.
+    pub fn set_fail_next_write(&mut self, v: bool) {
+        self.fail_next_write = v;
+    }
+
+    /// Test inspection: entire backing buffer.
+    pub fn as_slice(&self) -> &[u8] {
+        self.mem.as_slice()
+    }
+
+    /// Zero every byte (simulated post-zeroise vault).
+    pub fn zero_all(&mut self) {
+        self.mem.fill(0);
     }
 }
 
@@ -128,6 +150,10 @@ impl VaultStorage for FakeVaultStorage {
     }
 
     fn write(&mut self, offset: u64, data: &[u8]) -> Result<(), HalError> {
+        if self.fail_next_write {
+            self.fail_next_write = false;
+            return Err(HalError::EccUncorrectable);
+        }
         let o = usize::try_from(offset).map_err(|_| HalError::Denied)?;
         let end = o.checked_add(data.len()).ok_or(HalError::Denied)?;
         if end > self.mem.len() {

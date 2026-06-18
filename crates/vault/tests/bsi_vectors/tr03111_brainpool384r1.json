@@ -1,0 +1,19 @@
+{
+  "document": "BSI TR-03111",
+  "version": "2.10",
+  "curve": "BrainpoolP384r1",
+  "note": "ECDH row cross-checks Wycheproof tcId 1 normal case (same as C2SP/wycheproof brainpoolP384r1 ECDH). d_bob is zero placeholder; not used by runner.",
+  "vectors": {
+    "ecdh": [
+      {
+        "d_alice": "24ddf0fbb41c28365d302dd9d26ff9c32c76c85fa8b9138a3ec621d0caff6de8a724b45d6fe0d9180044242b9f41c84b",
+        "Q_alice": "042c2d90cf8b1cace21d01ac0191185c241678b7b6faca0f8a4c911529b8b962dc7e7a9e3e7bc4d3f066da6dfd8043784e139435cbf33e3ab2d9e2c2f5b724db5b9c15de9d629b6040be556c97a9d43d2acc050e87fc0aad03a0a3439673781cd9",
+        "d_bob": "000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+        "Q_bob": "0470ffb350173256eb437b140365842397ebaf3611b6389596c1f17c5ff5ce5201f24f6985b8fe0890dcae54b2603dfb4087242aaf7b2d95b3199bfa03e8fce54ef680b57109847274db3b3a65512b7f832248e70b1030e95db6429589775c3346",
+        "shared_secret": "22522760edc39280ff3277b121e17e7539165e7c677a65c8d0dc8159111f8e5d3df7035fe8ce33ac0a0e047ed0842a92"
+      }
+    ],
+    "ecdsa_sign": [],
+    "ecdsa_verify": []
+  }
+}

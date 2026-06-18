@@ -1,0 +1,8 @@
+{
+  "description": "RFC 5639 brainpoolP256r1 generator G in uncompressed SEC1 (Section 3.7)",
+  "vectors": [
+    {
+      "g_sec1_hex": "048bd2aeb9cb7e57cb2c4b482ffc81b7afb9de27e1e3bd23c23a4453bd9ace3262547ef835c3dac4fd97f8461a14611dc9c27745132ded8e545c1d54c72f046997"
+    }
+  ]
+}

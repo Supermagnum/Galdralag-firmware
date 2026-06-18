@@ -16,6 +16,13 @@ pub trait MonotonicCounter {
     /// Consumes one attempt. **PIN policy must call this before any PIN comparison** for the same
     /// user submission (see `pin-policy` crate tests).
     fn increment(&mut self) -> Result<u32, HalError>;
+
+    /// After a successful PIN verify, refunds the attempt reservation made by [`increment`].
+    /// Hardware that cannot roll back the counter returns [`HalError::Denied`]; the policy layer
+    /// ignores `Denied` and leaves the counter incremented (see `pin-policy` integration tests).
+    fn refund_on_success(&mut self) -> Result<(), HalError> {
+        Err(HalError::Denied)
+    }
 }
 
 /// True random number generator block (ring-oscillator sourced on Baochip-1x).

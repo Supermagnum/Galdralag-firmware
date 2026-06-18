@@ -8,6 +8,7 @@ description = "PIN state machine, hardware counter ordering, and threshold zeroi
 [features]
 default = []
 profile-hardened = []
+pq-signatures = []
 
 [dependencies]
 galdr-core.workspace = true

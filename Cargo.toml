@@ -2,10 +2,12 @@
 resolver = "2"
 members = [
     "crates/galdr-core",
+    "crates/bp512",
     "crates/vault",
     "crates/pin-policy",
     "crates/usb-personality",
     "crates/host-tools",
+    "crates/security-tests",
     "xtask",
 ]
 
@@ -22,6 +24,17 @@ usb-personality = { path = "crates/usb-personality" }
 
 aes-gcm = { version = "0.10", default-features = false, features = ["aes", "alloc"] }
 chacha20poly1305 = { version = "0.10", default-features = false, features = ["alloc"] }
+aead = { version = "0.5", default-features = false }
+bp256 = { version = "0.14.0-rc.8", default-features = false, features = ["arithmetic", "ecdsa", "sha256"] }
+bp384 = { version = "0.14.0-rc.8", default-features = false, features = ["arithmetic", "ecdsa", "sha384", "pkcs8"] }
+bp512 = { path = "crates/bp512", default-features = false, features = ["arithmetic", "ecdsa", "sha512", "pkcs8"] }
+# Enables `elliptic_curve::ecdh` for vault ECDH (must match bp256's elliptic-curve version).
+elliptic-curve = { version = "0.14.0-rc.29", default-features = false, features = ["ecdh", "sec1", "pkcs8"] }
+ecdsa = { version = "0.17.0-rc.16", default-features = false, features = ["digest", "der", "algorithm"] }
+ff = { version = "0.13", default-features = false }
+heapless = { version = "0.8", default-features = false }
+signature = { version = "3.0.0-rc.10", default-features = false, features = ["digest"] }
+serde_json = { version = "1", default-features = false, features = ["std"] }
 ed25519-dalek = { version = "2", default-features = false, features = ["rand_core"] }
 x25519-dalek = { version = "2.0", default-features = false, features = ["static_secrets"] }
 hkdf = { version = "0.12", default-features = false }
@@ -32,7 +45,7 @@ sha2 = { version = "0.10", default-features = false }
 sha3 = { version = "0.10", default-features = false }
 blake2 = { version = "0.10", default-features = false }
 blake3 = { version = "1.5", default-features = false }
-vsss-rs = "5.3"
+vsss-rs = { version = "5.3", default-features = false, features = ["zeroize"] }
 zeroize = { version = "1.8", default-features = false, features = ["derive"] }
 subtle = { version = "2.6", default-features = false }
 p256 = { version = "0.13", default-features = false, features = ["ecdsa", "std"] }
@@ -42,6 +55,11 @@ rand = { version = "0.8", default-features = false, features = ["std_rng", "getr
 proptest = "1.5"
 static_assertions = "1.1"
 hex = { version = "0.4", default-features = false, features = ["std"] }
+serpent = { version = "0.6.0-rc.3", default-features = false, features = ["zeroize"] }
+rsa = { version = "0.9.10", default-features = false, features = ["sha2"] }
+
+[patch.crates-io]
+subtle = { path = "crates/subtle-vendored" }
 
 [workspace.lints.rust]
 unsafe_code = "forbid"

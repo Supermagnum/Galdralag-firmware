@@ -17,6 +17,12 @@ pub enum VaultRequest {
 /// Stub vault server; production replaces with `vaultd` over Xous IPC.
 pub struct VaultService;
 
+impl Default for VaultService {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl VaultService {
     pub fn new() -> Self {
         Self

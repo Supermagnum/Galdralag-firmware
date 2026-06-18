@@ -25,6 +25,10 @@ pub enum KeyPurpose {
     KeyAgreement,
     /// Shamir recovery root expansion (profile-gated; uses `vsss-rs` at rest, HKDF after combine).
     ShamirRecovery,
+    /// Serpent-256 AEAD key (Encrypt-then-MAC in `serpent_cipher`).
+    SerpentStorage,
+    /// AEAD key used to wrap RSA private key material before RRAM storage (`rsa_vault`).
+    RsaKeyWrap,
 }
 
 impl KeyPurpose {
@@ -39,6 +43,8 @@ impl KeyPurpose {
             KeyPurpose::OpenPgpSigning => b"galdr-v1/vault/openpgp-signing",
             KeyPurpose::KeyAgreement => b"galdr-v1/vault/key-agreement",
             KeyPurpose::ShamirRecovery => b"galdr-v1/vault/shamir-recovery",
+            KeyPurpose::SerpentStorage => b"galdralag/serpent/storage/v1",
+            KeyPurpose::RsaKeyWrap => b"galdralag/rsa/key-wrap/v1",
         }
     }
 }

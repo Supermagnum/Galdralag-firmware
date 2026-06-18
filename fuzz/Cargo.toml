@@ -1,0 +1,75 @@
+[package]
+name = "vault-fuzz"
+version = "0.0.0"
+publish = false
+edition = "2021"
+
+[package.metadata]
+cargo-fuzz = true
+
+[dependencies]
+libfuzzer-sys = "0.4"
+galdr-core = { path = "../crates/galdr-core", features = ["test-hal"] }
+rand_core = { version = "0.6", default-features = false }
+vault = { path = "../crates/vault" }
+
+[[bin]]
+name = "chacha_roundtrip"
+path = "fuzz_targets/chacha_roundtrip.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "shamir_split_recover"
+path = "fuzz_targets/shamir_split_recover.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "brainpool384_ecdh"
+path = "fuzz_targets/brainpool384_ecdh.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "brainpool512_ecdh"
+path = "fuzz_targets/brainpool512_ecdh.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "serpent_aead"
+path = "fuzz_targets/serpent_aead.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "rsa_oaep_decrypt"
+path = "fuzz_targets/rsa_oaep_decrypt.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "rsa_pss_verify"
+path = "fuzz_targets/rsa_pss_verify.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "rsa_der_import"
+path = "fuzz_targets/rsa_der_import.rs"
+test = false
+doc = false
+bench = false
+
+[workspace]
+
+[profile.release]
+debug = 1

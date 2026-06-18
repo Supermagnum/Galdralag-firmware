@@ -8,6 +8,7 @@ description = "Galdr shared types, HAL traits, and security boundaries (Baochip-
 [features]
 default = []
 test-hal = []
+pq-signatures = []
 profile-openpgp = []
 profile-extended = ["profile-openpgp"]
 profile-pqc = []
@@ -27,7 +28,7 @@ sha1.workspace = true
 sha2.workspace = true
 sha3.workspace = true
 hmac.workspace = true
-pbkdf2.workspace = true
+pbkdf2 = { workspace = true, features = ["hmac"] }
 aes-gcm.workspace = true
 chacha20poly1305.workspace = true
 blake2.workspace = true
@@ -38,6 +39,10 @@ p256.workspace = true
 p384.workspace = true
 vsss-rs.workspace = true
 rand.workspace = true
+
+[[test]]
+name = "zeroise_simulation"
+required-features = ["test-hal"]
 
 [lints]
 workspace = true

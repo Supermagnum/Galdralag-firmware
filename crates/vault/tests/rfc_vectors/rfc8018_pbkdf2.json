@@ -1,0 +1,12 @@
+{
+  "description": "RFC 8018 Appendix B.1 PBKDF2-HMAC-SHA1 (password 'password', salt 'salt', count 1, dkLen 20)",
+  "vectors": [
+    {
+      "password": "70617373776f7264",
+      "salt": "73616c74",
+      "c": 1,
+      "dk_len": 20,
+      "dk": "0c60c80f961f0e71f3a9b524af6012062fe037a6"
+    }
+  ]
+}

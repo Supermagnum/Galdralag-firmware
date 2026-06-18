@@ -233,6 +233,34 @@ cargo run -p xtask -- wycheproof
 cargo run -p xtask -- test-all
 ```
 
+## Flashing firmware
+
+This repository builds **Rust crates** for `riscv32imac-unknown-none-elf` (see `xtask`). A complete **bootable Xous image** is assembled by linking these libraries with the microkernel and board support code; the authoritative boot, update, and integrity story (including **Verified flashing and updates**) is in the upstream **[Baochip-1x firmware design README](https://raw.githubusercontent.com/Supermagnum/Baochip-1x-firmware/refs/heads/main/README.md)**. Use that document and the **board vendor SDK** for production procedures.
+
+**Compile firmware components for the embedded target:**
+
+```text
+rustup target add riscv32imac-unknown-none-elf
+cargo run -p xtask -- build-fw
+```
+
+Release-optimized libraries (when linking a final image):
+
+```text
+cargo build --release -p galdr-core -p vault -p pin-policy -p usb-personality --target riscv32imac-unknown-none-elf
+```
+
+Artifacts appear under `target/riscv32imac-unknown-none-elf/<debug|release>/` (or your configured `CARGO_TARGET_DIR`).
+
+**Programming the device (outline):**
+
+1. Connect the debugger or USB cable as described in **Dabao / Baochip-1x board documentation**.
+2. On **engineering samples** that still expose **JTAG**, tools such as **OpenOCD** or **probe-rs** (`probe-rs download`, `cargo-embed`, etc.) can program flash according to the chip memory map; **production silicon may have JTAG fused out**—follow vendor tooling only.
+3. **Do not flash untrusted images.** Verify signatures and manifest hashes on update bundles before programming; optional read-back checks after program reduce risk of partial or glitched writes (see upstream README).
+4. **boot0** is fixed in silicon; field updates target later boot stages—do not assume the whole flash image is replaceable from user tooling.
+
+When this workspace publishes a single linked `.elf` or a standard image name for CI, this section should be updated with exact commands and base addresses.
+
 Developer-focused crypto, fuzzing, and vector notes: [GALDRALAG_DEV_REFERENCE.md](GALDRALAG_DEV_REFERENCE.md).
 
 Enable `galdr-core` feature **`test-hal`** only in tests or host tools (see crate `dev-dependencies`). Do not enable it in production firmware images.
