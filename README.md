@@ -2,7 +2,7 @@
 
 ## About the name
 
-**Galdr** is the actual practice of spoken or sung magic: incantations used to bind, protect, or reveal. In the sagas it names the act of casting the spell itself, not only the words.
+**Galdr** is the actual practice of spoken or norse sung magic: incantations used to bind, protect, or reveal. In the sagas it names the act of casting the spell itself, not only the words.
 Sometimes also used to activate magic rune inscriptions, as on the Kragehul I (DR 196 U) lance shaft ([Kragehul I](https://en.wikipedia.org/wiki/Kragehul_I)), the [Lindholm amulet](https://en.wikipedia.org/wiki/Lindholm_amulet) (DR 261), the [Vadstena bracteate](https://en.wikipedia.org/wiki/Vadstena_bracteate), the [Seeland-II-C](https://en.wikipedia.org/wiki/Seeland-II-C) bracteate, and other comparable Elder Futhark finds.
 
 **Galdralag** is the metrical form used for galdr: structured, precise, rule-bound verse in which the pattern is part of the force of the spell. The suffix *lag* is akin to "law" or "pattern."
@@ -23,7 +23,7 @@ and committed to the repository. The `vendor/` directory is treated as
 read-only; any modification will break the build. `Cargo.lock` is
 committed and pinned — no network fetches occur during builds.
 
-Sevurity audited workspace dependencies:
+Security audited workspace dependencies:
 `aes-gcm`, `chacha20poly1305`, `ed25519-dalek`, `x25519-dalek`,
 `hkdf`, `pbkdf2`, `hmac`, `sha2`, `sha3`, `blake2`, `blake3`,
 `vsss-rs`, `zeroize`, `subtle`, `p256`, `p384`
