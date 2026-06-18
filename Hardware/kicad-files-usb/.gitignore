@@ -1,0 +1,5 @@
+# KiCad local / machine-specific
+fp-info-cache
+*-backups/
+*.lck
+~*.lck

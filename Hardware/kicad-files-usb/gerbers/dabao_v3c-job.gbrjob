@@ -5,17 +5,17 @@
       "Application": "Pcbnew",
       "Version": "9.0.8-9.0.8~ubuntu24.04.1"
     },
-    "CreationDate": "2026-04-10T15:45:23+02:00"
+    "CreationDate": "2026-04-10T15:51:05+02:00"
   },
   "GeneralSpecs": {
     "ProjectId": {
-      "Name": "dabao_v3c_sdcard",
-      "GUID": "64616261-6f5f-4763-9363-5f7364636172",
+      "Name": "dabao_v3c",
+      "GUID": "64616261-6f5f-4763-9363-2e6b69636164",
       "Revision": "rev?"
     },
     "Size": {
-      "X": 21.0812,
-      "Y": 67.5632
+      "X": 21.05,
+      "Y": 48.5192
     },
     "LayerNumber": 2,
     "BoardThickness": 1.6,
@@ -36,12 +36,12 @@
   ],
   "FilesAttributes": [
     {
-      "Path": "dabao_v3c_sdcard-F_Cu.gbr",
+      "Path": "dabao_v3c-F_Cu.gbr",
       "FileFunction": "Copper,L1,Top",
       "FilePolarity": "Positive"
     },
     {
-      "Path": "dabao_v3c_sdcard-Edge_Cuts.gbr",
+      "Path": "dabao_v3c-Edge_Cuts.gbr",
       "FileFunction": "Profile",
       "FilePolarity": "Positive"
     }
