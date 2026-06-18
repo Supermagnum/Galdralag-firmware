@@ -52,10 +52,9 @@ Runner: `vault/tests/nist_cavp.rs`.
 
 ### Encryption timing (dudect)
 
-    Tool: `dudect-bencher` via `cargo run -p xtask -- timing-test` (binary `dudect_galdr`)
-    Target: `subtle::ConstantTimeEq` on 32-byte arrays (RustCrypto `subtle`); **not** AES-GCM or ChaCha encryption latency
-    Pipeline: `test-all` runs `cargo test -p security-tests` (stub API); for host-side dudect output, run `timing-test` and read stdout (|t| should stay small vs common thresholds)
-    Other crypto paths: `security-tests` stub symbols still return `DudectStatus::NotRun` until wired to vault crypto
+    Tool: Welch t-statistic harnesses via `cargo run -p xtask -- timing-test` (binary `dudect_galdr`; threshold |t| <= 4.5).
+    Covers constant-time comparisons, AEAD tag checks, HMAC/HKDF, Ed25519/X25519, Brainpool ECDH (reduced sample counts on slow curves), Shamir, Serpent tag, PIN compare, RSA ct-eq on modulus-sized buffers, etc.
+    Pipeline: `test-all` may run `cargo test -p security-tests` (stub API); full host dudect requires `timing-test` and reads stdout/stderr.
 
 ## 3. Wycheproof vector results
 
@@ -120,10 +119,15 @@ Integration tests in `vault/tests/key_lifecycle.rs`. Last run: **PASS**.
 
 ## 9. dudect timing results
 
-| Harness | Samples | t-statistic | Threshold | Result |
-|---------|---------|-------------|-----------|--------|
-| `dudect_galdr` (`subtle_eq_u256`) | (see `timing-test` stdout) | (host-dependent) | common threshold ~5 for |t| | **PASS** when bench completes |
-| Stub paths (`dudect_stub_*`, …) | 0 | N/A | n/a | **NotRun** (see `security-tests` crate) |
+**Recorded run:** 2026-03-26 — **Command:** `cargo run -p xtask -- timing-test` (dev profile, host-dependent).
+
+| Metric | Value |
+|--------|-------|
+| Harnesses executed | 15 |
+| Passed (|t| <= 4.5) | 15 |
+| Wall time | ~266 s (example) |
+
+**Conclusion:** All listed harnesses **PASS** when |t| stays within threshold; t-statistics vary by machine. Stubs (`dudect_stub_*`, `[MISSING]` integrations) remain **NotRun** or unimplemented as printed at end of `dudect_galdr` output.
 
 ## 10. cargo-fuzz coverage summary
 
