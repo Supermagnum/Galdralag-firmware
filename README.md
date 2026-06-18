@@ -16,6 +16,7 @@ Portions of this repository (including documentation, tests, and tooling) may ha
 - [Galdra tool usage and specifications](docs/GALDRA-TOOL.md)
 - [AI disclaimer](#ai-disclaimer)
 - [Test results](#test-results)
+- [Glossary of terms](docs/GLOSSARY.md)
 - [Testing on a virtual machine](#testing-on-a-virtual-machine)
 - [Project overview](#project-overview)
 - [Introduction to cryptographic keys (OpenPGP and GnuPG)](#introduction-to-cryptographic-keys-openpgp-and-gnupg)
@@ -34,6 +35,7 @@ Portions of this repository (including documentation, tests, and tooling) may ha
 - [Cryptographic primitives explained](#cryptographic-primitives-explained)
   - [Brainpool P-256r1, P-384r1, P-512r1 (ECDH and ECDSA)](#brainpool-p-256r1-p-384r1-p-512r1-ecdh-and-ecdsa)
   - [X25519 (ECDH)](#x25519-ecdh)
+  - [Ephemeral ECDH (ECDHE-style) and TLS](#ephemeral-ecdh-ecdhe-style-and-tls)
   - [Ed25519 (signatures)](#ed25519-signatures)
   - [ChaCha20-Poly1305 AEAD](#chacha20-poly1305-aead)
   - [AES-256-GCM (and AES-128-GCM in tests)](#aes-256-gcm-and-aes-128-gcm-in-tests)
@@ -262,6 +264,14 @@ The table above lists **what** is wired and **how** it is tested. This section e
 ### X25519 (ECDH)
 
 **X25519** implements Diffie–Hellman on **Curve25519** (**RFC 7748**). It is a **Montgomery** curve construction with fixed-size keys and a simple encoding; it is the usual choice for forward-secret key agreement alongside modern protocols. Test vectors include **Wycheproof** and **RFC 7748** examples.
+
+### Ephemeral ECDH (ECDHE-style) and TLS
+
+In TLS, **ECDHE** refers to ciphersuites that use **ephemeral** elliptic-curve Diffie–Hellman: the local party generates a **fresh** ephemeral key pair per handshake so shared secrets are not tied to a long-term private key (**forward secrecy**). This project implements **ECDH** as a primitive (**X25519** and **Brainpool**); upper layers may use **ephemeral** scalars (ECDHE-style) or **static** keys depending on protocol and policy—both are supported at the math/API level.
+
+**TLS is not implemented in this repository.** There is no TLS stack, handshake, or `ECDHE_*` ciphersuite negotiation here; host tools (for example **Galdra** / **GnuPG**) may use TLS elsewhere, but that is outside this firmware tree.
+
+The vault includes **scaffolding** for an ephemeral session posture (`vault::session`, `EphemeralEcdhSecretMaterial` in `key_material`) aligned with forward-secret agreement; full wiring through all USB or product flows is **integration-dependent** and should be reviewed in the code paths you deploy.
 
 ### Ed25519 (signatures)
 
@@ -764,7 +774,7 @@ Artifacts appear under `target/riscv32imac-unknown-none-elf/<debug|release>/` (o
 
 When this workspace publishes a single linked `.elf` or a standard image name for CI, this section should be updated with exact commands and base addresses.
 
-Developer-focused crypto, fuzzing, and vector notes: [docs/GALDRALAG_DEV_REFERENCE.md](docs/GALDRALAG_DEV_REFERENCE.md).
+Developer-focused crypto, fuzzing, and vector notes: [docs/GALDRALAG_DEV_REFERENCE.md](docs/GALDRALAG_DEV_REFERENCE.md). Short definitions of project and crypto vocabulary: [docs/GLOSSARY.md](docs/GLOSSARY.md).
 
 Enable `galdr-core` feature **`test-hal`** only in tests or host tools (see crate `dev-dependencies`). Do not enable it in production firmware images.
 
