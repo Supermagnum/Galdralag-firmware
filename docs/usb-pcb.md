@@ -1,11 +1,11 @@
-This is needed to create a modified pcb.
-With: minimum 12 mm 
+This is needed to create a modified pcb for a USB dongle.
+With: minimum 12 mm  maximum ~15mm.
 Lenght:  40–60 mm total including the plug section, depending on how much electronics are inside.
 
 Remove:
 
-Pico castellated header footprint and all its copper
-SW1 push button
+Pico castellated header footprint and all its copper.
+SW1 push button.
 
 Replace/fix:
 
@@ -20,23 +20,24 @@ ENIG finish already specified so the gold is already there.
 IS66WVR8M8FALL SOIC-8 or others footprint in the space freed by removing the Pico header.
 
 Reroute:
-USBC_P → D+ edge pad
-USBC_N → D− edge pad
-VBUS → VBUS edge pad
-GND → GND edge pad
-CC1/CC2 resistors → DNP (not needed for USB-A, leave footprints, mark do-not-populate)
-PC0–PC3 → test pads on PCB bottom or simply unconnected
-BIO23 (QSPI1D0) → PSRAM SIO0
-BIO24 (QSPI1D1) → PSRAM SIO1
-BIO25 (QSPI1D2) → PSRAM SIO2
-BIO26 (QSPI1D3) → PSRAM SIO3
-BIO27 (QSPI1CLK) → PSRAM CLK
-BIO28 (QSPI1CS0) → PSRAM CE#
+USBC_P → D+ edge pad.
+USBC_N → D− edge pad.
+VBUS → VBUS edge pad.
+GND → GND edge pad.
+CC1/CC2 resistors → DNP (not needed for USB-A, leave footprints, mark do-not-populate).
+PC0–PC3 → test pads on PCB bottom or simply unconnected.
+Quad-SPI bus:
+BIO23 (QSPI1D0) → PSRAM SIO0.
+BIO24 (QSPI1D1) → PSRAM SIO1.
+BIO25 (QSPI1D2) → PSRAM SIO2.
+BIO26 (QSPI1D3) → PSRAM SIO3.
+BIO27 (QSPI1CLK) → PSRAM CLK.
+BIO28 (QSPI1CS0) → PSRAM CE#.
 
 PSRAM power and decoupling:
 
-VCC → 3.3V rail (already present)
-GND → GND
+VCC → 3.3V rail (already present).
+GND → GND.
 One 100nF + one 10µF decoupling cap close to the PSRAM VCC pin — same 0201 size already used throughout.
 Keep power planes and power infrastructure components intact, move components to fit on the new pcb only if needed.
 
