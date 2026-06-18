@@ -72,6 +72,9 @@ Firmware for **Baochip-1x** (Dabao evaluation board) devices running the
 **[Xous](https://github.com/betrusted-io/xous-core)** microkernel, built
 for `riscv32imac-unknown-none-elf`.
 
+It's located here:
+https://www.baochip.com/
+
 The device is a hardware security token in the same category as
 Nitrokey-class devices, with OpenPGP smartcard-class behaviour and an
 encrypted vault. The full hardware stack — RTL, schematics, bootloader,
