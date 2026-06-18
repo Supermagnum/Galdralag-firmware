@@ -277,7 +277,7 @@ confirmation) has not yet been performed. See
 ## Test results
 
 Full vector coverage, dudect t-statistics, RFC / BSI / NIST CAVP pass/fail
-tables, and key lifecycle results:
+tables,fuzzing and key lifecycle results:
 **[docs/TEST_RESULTS.md](docs/TEST_RESULTS.md)**
 
 ```
