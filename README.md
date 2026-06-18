@@ -29,6 +29,7 @@ This project is **registered with the [Open Invention Network (OIN)](https://ope
 - [Debugging instructions](docs/DEBUG_INSTRUCTIONS.md)
 - [docs/AUDIT_LOG.md](docs/AUDIT_LOG.md)
 - [docs/BIOMETRIC_API.md](docs/BIOMETRIC_API.md)
+- [docs/HARDWARE_BRINGUP_TEST_PLAN.md](docs/HARDWARE_BRINGUP_TEST_PLAN.md)
 - [docs/KEY_LIFECYCLE.md](docs/KEY_LIFECYCLE.md)
 - [docs/RRAM_LAYOUT.md](docs/RRAM_LAYOUT.md)
 - [docs/THREE_FACTOR_AUTH.md](docs/THREE_FACTOR_AUTH.md)
@@ -339,6 +340,7 @@ was only known to those who understood.
 | [docs/THREE_FACTOR_AUTH.md](docs/THREE_FACTOR_AUTH.md) | Token + PIN + optional biometric: what this repo implements vs placeholder; threat sketch |
 | [docs/THREAT_MODEL.md](docs/THREAT_MODEL.md) | Threat model: assets, threats T1–T14, what is and is not defended, unverified items pending Q2 hardware, audit status |
 | [docs/PERFORMANCE.md](docs/PERFORMANCE.md) | Performance notes |
+| [docs/HARDWARE_BRINGUP_TEST_PLAN.md](docs/HARDWARE_BRINGUP_TEST_PLAN.md) | Q2 first-hardware bring-up: CCID enumeration, `gpg --card-status`, PIN/`passwd`, crypto smoke tests; pre-production PIN UX called out in [future-todo.md](docs/future-todo.md) |
 | [docs/HARDWARE_VERIFICATION.md](docs/HARDWARE_VERIFICATION.md) | Hardware zeroisation: simulation vs silicon verification |
 | [docs/HARDWARE_TEST.md](docs/HARDWARE_TEST.md) | Hardware-oriented testing notes |
 | [docs/NFC_PN532_INTEGRATION.md](docs/NFC_PN532_INTEGRATION.md) | PN532 / NFC: libnfc, Rust options, door passive vs USB panel, quorum with Shamir and PIN |
