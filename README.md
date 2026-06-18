@@ -186,8 +186,11 @@ Shippable firmware for **Baochip-1x** is **signed** with **Ed25519**. You sign t
 
 **Browse all files:** [github.com/Supermagnum/Galdralag-firmware — `docs/`](https://github.com/Supermagnum/Galdralag-firmware/tree/main/docs)
 
+**Hardware (USB dongle and related):** [Hardware/](Hardware/) — KiCad project (`dabao_v3c`), gerbers, BOM, production outputs, and [pinout docs](Hardware/docs/pinout/README.md). The USB-A dongle PCB layout (minimal token vs Pico-format eval) is described in [docs/USB_DONGLE_PCB.md](docs/USB_DONGLE_PCB.md).
+
 | Document | Description |
 |----------|-------------|
+| [Hardware/](Hardware/) | **USB dongle** design files and related outputs: KiCad, gerbers, BOM, pinout; complements [USB_DONGLE_PCB.md](docs/USB_DONGLE_PCB.md) |
 | [docs/API_REFERENCE.md](docs/API_REFERENCE.md) | Code map + **annex** for IETF/I-D/GnuPG/Sequoia: Shamir GF(256) construction, GALDRA SHARE armour, ephemeral ECDH wire format, HKDF labels, preimages; `galdrad` routes; rustdoc hints |
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | High-level firmware architecture and major subsystems |
 | [docs/GALDRA-TOOL.md](docs/GALDRA-TOOL.md) | Host tools (`galdra`, `galdrad`, `galdra-gtk`): workflows, provisioning, PIN policy, operational behaviour |
@@ -208,7 +211,7 @@ Shippable firmware for **Baochip-1x** is **signed** with **Ed25519**. You sign t
 | [docs/SDMMC_STORAGE_INTEGRATION.md](docs/SDMMC_STORAGE_INTEGRATION.md) | `embedded-sdmmc` + SPI microSD as optional bulk storage; BOM alternative to PSRAM |
 | [docs/USB_DONGLE_PCB.md](docs/USB_DONGLE_PCB.md) | How to make a USB-A dongle PCB from the Dabao reference: Pico-format eval is for firmware bring-up; this strips GPIO header for a minimal token; KiCad, FreeCAD, 5 V / 500 mA vs USB-C PD, QSPI PSRAM routing |
 
-The same paths resolve on GitHub under [`tree/main/docs`](https://github.com/Supermagnum/Galdralag-firmware/tree/main/docs).
+The same paths resolve on GitHub under [`tree/main/docs`](https://github.com/Supermagnum/Galdralag-firmware/tree/main/docs) and [`tree/main/Hardware`](https://github.com/Supermagnum/Galdralag-firmware/tree/main/Hardware).
 
 ---
 
