@@ -2,6 +2,11 @@
 
 For the Galdralag / Dabao USB security token (Baochip-1x platform).
 
+> **Important:** This device requires USB power at all times. It is a USB-powered
+> NFC reader/card-emulator with a secure element — not a passive NFC card. It cannot
+> harvest power from an NFC field. USB must be connected for any mode of operation,
+> including card emulation mode.
+
 ---
 
 ## Power Budget
@@ -19,9 +24,11 @@ for a PN532 NFC controller:
 Both scenarios are within the USB 2.5W budget. No additional power circuitry is
 required — the PN532 connects directly to the existing 3.3V rail.
 
-In the primary use case (tap-to-authenticate, card emulation mode), RF energy comes
-from the *reader's* field rather than the token's USB supply, making the power impact
-on the token nearly negligible.
+**Note:** Although the PN532 supports card emulation mode (appearing as an NFC card
+to an external reader), the device still draws ~308mW in this mode — far exceeding
+what can be harvested from an NFC reader field (~1–10mW for passive cards). USB
+power is therefore mandatory in all operating modes. The Baochip-1x secure element
+adds further to this requirement.
 
 ---
 
@@ -293,7 +300,7 @@ a thin trace. On the dabao_v3c 2-layer board:
 ### Complete PN532 Connection Summary
 
 ```
-                    +3.3V (net: +3.3V)
+                    +3.3V (net: +3.3V, from USB via MT3406 buck — always required)
                         │
                     [C_VDD2]  [C_VDD1]
                     10µF      100nF
