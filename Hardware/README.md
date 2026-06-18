@@ -1,6 +1,6 @@
 # Dabao board design files
 
-This directory contains the KiCad design files for the Dabao evaluation board for the Baochip-1x without edge connectors.
+This directory contains the KiCad design files for the Dabao evaluation board based USB-A version. Its for a USB-A security token with the Baochip-1x.
 
 **Outputs and previews**
 
