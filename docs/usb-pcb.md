@@ -1,9 +1,10 @@
 This is needed to create a modified pcb for a USB dongle.
+Download kicad and https://github.com/baochip/dabao
+Create a new pcb:
 With: minimum 12 mm  maximum ~15mm.
 Lenght:  40–60 mm total including the plug section, depending on how much electronics are inside.
 
 Remove:
-
 Pico castellated header footprint and all its copper.
 SW1 push button.
 
@@ -56,3 +57,6 @@ Refill power and copper ground planes.
 
 That is the complete change list. Nothing about the power infrastructure changes. 
 Both MT3406 buck converters, all their passives, the crystal, and all the Baochip-1x BGA decoupling stay exactly where they are. 
+
+Make fabrication files.
+Publish on github.
