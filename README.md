@@ -499,11 +499,11 @@ The items below are **Galdralag firmware capabilities**, not requirements of the
   of multiple independent ciphers (e.g. ChaCha20-Poly1305 + Serpent-256 per CESS cascade rows) can
   be selected per session. Every profile selection is logged in the audit trail.
 
-- **Optional microSD decoy volume** — if a PSRAM chip is fitted, an extra bulk
+- **Optional microSD decoy volume** — if a microsd card is fitted, an extra bulk
   decoy LUN can appear after unlock. **If no microSD is fitted, the device is
   still a hardware security token** (vault, PIN policy, OpenPGP/CCID, and other
   token functions are unchanged); only that optional bulk volume is absent. For
-  uninformed hosts, the device still presents the usual on-chip mass-storage
+  uninformed hosts, the device still presents the usual mass-storage
   decoy persona where configured. MicroSD content, when present, is intentionally
   unencrypted and unremarkable. Real key material lives in on-chip RRAM behind
   the vault and PIN policy.
