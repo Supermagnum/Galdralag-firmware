@@ -120,9 +120,26 @@ fn main() {
             let code = test_all::run(workspace_root(), skip_fuzz);
             std::process::exit(code);
         }
+        Some("test-openpgp") => {
+            let gpg_ok = Command::new("gpg")
+                .arg("--version")
+                .stdout(Stdio::null())
+                .stderr(Stdio::null())
+                .status()
+                .map(|s| s.success())
+                .unwrap_or(false);
+            if gpg_ok {
+                eprintln!(
+                    "test-openpgp: gpg is available. Full OpenPGP/CCID interoperability requires a USB CCID device and host pcscd; see docs/OPENPGP_CARD.md."
+                );
+            } else {
+                eprintln!("test-openpgp: gpg not found on PATH; skipping host interoperability checks.");
+            }
+            std::process::exit(0);
+        }
         _ => {
             eprintln!(
-                "usage: cargo run -p xtask -- <build-fw|check-fw|test-session|test-profiles|test-host|test-crypto|test-all [--no-fuzz]|wycheproof|timing-test [--all] [--full] [HARNESS...]|bench-rsa|fuzz [TARGET] [SECS]|fuzz-chacha [SECS]|fuzz-shamir [SECS]>"
+                "usage: cargo run -p xtask -- <build-fw|check-fw|test-session|test-profiles|test-host|test-crypto|test-all [--no-fuzz]|test-openpgp|wycheproof|timing-test [--all] [--full] [HARNESS...]|bench-rsa|fuzz [TARGET] [SECS]|fuzz-chacha [SECS]|fuzz-shamir [SECS]>"
             );
             std::process::exit(2);
         }
@@ -150,6 +167,7 @@ fn fuzz_bin_name(name: &str) -> &str {
             "fuzz_ephemeral_handshake"
         }
         "cipher-profile" | "fuzz_cipher_profile" => "fuzz_cipher_profile",
+        "openpgp" | "openpgp-dispatch" | "openpgp_dispatch" => "openpgp_dispatch",
         other => other,
     }
 }
@@ -190,6 +208,8 @@ fn run_fuzz_target(bin: &str, max_total_time_secs: u64) {
 }
 
 fn run_embedded(sub: &[&str]) {
+    // Firmware-only packages for `riscv32imac-unknown-none-elf` (excludes host tools and
+    // `galdralag-service`, which is gated on `xous-bsp` and not part of this target graph).
     let st = Command::new("cargo")
         .args(sub)
         .args([

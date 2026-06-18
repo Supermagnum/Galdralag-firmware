@@ -40,6 +40,18 @@ pub enum KeyPurpose {
     /// HKDF PRK input label for ephemeral session material (vault policy; distinct from `ephemeral-session` HKDF-SHA256 labels).
     /// info: `b"galdralag/session/ephemeral-prk/v1"`
     EphemeralSessionPrk,
+    /// OpenPGP card SIG slot (PSO:CDS) signing subkey material.
+    /// info: `b"galdralag/openpgp/sig/v1"`
+    OpenPgpSig,
+    /// OpenPGP card DEC slot (PSO:DECIPHER / ECDH / RSA decrypt).
+    /// info: `b"galdralag/openpgp/dec/v1"`
+    OpenPgpDec,
+    /// OpenPGP card AUT slot (INTERNAL AUTHENTICATE).
+    /// info: `b"galdralag/openpgp/aut/v1"`
+    OpenPgpAut,
+    /// OpenPGP admin PIN (PW3) verifier / wrapping label.
+    /// info: `b"galdralag/openpgp/pw3/v1"`
+    OpenPgpAdminPin,
 }
 
 impl KeyPurpose {
@@ -59,6 +71,10 @@ impl KeyPurpose {
             KeyPurpose::RsaKeyWrap => b"galdralag/rsa/key-wrap/v1",
             KeyPurpose::SessionLongTermSign => b"galdralag/session/long-term-sign/v1",
             KeyPurpose::EphemeralSessionPrk => b"galdralag/session/ephemeral-prk/v1",
+            KeyPurpose::OpenPgpSig => b"galdralag/openpgp/sig/v1",
+            KeyPurpose::OpenPgpDec => b"galdralag/openpgp/dec/v1",
+            KeyPurpose::OpenPgpAut => b"galdralag/openpgp/aut/v1",
+            KeyPurpose::OpenPgpAdminPin => b"galdralag/openpgp/pw3/v1",
         }
     }
 }

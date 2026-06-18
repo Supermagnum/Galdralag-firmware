@@ -80,6 +80,10 @@ usage are documented in the
 **[Baochip-1x firmware design README](https://raw.githubusercontent.com/Supermagnum/Baochip-1x-firmware/refs/heads/main/README.md)**.
 Architecture notes for this repository: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
+The only remaining work before physical hardware works is the Xous USB service wiring — and that is documented in [docs/XOUS_CCID_INTEGRATION.md](docs/XOUS_CCID_INTEGRATION.md), waiting for the BSP crates to be available.
+
+At that point the project will be a complete, tested, open-source hardware security token firmware with capabilities that no commercial token currently offers: on-device ephemeral ECDH with true forward secrecy, on-device Shamir K-of-N, cipher-agnostic profile system, PSRAM decoy volume, and full OpenPGP card compatibility — all on open RTL with a reproducible bootloader.
+
 ---
 
 ## Documentation
@@ -180,11 +184,14 @@ If you copied binaries manually, remove the files you added. Firmware is not “
   of multiple independent ciphers (e.g. Serpent-256 + ChaCha20-Poly1305) can
   be selected per session. Every profile selection is logged in the audit trail.
 
-- **Optional PSRAM decoy volume** — if a PSRAM chip is fitted, the device
-  presents as ordinary USB mass storage to any host that does not know the
-  authentication protocol. The PSRAM content is intentionally unencrypted and
-  unremarkable — a decoy. Real key material lives in on-chip RRAM behind the
-  vault and PIN policy.
+- **Optional PSRAM decoy volume** — if a PSRAM chip is fitted, an extra bulk
+  decoy LUN can appear after unlock. **If no PSRAM is fitted, the device is
+  still a hardware security token** (vault, PIN policy, OpenPGP/CCID, and other
+  token functions are unchanged); only that optional bulk volume is absent. For
+  uninformed hosts, the device still presents the usual on-chip mass-storage
+  decoy persona where configured. PSRAM content, when present, is intentionally
+  unencrypted and unremarkable. Real key material lives in on-chip RRAM behind
+  the vault and PIN policy.
 
 - **Fully open stack** — CERN-OHL-W-2.0 RTL, open schematics, reproducible
   bootloader, Rust/Xous OS, IRIS-inspectable silicon.
@@ -307,8 +314,8 @@ confirmation) has not yet been performed. See
 ## Test results
 
 Full vector coverage, dudect t-statistics, RFC / BSI / NIST CAVP pass/fail
-tables,fuzzing and key lifecycle results:
-**[docs/TEST_RESULTS.md](docs/TEST_RESULTS.md)**
+tables, fuzzing (including **openpgp_dispatch** libFuzzer notes), and key lifecycle results:
+**[docs/TEST_RESULTS.md](docs/TEST_RESULTS.md)** — see **Section 10** for cargo-fuzz matrices and the recorded **`openpgp_dispatch`** long-run interpretation.
 
 ```
 cargo run -p xtask -- test-all
@@ -364,7 +371,7 @@ cargo run -p xtask -- test-all
 cargo run -p xtask -- timing-test
 ```
 
-**Fuzzing (libFuzzer):** install `cargo-fuzz`, use nightly, then e.g. `cargo run -p xtask -- fuzz chacha_roundtrip 60`. Target names, xtask aliases, and **recommended corpus seeds** per target are in [fuzz/README.md](fuzz/README.md).
+**Fuzzing (libFuzzer):** install `cargo-fuzz`, use nightly, then e.g. `cargo run -p xtask -- fuzz chacha_roundtrip 60` or `cargo run -p xtask -- fuzz openpgp_dispatch 60` (OpenPGP APDU path). Target names, xtask aliases, and **recommended corpus seeds** per target are in [fuzz/README.md](fuzz/README.md).
 
 Enable `galdr-core` feature `test-hal` **only** in tests or host tools.
 Never enable it in production firmware images — enforced by `check-fw`.

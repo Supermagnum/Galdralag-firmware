@@ -31,6 +31,10 @@ fn all_key_purposes_have_distinct_hkdf_info() {
         KeyPurpose::RsaKeyWrap,
         KeyPurpose::SessionLongTermSign,
         KeyPurpose::EphemeralSessionPrk,
+        KeyPurpose::OpenPgpSig,
+        KeyPurpose::OpenPgpDec,
+        KeyPurpose::OpenPgpAut,
+        KeyPurpose::OpenPgpAdminPin,
     ];
     for i in 0..purposes.len() {
         for j in i + 1..purposes.len() {
@@ -56,6 +60,10 @@ proptest! {
             KeyPurpose::RsaKeyWrap,
             KeyPurpose::SessionLongTermSign,
             KeyPurpose::EphemeralSessionPrk,
+            KeyPurpose::OpenPgpSig,
+            KeyPurpose::OpenPgpDec,
+            KeyPurpose::OpenPgpAut,
+            KeyPurpose::OpenPgpAdminPin,
         ] {
             prop_assert!(!p.info().is_empty());
         }

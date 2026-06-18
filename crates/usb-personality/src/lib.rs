@@ -1,8 +1,12 @@
 //! USB HS personalities: uninformed hosts see **standard mass storage** only; unlock path requires
-//! an informed driver (per Baochip host-visible behavior).
+//! an informed driver (per Baochip host-visible behaviour). Optional **OpenPGP card** presentation
+//! uses the CCID class and ISO 7816-4 APDUs (see [`openpgp`]).
 
 #![cfg_attr(not(test), no_std)]
 #![deny(unsafe_code)]
+
+pub mod ccid;
+pub mod openpgp;
 
 /// Active high-level USB presentation.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]

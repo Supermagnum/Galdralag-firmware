@@ -32,7 +32,10 @@
 An optional PSRAM chip may be fitted to the Baochip-1x / Dabao board for bulk
 storage presentation to the host. **The chip may also be absent entirely.** All
 software in this stack must handle the no-PSRAM case cleanly and silently, with
-no change in observable USB behaviour from the host's perspective.
+no spurious PSRAM LUN and **no loss of security-token function**: the device is
+always a hardware security token; PSRAM is an optional **supplementary** bulk
+decoy store. For comparisons that matter to mass-storage descriptors, observable
+USB behaviour matches the PSRAM-fitted-but-locked case (see below).
 
 **The contents of the PSRAM are intentionally not encrypted.** The PSRAM volume
 presents as a plain, readable filesystem to any host that mounts it. Its purpose
@@ -68,10 +71,13 @@ lives entirely in firmware.
 
 This contract is normative. All code paths must implement it exactly.
 
-1. **PSRAM absent (chip not fitted or probe fails):** the device operates as a
-   normal USB mass-storage token using whatever small on-chip storage is
-   configured for the uninformed persona. No PSRAM-related LUN is advertised.
-   The host cannot distinguish this state from "PSRAM fitted but locked."
+1. **PSRAM absent (chip not fitted or probe fails):** the device **still
+   operates as a hardware security token** (vault, PIN, OpenPGP/CCID, etc.).
+   The only omission is the optional PSRAM bulk block device. For the
+   **uninformed** USB mass-storage persona, firmware uses whatever small
+   on-chip decoy volume is configured. No PSRAM-related LUN is advertised. The
+   host cannot distinguish this mass-storage presentation from "PSRAM fitted but
+   locked."
 
 2. **PSRAM present, device unauthenticated:** same USB presentation as case 1.
    The PSRAM content is not visible to the host until authentication succeeds.

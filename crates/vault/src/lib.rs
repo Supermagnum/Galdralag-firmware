@@ -32,6 +32,8 @@ pub mod rsa_vault;
 pub mod session_long_term_signing;
 pub mod public_key_vault;
 pub mod vault_pin_policy;
+pub mod layout;
+pub mod sealed_key;
 
 #[cfg(test)]
 mod tests;
@@ -79,3 +81,7 @@ pub use vault_pin_policy::{
     vault_read_pin_policy, vault_write_pin_policy, provisioned_attempts_range, VaultPinPolicyError,
     VaultPinPolicyRecord, VAULT_PIN_POLICY_RECORD_BYTES,
 };
+pub use layout::{
+    SEALED_AUT_OFFSET, SEALED_BLOB_BYTES, SEALED_DEC_OFFSET, SEALED_KEY_REGION_END, SEALED_SIG_OFFSET,
+};
+pub use sealed_key::{SealedKeyBlob, SealedKeyError};

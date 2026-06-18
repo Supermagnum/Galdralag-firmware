@@ -365,10 +365,14 @@ cover both the valid derivation path and the case where two different
 This contract is normative. All code paths must implement it exactly.
 
 **State 1 — PSRAM absent (chip not fitted or probe returns `Ok(None)`):**
-The device operates as a normal USB mass-storage token using whatever
-on-chip decoy volume is configured. No PSRAM-related LUN is advertised. USB
-descriptors are identical to State 2. The host cannot distinguish this state
-from State 2.
+The device **remains a hardware security token** in full: RRAM vault, PIN
+policy, OpenPGP card application (CCID), and other token features are
+unchanged. What is missing is **only** the optional external PSRAM bulk block
+device. For the **uninformed-host** USB persona, firmware still uses whatever
+small on-chip decoy mass-storage volume is configured (same as State 2 for
+that persona). No PSRAM-related LUN is advertised. USB descriptors for that
+persona are identical to State 2. The host cannot distinguish this state from
+State 2 with respect to mass-storage presentation.
 
 **State 2 — PSRAM present, device unauthenticated:**
 Same USB presentation as State 1. The PSRAM content is not visible to the

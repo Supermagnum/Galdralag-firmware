@@ -14,7 +14,11 @@ rand_core = { version = "0.6", default-features = false }
 vault = { path = "../crates/vault" }
 ephemeral-session = { path = "../crates/ephemeral-session" }
 cipher-profile = { path = "../crates/cipher-profile" }
+ed25519-dalek = { version = "2", default-features = false, features = ["rand_core"] }
 heapless = { version = "0.8", default-features = false }
+pin-policy = { path = "../crates/pin-policy" }
+usb-personality = { path = "../crates/usb-personality" }
+x25519-dalek = { version = "2.0", default-features = false, features = ["static_secrets"] }
 
 [[bin]]
 name = "chacha_roundtrip"
@@ -89,6 +93,13 @@ bench = false
 [[bin]]
 name = "fuzz_cipher_profile"
 path = "fuzz_targets/fuzz_cipher_profile.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "openpgp_dispatch"
+path = "fuzz_targets/openpgp_dispatch.rs"
 test = false
 doc = false
 bench = false

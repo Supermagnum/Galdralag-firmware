@@ -2089,6 +2089,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "galdralag-service"
+version = "0.1.0"
+dependencies = [
+ "galdr-core",
+ "usb-personality",
+ "vault",
+]
+
+[[package]]
 name = "gdk-pixbuf"
 version = "0.20.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4045,6 +4054,12 @@ dependencies = [
  "opaque-debug",
  "universal-hash",
 ]
+
+[[package]]
+name = "portable-atomic"
+version = "1.13.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c33a9471896f1c69cecef8d20cbe2f7accd12527ce60845ff44c153bb2a21b49"
 
 [[package]]
 name = "potential_utf"
@@ -6131,11 +6146,33 @@ dependencies = [
 ]
 
 [[package]]
+name = "usb-device"
+version = "0.3.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "98816b1accafbb09085168b90f27e93d790b4bfa19d883466b5e53315b5f06a6"
+dependencies = [
+ "heapless",
+ "portable-atomic",
+]
+
+[[package]]
 name = "usb-personality"
 version = "0.1.0"
 dependencies = [
+ "bp256",
+ "ecdsa 0.17.0-rc.16",
+ "ed25519-dalek",
  "galdr-core",
+ "heapless",
+ "pin-policy",
  "proptest",
+ "rand_core 0.6.4",
+ "sha1",
+ "sha2 0.10.9",
+ "usb-device",
+ "vault",
+ "x25519-dalek",
+ "zeroize",
 ]
 
 [[package]]

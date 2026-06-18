@@ -20,6 +20,7 @@ algo-shamir = []
 
 [dependencies]
 aead.workspace = true
+aes-gcm.workspace = true
 bp256.workspace = true
 bp384.workspace = true
 bp512.workspace = true

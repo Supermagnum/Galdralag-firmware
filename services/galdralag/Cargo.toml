@@ -1,0 +1,21 @@
+[package]
+name = "galdralag-service"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+name = "galdralag_service"
+path = "src/lib.rs"
+
+[[bin]]
+name = "galdralag-service"
+path = "src/main.rs"
+required-features = ["xous-bsp"]
+
+[features]
+xous-bsp = []
+
+[dependencies]
+galdr-core = { path = "../../crates/galdr-core" }
+usb-personality = { path = "../../crates/usb-personality" }
+vault = { path = "../../crates/vault" }

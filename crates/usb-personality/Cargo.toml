@@ -3,7 +3,7 @@ name = "usb-personality"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
-description = "USB mass-storage vs authenticated-unlock personalities (Galdr)"
+description = "USB mass-storage vs authenticated-unlock personalities; OpenPGP CCID card (Galdr)"
 
 [features]
 default = []
@@ -12,10 +12,26 @@ pq-signatures = []
 
 [dependencies]
 galdr-core.workspace = true
+heapless.workspace = true
+usb-device.workspace = true
+pin-policy.workspace = true
+sha1.workspace = true
+sha2.workspace = true
+vault.workspace = true
+zeroize.workspace = true
+ed25519-dalek.workspace = true
+x25519-dalek.workspace = true
+rand_core.workspace = true
 
 [dev-dependencies]
+bp256.workspace = true
+ecdsa.workspace = true
+ed25519-dalek.workspace = true
 galdr-core = { workspace = true, features = ["test-hal"] }
 proptest.workspace = true
+rand_core.workspace = true
+vault.workspace = true
+x25519-dalek.workspace = true
 
 [lints]
 workspace = true

@@ -6,7 +6,7 @@
 - **Commit:** `b5c905d1ae57133e212ed5f6e67f0646f5018518`
 - **xtask version:** 0.1.0 (fuzz skipped via `--no-fuzz`)
 
-**Section 1** unit-test totals were recomputed at this commit with `cargo test --workspace --exclude xtask` (sum of every `test result:` line). **Section 9** lists t-statistics from **`crates/security-tests/dudect_results.json`** (authoritative PASS cache updated when `cargo run -p xtask -- timing-test` succeeds). Values are host-dependent. For a **full** dudect sweep (~910 s on a typical developer machine), use `timing-test --all`; the default `timing-test` skips harnesses already marked PASS in that JSON file. **Section 10** records **cargo-fuzz** (libFuzzer) runs: a detailed **`chacha_roundtrip`** sample and a **full 11-target** matrix (`-max_total_time=120` each, `seed_corpus/`).
+**Section 1** unit-test totals were recomputed at this commit with `cargo test --workspace --exclude xtask` (sum of every `test result:` line). **Section 9** lists t-statistics from **`crates/security-tests/dudect_results.json`** (authoritative PASS cache updated when `cargo run -p xtask -- timing-test` succeeds). Values are host-dependent. For a **full** dudect sweep (~910 s on a typical developer machine), use `timing-test --all`; the default `timing-test` skips harnesses already marked PASS in that JSON file. **Section 10** records **cargo-fuzz** (libFuzzer) runs: a detailed **`chacha_roundtrip`** sample, a recorded long **`openpgp_dispatch`** run (OpenPGP APDU + vault backend), and a **full 12-target** matrix (`-max_total_time=120` each, `seed_corpus/`).
 
 ## 1. Unit tests
 
@@ -377,9 +377,34 @@ rustup run nightly cargo fuzz run chacha_roundtrip seed_corpus/chacha_roundtrip 
 
 **Note:** Passing **`seed_corpus/chacha_roundtrip`** as the corpus directory causes libFuzzer to **merge new discoveries into that tree** on disk. For a clean checkout, regenerate seeds with `python3 fuzz/scripts/gen_seed_corpus.py` or copy seeds into **`corpus/chacha_roundtrip/`** (gitignored) for long runs.
 
+### openpgp_dispatch (recorded long run)
+
+**Command:**
+
+```bash
+cd fuzz
+rustup run nightly cargo fuzz run openpgp_dispatch -- -max_total_time=3600 -max_len=512
+```
+
+**Outcome:** Run **interrupted manually** (Ctrl+C); log showed **no crashes** and **no ASAN** findings. Metrics are **host-dependent**.
+
+| Item | Value (representative log) |
+|------|------------------------------|
+| Executions before stop | order of **10^8** |
+| `exec/s` | **~40k+** sustained |
+| Starting `cov` / `ft` (after seed load) | **~934** / **~1168** |
+| Ending `cov` / `ft` | **~980** / **~1230** |
+| Corpus | **~195** seed files merged; grew to **~200** entries, **~2–3 KiB** total (corpus minimisation active) |
+
+**Harness:** `fuzz/fuzz_targets/openpgp_dispatch.rs` — `CommandApdu::parse`, `handle_apdu` on `OpenPgpVaultBackend` with default DOs, `AlgorithmAttributes::parse`, `parse_ecdh_peer_public_key`, dalek Ed25519/X25519 constructors from the first 32 bytes.
+
+**Interpretation:** **High exec/s** is expected for this workload relative to simpler targets: the harness still completes full dispatch per iteration. **Long stretches of flat `cov`** with occasional **NEW** / **NEW_FUNC** (e.g. `trim_openpgp_pin_padding`, `ResponseApdu::ok_empty`) are **normal**: most random APDUs fail parse or exit early; only a narrow family reaches multi-step flows (VERIFY then PSO, PUT with PW3, etc.). A **seeded corpus** yields a **high starting `cov`**; further gains are **incremental** — consistent with [Corpus health (LibFuzzer output)](../fuzz/README.md#corpus-health-libfuzzer-output) in `fuzz/README.md`. Plateau **does not** imply a broken target.
+
+**Optional follow-ups:** `cargo fuzz cmin openpgp_dispatch corpus/openpgp_dispatch/`; add hand-crafted seeds from `tests/openpgp_command_flow.rs` if deeper coverage is needed; resume with the same corpus path to continue discovery.
+
 ### Full matrix (`-max_total_time=120` per target, `seed_corpus/<target>/`)
 
-All **11** binaries in `fuzz/Cargo.toml` were run sequentially with:
+All **12** binaries in `fuzz/Cargo.toml` were run sequentially with:
 
 `rustup run nightly cargo fuzz run <target> seed_corpus/<target> -- -max_total_time=120`
 
@@ -398,6 +423,9 @@ Stopping is by **LibFuzzer time limit** (about **121 s** wall per target), not b
 | `rsa_der_import` | 0 |
 | `fuzz_ephemeral_handshake` | 0 |
 | `fuzz_cipher_profile` | 0 |
+| `openpgp_dispatch` | 0 |
+
+**Note:** `openpgp_dispatch` is the **12th** target; add `fuzz/seed_corpus/openpgp_dispatch/` (may be empty) if you run this matrix and the path is missing.
 
 **Harness fix:** `shamir_split_recover` required `data.len() >= 8` before reading `data[0..8]` (previously `>= 4`, which could panic under the fuzzer). Host-dependent metrics; re-run locally to refresh numbers.
 
@@ -413,14 +441,21 @@ Hardware verification not yet performed. See `docs/HARDWARE_VERIFICATION.md`. La
 
 Integration tests in `pin-policy/tests/pin_lifecycle.rs`. Last run: **PASS**.
 
-## 13. Missing / not yet run
+## 13. OpenPGP card application (`usb-personality`)
 
-- **cargo-fuzz:** Full **11-target** matrix (120 s each, `seed_corpus/`) summarised in [Section 10](#10-cargo-fuzz-libfuzzer-summary). Longer runs or `cargo fuzz cmin` / `coverage` are optional pre-release checks (`fuzz/README.md`).
+- **Crate tests:** `cargo test -p usb-personality` — CCID `PC_to_RDR` / `RDR_to_PC` helpers, ISO 7816-4 APDU parse/encode, DO encoding, `CardState`, and integration flows in `tests/openpgp_command_flow.rs` (mock backend: `pin-policy` + `vault` Brainpool ECDSA). Last run: **PASS** (when this section was updated).
+- **libFuzzer (`openpgp_dispatch`):** Arbitrary APDU bytes through `handle_apdu` + vault backend; see [Section 10 — openpgp_dispatch](#openpgp_dispatch-recorded-long-run) for a recorded long run and interpretation.
+- **Host GnuPG / PC/SC:** Full `gpg --card-status` against a real CCID enumeration is manual; `cargo run -p xtask -- test-openpgp` only checks for `gpg` and prints guidance (skipped if absent). See `docs/OPENPGP_CARD.md`.
+
+## 14. Missing / not yet run
+
+- **cargo-fuzz:** Full **12-target** matrix (120 s each, `seed_corpus/`) summarised in [Section 10](#10-cargo-fuzz-libfuzzer-summary). Longer runs or `cargo fuzz cmin` / `coverage` are optional pre-release checks (`fuzz/README.md`). The **`openpgp_dispatch`** long sample (1 h wall, `-max_len=512`) is recorded in the same section.
 
 Out of scope or not automated in this run:
 
 - **Hardware zeroisation:** See `docs/HARDWARE_VERIFICATION.md` (simulation-only in CI).
 - **Optional dudect integrations:** USB challenge-response, PSRAM tag check, XMSS/LMS verify (printed as `[MISSING]` by `dudect_galdr`).
+- **OpenPGP end-to-end on hardware:** Requires CCID USB integration and host `pcscd` / GnuPG; not part of `test-all`.
 
 ---
 
@@ -438,4 +473,5 @@ Out of scope or not automated in this run:
 - **pin_lifecycle:** PASS
 - **zeroise_simulation:** PASS
 - **timing-test:** PASS
-- **cargo-fuzz (11 targets, 120 s each, seed corpus):** PASS (see Section 10)
+- **cargo-fuzz (12 targets, 120 s each, seed corpus):** PASS (see Section 10; `openpgp_dispatch` long run documented there)
+- **usb-personality (OpenPGP / CCID):** PASS (`cargo test -p usb-personality`; see Section 13)

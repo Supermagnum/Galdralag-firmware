@@ -66,6 +66,18 @@ Covers `CipherProfile` parsing and `cascade_decrypt` (see target source).
 
 **ASN.1 / DER:** [Wycheproof](https://github.com/google/wycheproof) JSON in `crates/vault/tests/data/wycheproof/` (RSA-OAEP, RSA-PSS, PKCS#1 verify, and related groups) already contains many **carefully crafted malformed** inputs. Those vectors are excellent **additional corpus seeds** for DER and ASN.1 parsing paths—beyond what the regular test suite generates—because they encode realistic key and signature blobs with edge-case structure.
 
+### OpenPGP APDU dispatch (`openpgp_dispatch`)
+
+Exercises `CommandApdu::parse`, `handle_apdu` on a `OpenPgpVaultBackend` with default DOs (Brainpool ECDSA/ECDH), `algorithm_attributes` TLV parsing, `parse_ecdh_peer_public_key`, and dalek Ed25519/X25519 key material constructors.
+
+- **xtask aliases:** `openpgp`, `openpgp-dispatch`, `openpgp_dispatch` (see `fuzz_bin_name`).
+
+Suggested corpus seeds:
+
+- Valid short APDUs: SELECT OpenPGP AID (`00 A4 04 00 …`), VERIFY, GET DATA `00 CA 00 4F`, GET CHALLENGE `00 84 00 00 20` (32-byte Le), MSE `00 22 41 B8 03 83 01 03` (set DEC ref to Curve25519).
+- Truncated and extended-length APDU variants.
+- Raw bytes from `openpgp_command_flow` integration tests.
+
 ### Shamir (`shamir_split_recover`)
 
 - Valid shares from a **k=2, n=3** split of a known secret.
