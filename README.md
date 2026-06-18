@@ -22,7 +22,7 @@ OS — is open source and auditable.
 
 Hardware specification, boot model, requirement tables, and ComboHash/PKE
 usage are documented in **[Supermagnum/Baochip-1x-firmware](https://github.com/Supermagnum/Baochip-1x-firmware)**.
-The **Dabao** evaluation board (KiCad, schematics, switches, pinout) is **[baochip/dabao](https://github.com/baochip/dabao)**. To enter **bootloader mode** for flashing, **press SW2** to toggle it (see that repo’s schematic).
+The **Dabao** evaluation board (KiCad, schematics, switches, pinout) is **[baochip/dabao](https://github.com/baochip/dabao)**. To enter **bootloader mode** for flashing, **press SW2** to toggle it (see that repo's schematic).
 Architecture notes for this repository: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
 ### What this firmware is (and is not)
@@ -33,7 +33,7 @@ Architecture notes for this repository: [docs/ARCHITECTURE.md](docs/ARCHITECTURE
 
 - **FIDO2 / CTAP2 / WebAuthn** — different standards; no CTAP **user-presence** button model and no planned CTAP stack. Use a FIDO security key if you need WebAuthn. (See also [OpenPGP and GnuPG compatibility](#openpgp-and-gnupg-compatibility) and the standards table under [Standards vs. firmware-specific features](#standards-vs-firmware-specific-features).)
 - **TOTP / HOTP (OATH one-time passwords)** — those protocols expect a **real-time clock** (TOTP) or an OATH-oriented counter workflow and UX; this device is **not** built as a dedicated OTP token.
-- **USB HID keyboard “password typer”** — there is no USB keyboard personality to inject keystrokes into the host. Planned credential storage (see [docs/future-todo.md](docs/future-todo.md)) is described as retrieval through **authenticated host tooling**, not HID typing.
+- **USB HID keyboard "password typer"** — there is no USB keyboard personality to inject keystrokes into the host. Planned credential storage (see [docs/future-todo.md](docs/future-todo.md)) is described as retrieval through **authenticated host tooling**, not HID typing.
 - **A general multi-applet Java Card platform** — scope is this **Galdr** firmware and its documented surfaces, not arbitrary third-party smart-card applets.
 
 Crate-level exclusions aligned with the same constraints are listed under **[Crates Explicitly Excluded](docs/future-todo.md#crates-explicitly-excluded)** in [docs/future-todo.md](docs/future-todo.md).
@@ -92,6 +92,8 @@ That is not a reason to hide the point from everyone else. People evaluating the
 **BLAKE3 reference vectors** are the official test corpus published alongside the BLAKE3 specification by its authors. They cover 35 input lengths from 0 to 102400 bytes, specifically chosen to exercise all internal chunk and tree-hashing boundary conditions that are invisible to short-input tests. All three BLAKE3 modes — default hash, keyed hash, and derive-key — are covered. BLAKE3 is used throughout this firmware for HKDF key derivation and inter-layer integrity checks in the cascade cipher profiles; the boundary coverage matters because BLAKE3's tree construction only activates above 1024 bytes.
 
 It is now up to the reader to judge whether these claims are false or not.
+
+**The test suite is also tamper detection for the supply chain.** All cryptographic primitives in this firmware come from audited RustCrypto crates — no cryptography is implemented in-tree. Because the conformance vectors above are run against those crates on every `cargo test --workspace`, any dependency that has been tampered with or substituted will produce a known-answer test failure before the compromised code reaches a deployed system. `python3 scripts/verify_cascade_kats.py` adds a second independent path: a Python implementation checks the same intermediate values in the cascade KAT fixture, so even a compromised Rust toolchain producing wrong output is caught by the cross-check. This is a meaningfully stronger supply chain integrity story than binding to a C library, where equivalent verification of every internal operation requires significantly more effort and specialist tooling.
 
 ## Table of contents
 
@@ -186,13 +188,13 @@ approach to safety.
 
 ### Memory Safety
 
-A large share of security-relevant bugs in industry codebases come from **memory unsafety** (buffer overflows, use-after-free, null dereferences, and similar). Microsoft’s MSRC has **repeatedly reported** that roughly **70% of CVEs addressed in their own products** fall into this category; the **Chrome** team has published similar proportions for Chrome. Those figures describe **those vendors’ products**, not a universal law for all firmware, but they illustrate why memory-safe languages matter.
+A large share of security-relevant bugs in industry codebases come from **memory unsafety** (buffer overflows, use-after-free, null dereferences, and similar). Microsoft's MSRC has **repeatedly reported** that roughly **70% of CVEs addressed in their own products** fall into this category; the **Chrome** team has published similar proportions for Chrome. Those figures describe **those vendors' products**, not a universal law for all firmware, but they illustrate why memory-safe languages matter.
 
 In **safe Rust** (the default), the **borrow checker** rules out data races and the usual undefined-behaviour memory errors at compile time **without** relying on garbage collection. **Unsafe Rust** and **FFI** to C can still introduce memory bugs; they must be kept small and reviewed.
 
 ### System-level robustness (with limits)
 
-Rust’s **bounds checking** on slices and its **ownership rules** reduce several classes of failure modes common in C/C++ embedded code:
+Rust's **bounds checking** on slices and its **ownership rules** reduce several classes of failure modes common in C/C++ embedded code:
 
 - **Buffer and stack smashes** that corrupt control flow are caught at compile time in safe code or via checked indexing at runtime instead of silent UB.
 - **Data races** in concurrent safe Rust are rejected by the compiler (deadlocks are **not** eliminated — see below).
@@ -211,11 +213,11 @@ This codebase applies common Rust patterns for secrets; they are **not** automat
 
 ### Auditable by design
 
-**`unsafe`** must be **spelled out** in source, which narrows manual review. **Dependencies:** this project’s cryptographic policy favours **audited Rust crates** (RustCrypto and others); see the table in [Cryptographic dependency policy](#cryptographic-dependency-policy) — not every dependency is from a single umbrella project.
+**`unsafe`** must be **spelled out** in source, which narrows manual review. **Dependencies:** this project's cryptographic policy favours **audited Rust crates** (RustCrypto and others); see the table in [Cryptographic dependency policy](#cryptographic-dependency-policy) — not every dependency is from a single umbrella project.
 
 ### What Rust does not prevent
 
-Rust does **not** remove **deadlocks** (e.g. mis-ordered `Mutex` locks), **logic bugs**, **incorrect protocols**, **flash wear** from bad loops, **physical attacks** (glitching, power analysis), or risks from a **correct build of the wrong image**. It also does not guarantee constant-time execution on all hardware without careful coding. Those areas rely on **design, review, testing**, and the project’s **crypto and supply-chain** practices described elsewhere in this README.
+Rust does **not** remove **deadlocks** (e.g. mis-ordered `Mutex` locks), **logic bugs**, **incorrect protocols**, **flash wear** from bad loops, **physical attacks** (glitching, power analysis), or risks from a **correct build of the wrong image**. It also does not guarantee constant-time execution on all hardware without careful coding. Those areas rely on **design, review, testing**, and the project's **crypto and supply-chain** practices described elsewhere in this README.
 
 **Verification (tests and fuzzing):** Beyond the language, this repository uses **unit tests**, **integration tests**, **dudect** timing harnesses, and **libFuzzer** (`cargo-fuzz`) targets. Summaries and matrices are in **[Test results](#test-results)**; the **recorded run metadata** starts at [`docs/TEST_RESULTS.md#run-metadata`](docs/TEST_RESULTS.md#run-metadata). **Passing tests do not** prove production readiness or absence of vulnerabilities — they narrow risk. **You** judge whether running builds or tests is acceptable for your environment; a **virtual machine** is optional but **limits blast radius** on your machine.
 
@@ -331,7 +333,7 @@ The same paths resolve on GitHub under [`tree/main/docs`](https://github.com/Sup
 
 ## OpenPGP and GnuPG compatibility
 
-The firmware implements the **OpenPGP card application** (documented as version **3.4.1** in [docs/OPENPGP_CARD.md](docs/OPENPGP_CARD.md)). That is the same class of device GnuPG drives for **OpenPGP smart cards** over **CCID/USB**: the host needs a normal smart card stack (`pcscd`, `ccid` drivers, GnuPG’s `scdaemon`). **No custom host-side cryptographic driver** is required beyond what you would use for any OpenPGP card.
+The firmware implements the **OpenPGP card application** (documented as version **3.4.1** in [docs/OPENPGP_CARD.md](docs/OPENPGP_CARD.md)). That is the same class of device GnuPG drives for **OpenPGP smart cards** over **CCID/USB**: the host needs a normal smart card stack (`pcscd`, `ccid` drivers, GnuPG's `scdaemon`). **No custom host-side cryptographic driver** is required beyond what you would use for any OpenPGP card.
 
 **What this enables on the host (once the device is visible as a CCID reader):**
 
@@ -375,13 +377,13 @@ Different parts of this project align with different standards. **GnuPG interope
 | **microSD decoy / mass-storage personas** — uninformed-host USB behaviour | Not in OpenPGP card spec | **No** — separate USB personality code paths |
 | **WebAuthn / FIDO2** | CTAP / WebAuthn | **Not implemented** — different standard from OpenPGP card |
 
-For day-to-day **card** behaviour, rely on [docs/OPENPGP_CARD.md](docs/OPENPGP_CARD.md). For **vault-only** or **token-unique** features, use this repository’s firmware and [Galdra tool](docs/GALDRA-TOOL.md) documentation.
+For day-to-day **card** behaviour, rely on [docs/OPENPGP_CARD.md](docs/OPENPGP_CARD.md). For **vault-only** or **token-unique** features, use this repository's firmware and [Galdra tool](docs/GALDRA-TOOL.md) documentation.
 
 ---
 
 ## Shamir secret sharing and drive encryption
 
-The **OpenPGP card** and **GnuPG** stacks do **not** define Shamir’s Secret Sharing (SSS) for keys or for disk unlock. SSS is still useful **alongside** normal encryption: it almost never replaces the symmetric cipher on the disk — it **protects the small secret** (master key or passphrase) that unlocks that encryption.
+The **OpenPGP card** and **GnuPG** stacks do **not** define Shamir's Secret Sharing (SSS) for keys or for disk unlock. SSS is still useful **alongside** normal encryption: it almost never replaces the symmetric cipher on the disk — it **protects the small secret** (master key or passphrase) that unlocks that encryption.
 
 **Pattern (always the same idea):**
 
@@ -396,9 +398,9 @@ The **OpenPGP card** and **GnuPG** stacks do **not** define Shamir’s Secret Sh
 
 **1. LUKS (Linux) and external SSS**
 
-[LUKS](https://gitlab.com/cryptsetup/cryptsetup) encrypts the volume with a master key. You can extract that key (or a key-slot secret, depending on your procedure), split it with an SSS tool, and store shares separately. At unlock time, combine **K** shares, reconstruct the key material, and supply it to `cryptsetup` (see your distribution’s documentation; mishandling keys can brick access).
+[LUKS](https://gitlab.com/cryptsetup/cryptsetup) encrypts the volume with a master key. You can extract that key (or a key-slot secret, depending on your procedure), split it with an SSS tool, and store shares separately. At unlock time, combine **K** shares, reconstruct the key material, and supply it to `cryptsetup` (see your distribution's documentation; mishandling keys can brick access).
 
-Example shape using the `ssss` (“Shamir’s Secret Sharing Scheme”) utilities (names and packaging vary by OS):
+Example shape using the `ssss` ("Shamir's Secret Sharing Scheme") utilities (names and packaging vary by OS):
 
 ```bash
 # Example: 3-of-5 split of a file containing key material (illustrative only)
@@ -417,14 +419,14 @@ ssss-combine -t 3 | cryptsetup luksOpen /dev/sdX vault
 This repository uses [`vsss-rs`](https://crates.io/crates/vsss-rs) (RustCrypto ecosystem) for on-device Shamir. The same **layering** applies if you align it with bulk encryption:
 
 - Generate a random 256-bit (or appropriate) master key.
-- Encrypt the drive or bulk store with **AES-GCM** or **ChaCha20-Poly1305** using that key (this matches the workspace’s audited symmetric crates).
+- Encrypt the drive or bulk store with **AES-GCM** or **ChaCha20-Poly1305** using that key (this matches the workspace's audited symmetric crates).
 - Use `vsss-rs` to split the master key into **N** shares with threshold **K**.
 - Store shares in vault slots, other devices, or with key holders.
 - On boot or recovery, collect **K** shares, reconstruct, then use **HKDF** (or your policy) for domain-separated subkeys if needed.
 
 **4. VeraCrypt**
 
-VeraCrypt does not implement SSS internally. The same **external** pattern applies: split the **passphrase or keyfile material** with an SSS tool; do not try to Shamir-split the volume’s ciphertext.
+VeraCrypt does not implement SSS internally. The same **external** pattern applies: split the **passphrase or keyfile material** with an SSS tool; do not try to Shamir-split the volume's ciphertext.
 
 ### Hybrid pattern (large data)
 
@@ -436,7 +438,7 @@ SSS is for **small secrets** (key size). You **do not** apply Shamir to multi-gi
 [Symmetric master key, e.g. 32-byte AES-256]
     split by SSS into
 [Share 1] [Share 2] ... [Share N]
-    (each share may be wrapped with a recipient’s PGP key, HSM, or offline media)
+    (each share may be wrapped with a recipient's PGP key, HSM, or offline media)
 ```
 
 That lines up with what this project already stacks: **aes-gcm** / **chacha20poly1305** for data at rest, **vsss-rs** for splitting the master secret, **hkdf** for derivation after reconstruction.
@@ -454,19 +456,19 @@ Operational key handling for LUKS and full-disk encryption is security-sensitive
 
 ### Shamir plus Brainpool: example and institutional fit
 
-One concrete pattern is a **drive or volume** encrypted using **Brainpool** curves where your stack requires them (for example ECDH/ECDSA around a **master secret**), combined with **Shamir’s Secret Sharing** on the **key material** that unlocks that encryption (the same [small-secret layering](#hybrid-pattern-large-data) as above: SSS protects the key, not multi-gigabyte ciphertext). If and when **firmware and host software** implementing that workflow have been **independently audited**, such a combination can be valuable to organisations that must meet **quorum** policies and **national crypto** profiles at the same time.
+One concrete pattern is a **drive or volume** encrypted using **Brainpool** curves where your stack requires them (for example ECDH/ECDSA around a **master secret**), combined with **Shamir's Secret Sharing** on the **key material** that unlocks that encryption (the same [small-secret layering](#hybrid-pattern-large-data) as above: SSS protects the key, not multi-gigabyte ciphertext). If and when **firmware and host software** implementing that workflow have been **independently audited**, such a combination can be valuable to organisations that must meet **quorum** policies and **national crypto** profiles at the same time.
 
 **Why Brainpool curves (e.g. BrainpoolP256r1, BrainpoolP384r1, BrainpoolP512r1) are often discussed in that context:**
 
-- **BSI** (Germany’s federal cybersecurity authority) mandates Brainpool in many deployment profiles; requirements appear in **EU government** and **NATO** procurement and policy settings.
-- Parameters are **fully specified and verifiable** in [RFC 5639](https://datatracker.ietf.org/doc/html/rfc5639), which reduces “nothing up my sleeve” concerns compared with older debates around some NIST curve generation methods.
+- **BSI** (Germany's federal cybersecurity authority) mandates Brainpool in many deployment profiles; requirements appear in **EU government** and **NATO** procurement and policy settings.
+- Parameters are **fully specified and verifiable** in [RFC 5639](https://datatracker.ietf.org/doc/html/rfc5639), which reduces "nothing up my sleeve" concerns compared with older debates around some NIST curve generation methods.
 - **IETF precedent:** RFC 5639 is already on the standards track for these curves.
 
 **Scenarios where combining SSS with Brainpool-class cryptography addresses institutional needs** (illustrative; not legal or compliance advice):
 
 | Scenario | Why SSS plus strong, policy-aligned curves matter |
 |----------|---------------------------------------------------|
-| Employee leaves or dies | Recovery remains possible **without** that person’s exclusive secret |
+| Employee leaves or dies | Recovery remains possible **without** that person's exclusive secret |
 | Lawful access under due process | A **quorum** can be required — no single party holds the full unlocking secret |
 | Corporate key escrow | **Auditable** split; no single administrator has complete access |
 | Hardware seizure | Media may be captured without capturing **K** of **N** shares |
@@ -476,13 +478,13 @@ One concrete pattern is a **drive or volume** encrypted using **Brainpool** curv
 
 ## Standards process: Shamir and ephemeral key exchange
 
-When and if the hardware reaches a **consumer-ready** state, people who want **Shamir’s Secret Sharing** and **authenticated ephemeral key exchange** to become part of interoperable **OpenPGP / GnuPG** behaviour (instead of only firmware-specific features) would need to drive **standards and implementation** change elsewhere. This repository does not speak for the IETF or GnuPG; the venues below are where such amendments are normally pursued.
+When and if the hardware reaches a **consumer-ready** state, people who want **Shamir's Secret Sharing** and **authenticated ephemeral key exchange** to become part of interoperable **OpenPGP / GnuPG** behaviour (instead of only firmware-specific features) would need to drive **standards and implementation** change elsewhere. This repository does not speak for the IETF or GnuPG; the venues below are where such amendments are normally pursued.
 
 ### CESS (related open standard)
 
 **[CESS](https://github.com/Supermagnum/CESS)** — *Cryptologically Enchanted Shamir's Secret* — is an open cryptographic standard for **threshold secret sharing** together with **cipher-agnostic authenticated encryption**, **password-based share wrapping**, and optional **post-quantum hybrid key exchange**. The [CESS repository](https://github.com/Supermagnum/CESS) holds the normative specification, algorithm registry, test vectors, and conformance runner.
 
-**This firmware conforms to CESS** for the constructions implemented here: the specification’s interoperable share and envelope rules sit alongside the same **Shamir**, **Brainpool**, and **cipher-profile** themes described elsewhere in this README. The normative text is separate from this repository; **conformance posture** (what matches the spec, what differs while **retaining** algorithms such as AES and SHA-256 in profiles, and roadmap toward stronger interoperability): [docs/CESS_CONFORMANCE.md](docs/CESS_CONFORMANCE.md).
+**This firmware conforms to CESS** for the constructions implemented here: the specification's interoperable share and envelope rules sit alongside the same **Shamir**, **Brainpool**, and **cipher-profile** themes described elsewhere in this README. The normative text is separate from this repository; **conformance posture** (what matches the spec, what differs while **retaining** algorithms such as AES and SHA-256 in profiles, and roadmap toward stronger interoperability): [docs/CESS_CONFORMANCE.md](docs/CESS_CONFORMANCE.md).
 
 ### Sequoia PGP (if this repository is unresponsive)
 
@@ -526,13 +528,13 @@ Use a **stable Rust** toolchain as pinned in [rust-toolchain.toml](rust-toolchai
    cargo run -p xtask -- build-fw
    ```
 
-   Object code and archives land under `target/riscv32imac-unknown-none-elf/release/`. A full bootable **Xous** system image for a specific board is produced by the wider Baochip / Xous integration flow when you follow that product’s build; `xtask` here runs `cargo build` for the firmware library crates listed in `xtask` (not a single ready-to-flash file by itself).
+   Object code and archives land under `target/riscv32imac-unknown-none-elf/release/`. A full bootable **Xous** system image for a specific board is produced by the wider Baochip / Xous integration flow when you follow that product's build; `xtask` here runs `cargo build` for the firmware library crates listed in `xtask` (not a single ready-to-flash file by itself).
 
 ### Flashing
 
 This repository does **not** ship a one-command flasher yet. Programming the **Baochip-1x** (JTAG, ROM/USB boot, or vendor tools) follows the board and silicon documentation. Start from **[Supermagnum/Baochip-1x-firmware](https://github.com/Supermagnum/Baochip-1x-firmware)**; **eval board hardware** is in **[baochip/dabao](https://github.com/baochip/dabao)** — on the Dabao board, **SW2** toggles **bootloader mode** (see that schematic).
 
-**Committing UF2 without the physical boot button:** After copying **`loader.uf2`**, **`xous.uf2`**, and **`apps.uf2`** to the **BAOCHIP** volume, you can either press the physical **boot** button **or** type **`boot`** in the **boot1** USB serial console (1 000 000 baud, e.g. `screen /dev/ttyACM0 1000000`). That avoids relying on the **boot** button for this step only. The console **disconnects** when you type **`boot`**; that is **expected** (the system reboots into the next stage). On Linux, `dmesg --follow` helps confirm USB re-enumeration. This is distinct from **PROG** (hold while connecting USB to enter the **BAOCHIP** mass-storage bootloader). See **[baochip/dabao#2](https://github.com/baochip/dabao/issues/2)** (closed).
+**Committing UF2 without the physical boot button:** After copying **`loader.uf2`**, **`xous.uf2`**, and **`apps.uf2`** to the **BAOCHIP** volume, you can either press the physical **boot** button **or** type **`boot`** in the **boot1** USB serial console (1 000 000 baud, e.g. `screen /dev/ttyACM0 1000000`). That avoids relying on the **boot** button for this step only. The console **disconnects** when you type **`boot`**; that is **expected** (the system reboots into the next stage). On Linux, `dmesg --follow` helps confirm USB re-enumeration. This is distinct from **PROG** (hold while connecting USB to enter the **BAOCHIP** mass-storage bootloader). See **[baochip/dabao#2](https://github.com/baochip/dabao/issues/2)** (closed).
 
 **Xous / Baochip flow:** Images are **Ed25519-signed** and verified by **boot0** before execution; see [Signed firmware (Ed25519, boot0)](#signed-firmware-ed25519-boot0). For **dabao**, **UF2** layout, holding **PROG** while plugging USB to enter mass-storage mode, and **boot1** update steps, see **[Getting Started with Baochip Targets](https://github.com/betrusted-io/xous-core/blob/dev/README-baochip.md)**.
 
@@ -570,7 +572,7 @@ cargo uninstall galdrad
 cargo uninstall galdra-gtk
 ```
 
-If you copied binaries manually, remove the files you added. Firmware is not “installed” on the host; erasing or reflashing the device is covered by your hardware documentation.
+If you copied binaries manually, remove the files you added. Firmware is not "installed" on the host; erasing or reflashing the device is covered by your hardware documentation.
 
 ---
 
@@ -607,11 +609,11 @@ The items below are **Galdralag firmware capabilities**, not requirements of the
   Full rules and wire layout: [docs/CIPHER_PROFILES.md](docs/CIPHER_PROFILES.md).
   Every profile selection is logged in the audit trail.
 
-- **Keyed BLAKE3 between cascade layers (CESS)** — In addition to each layer’s
+- **Keyed BLAKE3 between cascade layers (CESS)** — In addition to each layer's
   own AEAD tag and to the **Mode A** outer ChaCha20-Poly1305 envelope, **CESS**
   defines **keyed BLAKE3**-style integrity **between** inner cascade stages. For
   **registry-mapped** profiles (`suite_id` via built-in names), **`cipher-profile`**
-  appends a **32-byte HMAC-BLAKE3** over each inner layer’s AEAD output before the
+  appends a **32-byte HMAC-BLAKE3** over each inner layer's AEAD output before the
   next layer encrypts; keys are derived with **HKDF-BLAKE3** using
   `cess::cess_blake3_integrity_gap_info` ([`inner_info.rs`](crates/cess/src/inner_info.rs)).
   **Single-layer** built-ins skip extra tags; **custom** profiles (no `suite_id`)
@@ -733,7 +735,7 @@ galdra device provision --pin-attempts 5
 
 Omit both flags to keep defaults (`3` attempts, `5` character minimum). Example with both: `galdra device provision --pin-attempts 7 --min-pin-length 8`.
 
-The policy is **stored on the token** (vault policy). The host tool cannot raise or lower the threshold **after** provisioning without going through the device’s own authenticated management flow; treat provisioning as the moment to choose **3–10** for your threat model. Rationale (defaults vs higher limits) is spelled out in [docs/GALDRA-TOOL.md](docs/GALDRA-TOOL.md) under the PIN policy section.
+The policy is **stored on the token** (vault policy). The host tool cannot raise or lower the threshold **after** provisioning without going through the device's own authenticated management flow; treat provisioning as the moment to choose **3–10** for your threat model. Rationale (defaults vs higher limits) is spelled out in [docs/GALDRA-TOOL.md](docs/GALDRA-TOOL.md) under the PIN policy section.
 
 ---
 
