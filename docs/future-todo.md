@@ -53,12 +53,12 @@ following (with the implementation boundaries called out where they matter):
   product integration and on-device zeroisation behaviour; the same document notes
   limits of hardware verification to date.
 - **Shamir K-of-N (split/recover math in `vault`).** GF(256) Shamir split and
-  recovery live in `crates/vault`. Today’s **host-orchestrated** flows export the
+  recovery live in `crates/vault`. Today's **host-orchestrated** flows export the
   signing key from the token (when connected), run `vault::shamir::*` on the
   **host** to build or combine shares, then re-import the recovered material —
   see [API_REFERENCE.md](API_REFERENCE.md) and `galdra-core-host/src/shamir_ops.rs`.
-  That is multi-party **custody of shares**, not “the full Shamir lifecycle only
-  inside the MCU RAM.”
+  That is multi-party **custody of shares**, not "the full Shamir lifecycle only
+  inside the MCU RAM."
 - **Cipher-agnostic named profiles** with cascade support and audit metadata
   (`cipher-profile` and related docs) — implemented in tree.
 - **Optional bulk decoy storage (microSD or PSRAM)** — specified in
@@ -160,6 +160,245 @@ see [Psram.md](Psram.md) for the consolidated description).
 
 ---
 
+### 5. LUKS Volume Unlock via Token (`galdra-unlock`)
+
+Token-assisted unlock of LUKS2 encrypted volumes on Linux, including the OS
+root volume. This is entirely a **host-side** addition — no firmware changes are
+required. The feature is implemented as a new `galdra-unlock` binary crate in
+the workspace that reuses existing host-side crates and bridges to `libcryptsetup`
+via the `libcryptsetup-rs` crate.
+
+#### Design rationale
+
+Rather than reimplementing LUKS2 header parsing, keyslot management, or device
+activation in Rust from scratch, `galdra-unlock` bridges to `libcryptsetup` —
+the same library used by every major Linux distribution for LUKS operations.
+This library has over a decade of production use and extensive testing. The
+approach minimises new code surface: the interesting and security-sensitive parts
+(key unwrapping, token communication) reuse already-tested workspace crates; the
+activation call delegates to `libcryptsetup`.
+
+This mirrors how `galdra-gtk` introduces a system library dependency
+(`libgtk-4`) for host-only functionality without affecting the firmware or the
+core cryptographic crates.
+
+#### Key unwrapping paths
+
+Two paths are supported, selectable at provisioning time:
+
+**Path A — GnuPG / OpenPGP card key**
+
+The LUKS key-slot secret is encrypted to the token's DEC key using standard
+OpenPGP. At unlock time `galdra-unlock` instructs `gpg-agent` (via `scdaemon`)
+to decrypt it using the on-card key, then feeds the result to `libcryptsetup-rs`.
+No new cryptographic code is required on the host; the entire unwrap path goes
+through GnuPG's existing OpenPGP card driver.
+
+**Path B — Cipher profile cascade**
+
+The LUKS key-slot secret is wrapped using a Galdralag cipher profile (for
+example the `conservative` profile: ChaCha20-Poly1305 then Serpent-256, each
+with independently HKDF-derived keys). At unlock time `galdra-unlock`:
+
+1. Opens an authenticated ephemeral ECDH session with the token (reusing the
+   existing `ephemeral-session` crate).
+2. Verifies PIN on-device; the token returns the per-profile key material over
+   the encrypted session channel.
+3. Unwraps the volume key through the cascade layers in reverse using the
+   existing `cipher-profile` and `cess` crates.
+4. Passes the recovered key to `libcryptsetup-rs` to activate the volume.
+5. Zeroes all key material from host memory immediately after activation using
+   `zeroize`.
+
+Path B can be combined with Shamir K-of-N: the volume key is reconstructed
+on-device from K shares before being returned over the session channel, meaning
+no single share holder can unlock the volume alone. This gives quorum-controlled
+full-disk encryption, which is unusual in the LUKS ecosystem.
+
+#### Crates
+
+| Crate | Role | Notes |
+|-------|------|-------|
+| `libcryptsetup-rs` | FFI bridge to `libcryptsetup` for LUKS2 volume activation | Maintained by the Stratis project. Thin safe wrapper over the well-tested `libcryptsetup` C library. Requires `libcryptsetup-dev` on the build host and `libcryptsetup` at runtime. No independent Rust audit; cryptographic work is delegated to `libcryptsetup` itself. |
+| `ephemeral-session` | Authenticated ephemeral ECDH session with the token | Already in workspace. |
+| `cipher-profile` | Cascade key unwrapping (Path B) | Already in workspace. |
+| `cess` | HKDF-BLAKE3 outer envelope unwrap (Path B) | Already in workspace. |
+| `zeroize` | Zeroise key material after `crypt_activate_by_volume_key()` returns | Already in workspace. |
+
+No new cryptographic crates are introduced. The `libcryptsetup-rs` dependency
+is gated behind a `luks` feature flag on the `galdra-unlock` crate so it does
+not affect other workspace members.
+
+#### New code surface
+
+The `galdra-unlock` crate itself is glue logic only:
+
+1. Parse command-line arguments (device path, key path or profile name,
+   optional Shamir parameters).
+2. Open session and retrieve or unwrap key material (delegates entirely to
+   existing crates).
+3. Call `libcryptsetup_rs::CryptDevice::activate_by_volume_key()` (or the
+   passphrase variant for Path A).
+4. Zeroize key material.
+5. Exit.
+
+No cryptographic primitives are implemented in `galdra-unlock` itself.
+
+#### Workspace layout addition
+
+```
+galdra-unlock/
+  Cargo.toml          # [features] luks = ["libcryptsetup-rs"]
+  src/
+    main.rs           # argument parsing, orchestration, zeroize on exit
+    session.rs        # thin wrapper around ephemeral-session for unlock flows
+    luks.rs           # libcryptsetup-rs activation call, behind feature flag
+```
+
+Add to the root workspace `Cargo.toml`:
+
+```toml
+[workspace]
+members = [
+  # ... existing members ...
+  "galdra-unlock",
+]
+```
+
+#### Early-boot (initramfs) integration
+
+For OS root volume unlock, `galdra-unlock` must run from the initramfs before
+the root filesystem is mounted. The recommended approach:
+
+**Build a statically linked binary** using the `x86_64-unknown-linux-musl`
+target (or the equivalent for the host architecture). Static linking avoids
+shared library resolution problems inside a minimal initramfs. `libcryptsetup`
+must also be built statically or the binary must carry the shared library into
+the initramfs.
+
+```bash
+# Install musl target
+rustup target add x86_64-unknown-linux-musl
+
+# Build statically linked release binary
+RUSTFLAGS="-C target-feature=+crt-static" \
+  cargo build --release --features luks -p galdra-unlock \
+  --target x86_64-unknown-linux-musl
+```
+
+**dracut hook** (Fedora, RHEL, openSUSE, Arch with dracut):
+
+Create `/etc/dracut.conf.d/galdra-unlock.conf`:
+
+```bash
+install_items+=" /usr/local/bin/galdra-unlock "
+```
+
+Create `/usr/lib/dracut/hooks/pre-mount/30-galdra-unlock.sh`:
+
+```bash
+#!/bin/bash
+# Unlock the root LUKS volume using the Galdralag token.
+# Adjust LUKS_DEV and KEY_PROFILE to match provisioning.
+LUKS_DEV=/dev/disk/by-id/your-luks-device
+KEY_PROFILE=conservative   # or "gnupg" for Path A
+
+/usr/local/bin/galdra-unlock \
+  --device "$LUKS_DEV" \
+  --profile "$KEY_PROFILE" \
+  --name root-luks
+
+if [ $? -ne 0 ]; then
+  echo "galdra-unlock: token unlock failed, falling back to passphrase"
+  # dracut will fall through to its built-in cryptsetup prompt
+fi
+```
+
+**mkinitcpio hook** (Arch Linux, Debian/Ubuntu with mkinitcpio):
+
+Create `/etc/initcpio/install/galdra-unlock`:
+
+```bash
+#!/bin/bash
+build() {
+  add_binary /usr/local/bin/galdra-unlock
+  add_runscript
+}
+```
+
+Create `/etc/initcpio/hooks/galdra-unlock`:
+
+```bash
+run_hook() {
+  /usr/local/bin/galdra-unlock \
+    --device /dev/disk/by-id/your-luks-device \
+    --profile conservative \
+    --name root-luks \
+  || echo "galdra-unlock: falling back to passphrase prompt"
+}
+```
+
+Add `galdra-unlock` to the `HOOKS` array in `/etc/mkinitcpio.conf` before
+`encrypt`.
+
+#### Privileges
+
+Activating a LUKS device requires `CAP_SYS_ADMIN` or root. In an initramfs
+context the hook runs as root, so no special arrangement is needed. For
+non-root data volume unlock in a running system, a small setuid or
+`capabilities`-granted wrapper is required — the same constraint that applies
+to `cryptsetup` itself.
+
+#### Provisioning
+
+A new `galdra device provision-luks` subcommand on the existing `galdra` host
+tool handles initial setup:
+
+```bash
+# Path A: wrap the LUKS key-slot secret to the token's OpenPGP DEC key
+galdra device provision-luks \
+  --device /dev/sdX \
+  --path gnupg \
+  --key-slot 1
+
+# Path B: wrap using the conservative cipher profile
+galdra device provision-luks \
+  --device /dev/sdX \
+  --path profile \
+  --profile conservative \
+  --key-slot 1
+
+# Path B with Shamir 2-of-3: requires 2 tokens to unlock
+galdra device provision-luks \
+  --device /dev/sdX \
+  --path profile \
+  --profile conservative \
+  --shamir-n 3 \
+  --shamir-k 2 \
+  --key-slot 1
+```
+
+The provisioning subcommand: reads the LUKS key-slot secret from
+`libcryptsetup-rs`, wraps it via the chosen path, stores the wrapped blob in
+the token vault, and writes metadata (profile name, Shamir parameters if any)
+to a small header file that `galdra-unlock` reads at boot time.
+
+#### Security notes
+
+- Key material exists in host RAM only between the `crypt_get_volume_key()` call
+  and the `zeroize` call immediately following activation. The window is as short
+  as the implementation allows.
+- The wrapped key blob stored in the token vault is protected by the vault PIN
+  policy; failed PIN attempts trigger the same zeroisation path as all other
+  vault secrets.
+- For Path B with Shamir, no single token holds enough shares to reconstruct
+  the volume key without the quorum of other tokens or share holders.
+- A fallback LUKS passphrase key slot should always be provisioned and stored
+  offline (e.g. on paper in a physically secure location) in case the token is
+  lost, damaged, or the `galdra-unlock` binary is unavailable at boot time.
+
+---
+
 ## Crates Explicitly Excluded
 
 | Crate | Reason |
@@ -184,3 +423,4 @@ repository; confirm against each upstream project before production sign-off.
 | `der`, `cms`, `x509-cert`, `pkcs8`, `spki` | No |
 | `ml-kem`, `ml-dsa`, `slh-dsa` | No |
 | `postcard` | No |
+| `libcryptsetup-rs` | No (bridges to audited `libcryptsetup` C library) |
