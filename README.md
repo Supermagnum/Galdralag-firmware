@@ -1,6 +1,7 @@
 # Galdr — Galdralag Firmware
 
 > **Status:** Ready for testing by humans — no production-ready release exists.
+> Its written in rust using validated and audited crypto crates. 
 > Cryptographic primitives are drawn exclusively from audited workspace
 > dependencies. Post-quantum algorithms are feature-gated and marked
 > **PENDING INDEPENDENT AUDIT**. See [Post-quantum status](#post-quantum-status).
