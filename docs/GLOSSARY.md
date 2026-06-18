@@ -1,242 +1,308 @@
-# Glossary
+# Glossary (plain language)
 
-Short definitions of terms used across **Galdralag** / **Galdr** documentation and code. Normative protocol and algorithm details remain in the cited RFCs and standards; this page orients readers inside this repository.
+Terms used in **Galdr** / **Galdralag** documentation, **sorted A–Z**. These explanations are for **readers who are not programmers or cryptographers**. For precise technical and standards detail, follow the links in the main docs and the cited RFCs.
 
 ---
 
 ## A
 
-**AEAD (authenticated encryption with associated data)**  
-Symmetric encryption that provides both confidentiality and integrity: ciphertext is authenticated, and additional data (AAD) can be authenticated without being encrypted. ChaCha20-Poly1305 and AES-GCM are AEADs used in this project.
-
 **AAD (additional authenticated data)**  
-Metadata covered by the AEAD MAC but not necessarily encrypted (for example context strings alongside ciphertext).
+Extra context (such as labels) that is checked for tampering together with an encrypted message, without necessarily being secret itself.
+
+**AEAD (authenticated encryption with associated data)**  
+Encryption that both hides content and detects tampering. If someone changes the ciphertext, decryption fails. ChaCha20-Poly1305 and AES-GCM are examples used in this project.
 
 **age**  
-A minimal modern file-encryption format (not OpenPGP). **Galdra** may support **age** alongside OpenPGP for some encrypt/decrypt flows; see [GALDRA-TOOL.md](GALDRA-TOOL.md) and `galdra` help for what is implemented.
+A simple modern format for encrypting files (separate from OpenPGP). Whether **Galdra** supports it for a given workflow depends on the tool version; see [GALDRA-TOOL.md](GALDRA-TOOL.md).
 
 ---
 
 ## B
 
 **Baochip-1x**  
-The family of evaluation / product chips this firmware targets (see upstream board and silicon documentation). **Galdr** builds for `riscv32imac-unknown-none-elf` for these devices.
+The family of chips this firmware is built for. It is a small computer on a chip that can run this project’s software.
+
+**Bootloader**  
+A tiny program that runs first when the device powers on. It checks that firmware is allowed to run (for example that it is **signed**) before starting the main system.
 
 **Brainpool**  
-A family of prime-field elliptic curves (for example P-256r1, P-384r1, P-512r1) standardized in **RFC 5639** and used in European and BSI-oriented profiles. This repository implements ECDH and ECDSA over Brainpool curves.
+A set of standard **elliptic curves** (shapes used for modern public-key math) common in European standards. This project uses them for signing and key agreement.
 
 **BSI TR-03111**  
-German Federal Office for Information Security technical guideline for ECC; the project includes **BSI** JSON test vectors for Brainpool cross-checks.
+A German government guideline for elliptic-curve cryptography. The project uses its test data as an extra check that implementations behave as expected.
 
 ---
 
 ## C
 
 **CAVP (Cryptographic Algorithm Validation Program)**  
-NIST program producing known-answer test vectors; this repo includes a **subset** of CAVP-style tests (for example digests, HMAC) where noted in [TEST_RESULTS.md](TEST_RESULTS.md), not full lab validation.
+A NIST program that publishes official test vectors. This repository runs a **small subset** of such tests locally; that is **not** the same as a formal lab certification.
 
-**Constant-time**  
-Implementation discipline so that secret-dependent branches or memory access patterns do not leak timing information. **dudect** harnesses on the host are one statistical check; they do not replace review of embedded code.
+**CCID**  
+A standard way for a PC to talk to a smart card over **USB**. Your operating system treats the token like a smart card reader so **GnuPG** and similar tools can use it without special vendor drivers.
+
+**CESS**  
+An open design (*Cryptologically Enchanted Shamir’s Secret*) for combining secret sharing with authenticated encryption. This firmware follows the normative parts documented in [CESS_CONFORMANCE.md](CESS_CONFORMANCE.md).
+
+**Cipher**  
+Another word for an encryption method or the details of how data is transformed (for example which algorithm and mode).
 
 **ComboHash**  
-On **Baochip-1x** silicon, a hardware accelerator for cryptographic hashing (often mentioned together with **PKE** in the upstream [Baochip firmware design README](https://github.com/Supermagnum/Baochip-1x-firmware)). When firmware routes work through ComboHash instead of software SHA-2, **HKDF `info` strings and domain separation** in `vault` must remain byte-identical to the software path.
+A hardware block on **Baochip** that can speed up hashing. If firmware uses it, the **meaning** of derived keys must stay the same as in software-only builds.
+
+**Constant-time (in cryptography)**  
+Coding discipline so that secret values do not change how long an operation takes in ways an outsider could measure. This project also runs **timing** statistical tests on the host; those tests help catch regressions but are not a complete proof on the device.
+
+**Cryptography**  
+The field of techniques for protecting information: encryption, signatures, key agreement, and related tools.
 
 ---
 
 ## D
 
+**Decrypt**  
+Turn ciphertext back into readable data using the right key. On a **token**, decryption of sensitive material often happens **on the device** so the long-term secret never leaves it.
+
 **Domain separation**  
-Using distinct labels (for example HKDF `info` strings, `KeyPurpose` in `vault`) so keys derived from the same root material cannot be mixed across unrelated features.
+Using different labels or contexts when deriving keys so that keys meant for one feature cannot accidentally be reused for another (like separate locks for separate doors).
 
 **dudect**  
-Statistical timing analysis (Welch *t*-test style) used here via the `dudect_galdr` binary (`cargo run -p xtask -- timing-test`). Pass when |*t*| is below a fixed threshold (4.5 in this project); results are **host-dependent**.
+A statistical **timing** check run on the developer machine. It looks for suspicious differences in how long operations take. Passing the test is a useful signal; it does not guarantee security by itself.
 
 ---
 
 ## E
 
 **ECDH (elliptic-curve Diffie–Hellman)**  
-Key agreement: two parties each have a secret scalar and exchange public points; both derive the same shared secret. Implemented here with **X25519** and **Brainpool** curves.
+A way for two parties to agree on a shared secret using **elliptic-curve** math, so they can set up a secure channel. This project implements several curves, including **X25519** and **Brainpool**.
 
-**ECDHE (ephemeral ECDH)**  
-In TLS naming, ciphersuites that use a **fresh ephemeral** key pair per handshake for forward secrecy. This repository provides **ECDH** primitives; **TLS itself is not implemented** here. See the README section *Ephemeral ECDH (ECDHE-style) and TLS*.
+**ECDHE-style (ephemeral key agreement)**  
+Using a **fresh temporary** key pair per session so that later compromise of long-term keys does not automatically expose old session secrets. **TLS** uses similar ideas; this firmware focuses on token protocols, not building a web browser stack.
 
 **Ed25519**  
-EdDSA signatures on a curve related to Curve25519 (**RFC 8032**).
+A widely used standard for **digital signatures** with short keys and strong security margins.
+
+**Encrypt**  
+Scramble data so that only someone with the right key can read it.
 
 **Encrypt-then-MAC**  
-Encrypt data first, then MAC the ciphertext (and associated data). Used for Serpent/Twofish storage paths in the vault, as opposed to MAC-then-encrypt.
+A safe ordering: encrypt first, then authenticate the result. The vault uses this style for some storage paths.
 
 **EtM**  
-See **Encrypt-then-MAC**.
+Short for **encrypt-then-MAC**.
 
 ---
 
 ## F
 
+**Firmware**  
+Software stored inside the device that runs the token. **Galdr** is firmware; **Galdra** tools run on your PC.
+
+**Fingerprint (of a key)**  
+A short identifier (often shown as hexadecimal) that helps you confirm you are using the correct **public** key without comparing the whole key by eye.
+
 **Forward secrecy**  
-Compromise of long-term keys does not retroactively expose past session keys if each session used ephemeral agreement material that was destroyed after use. Design goal for session scaffolding in the vault; full guarantees depend on integration.
+If someone steals your long-term keys later, they still cannot read **old** conversations that used temporary session keys that were erased. A design goal for session features; full guarantees depend on how the product is integrated.
+
+**Firmware signature**  
+A cryptographic stamp proving that a firmware image was produced by someone holding a **signing key**. The chip’s **bootloader** checks this before running an update.
 
 ---
 
 ## G
 
 **Galdr**  
-The firmware project name: cryptographic and policy code for **Baochip-1x** devices under **Xous**. The word refers to Old Norse incantation practice (see README *About the name*).
+The name of this **firmware** project for the **Baochip** token. The word refers to Old Norse incantation practice (see the main README *About the name*).
 
 **Galdra**  
-Host-side companion tooling: CLI (`galdra`), daemon (`galdrad`), optional GTK client, contacts/groups, OpenPGP workflows. Specified in [GALDRA-TOOL.md](GALDRA-TOOL.md).
+**Host** programs on your computer: command-line tool, optional daemon, and GUI. They talk to the token and manage things like contacts; see [GALDRA-TOOL.md](GALDRA-TOOL.md).
 
 **Galdralag**  
-Repository and metrical name for the project (pattern / law of galdr); the GitHub organization and crate namespace use this form.
+The repository and umbrella name for the project (“pattern of galdr”).
 
 **galdrad**  
-Local HTTP daemon that exposes **Galdra** functionality over a REST API for GUI and automation clients.
+A small **local server** on the PC that lets a GUI or scripts use **Galdra** features over HTTP.
 
 **galdra-core-host**  
-Host-side Rust library (`galdra-core-host`): SQLite database (contacts, groups, audit), OpenPGP encrypt/decrypt via **Sequoia**, USB token protocol, config, LDAP/keyserver helpers. Shared by the **`galdra`** CLI and **`galdrad`** daemon. See [GALDRA-TOOL.md](GALDRA-TOOL.md).
+Shared library behind the CLI and daemon: database, OpenPGP on the host, config. Private keys on the token are not stored inside this library.
 
 **GnuPG (`gpg`)**  
-Common OpenPGP implementation on PCs; often used alongside **Galdra** for keyrings and file workflows while private keys stay on the token where designed.
+Common **OpenPGP** software on Linux and other systems. It can use a smart card or CCID token for private-key operations while handling messages and keyrings on the PC.
 
 ---
 
 ## H
 
 **HAL (hardware abstraction layer)**  
-Traits in `galdr-core` (TRNG, vault storage, zeroisation, counters) implemented by board-specific code or `test-hal` fakes in tests.
+A clean interface in code between “what the firmware wants” (random numbers, storage, wipe) and “how the specific chip does it.”
 
-**HKDF (HMAC-based key derivation function)**  
-**RFC 5869**: extract-then-expand from input keying material with optional salt and `info` for independent subkeys. Vault uses distinct `KeyPurpose` labels for domain separation.
+**HKDF**  
+A standard recipe to turn one secret into several independent keys for different purposes, using labels so they stay separate.
 
 **HMAC**  
-Pseudorandom function used inside HKDF, PBKDF2, and standalone MACs (**RFC 2104** and successors).
+A standard way to build a keyed checksum (message authentication) from a hash function. Used inside HKDF and elsewhere.
+
+**Host**  
+Your **computer** (desktop or laptop), as opposed to the **USB token** running **Galdr**.
 
 **Hybrid encryption**  
-Combine public-key encryption of a random session key with symmetric encryption of the bulk message (typical OpenPGP pattern).
+Typical pattern: use **public-key** crypto to protect a random **session key**, then use fast **symmetric** crypto for the bulk of the data. Common in email and file encryption.
 
 ---
 
 ## K
 
 **KAT (known-answer test)**  
-Fixed input/output vectors to verify an implementation matches expected outputs (for example Twofish JSON chains in `vault/tests`).
+A fixed test where inputs and expected outputs are published so software can self-check it matches.
+
+**Key agreement**  
+Two parties compute a shared secret without sending it in full over the wire (see **ECDH**).
 
 **KeyPurpose**  
-Rust enum in `vault::kdf_policy` mapping each vault subkey use to a unique HKDF `info` string.
+Internal labels in the vault so different features derive different keys from the same root material safely.
 
 ---
 
 ## L
 
+**Lock (the token)**  
+End an authenticated session: PIN verification is cleared; you must unlock again before protected operations, similar to other smart cards.
+
 **LMS / XMSS**  
-Stateful hash-based signature schemes (**SP 800-208**). Optional **pq-signatures** feature; audit status in [PQ_SIGNATURES.md](PQ_SIGNATURES.md). Timing harnesses may list them as not wired on the host.
+Families of **post-quantum** **signatures** based on hashes. Optional in this project with feature flags; treat as **not yet independently audited** until stated otherwise in [PQ_SIGNATURES.md](PQ_SIGNATURES.md).
 
 ---
 
 ## O
 
-**OAEP, PSS**  
-RSA padding modes: **OAEP** for encryption (**RFC 8017**), **PSS** for signatures. Implemented via the `rsa` crate and Wycheproof vectors.
+**OAEP / PSS**  
+Standard padding schemes for **RSA** encryption (**OAEP**) and signatures (**PSS**). They avoid many historical RSA mistakes.
 
 **OpenPGP**  
-Message format and certificate standard for PGP-family tools; **Galdra** interoperates at the host for public-key workflows while sensitive operations use the token where applicable.
+A family of standards for encrypted email, files, and key certificates. **GnuPG** is a popular implementation. The token implements an **OpenPGP card** profile so desktop tools can use it like a smart card.
 
 ---
 
 ## P
 
 **PBKDF2**  
-Password-based key derivation (**RFC 8018**): slow on purpose via iteration count and HMAC.
+A method to stretch a **password** into a cryptographic key using many iterations, so guessing the password is slower.
+
+**PIN**  
+A secret you type to **unlock** the token for signing or decryption. Too many wrong attempts can trigger **lockout** or **zeroisation**, depending on policy.
 
 **PIN policy**  
-`pin-policy` crate: attempt counter, constant-time compare ordering, lockout and zeroisation rules for the device PIN.
+Rules stored on the device: how many tries you get, how comparison is done safely, and what happens after repeated failures.
 
 **Post-quantum (PQ)**  
-Algorithms believed to resist cryptanalytically relevant quantum computers; **ML-KEM**, **ML-DSA**, etc. are listed as not yet implemented pending audited crates; **XMSS/LMS** are feature-gated with audit caveats.
+Algorithms designed with future **quantum computers** in mind. Some are standardized (**ML-KEM**, **ML-DSA**); this project’s roadmap and feature gates are in [PQ_SIGNATURES.md](PQ_SIGNATURES.md).
+
+**Private key**  
+The secret half of a key pair. In this design it should **stay on the token** and not be copied to the PC.
 
 **PKE (public-key engine)**  
-Baochip **silicon** block for asymmetric cryptography (naming may vary in vendor docs); cited alongside **ComboHash** in platform and `galdr-core` comments. Not a TLS or application protocol—**on-chip** acceleration.
+Hardware in **Baochip** that can accelerate public-key operations. It is **not** “the internet” or TLS by itself—just on-chip help for math.
 
-**PRK (pseudorandom key)**  
-HKDF intermediate output after Extract, before Expand.
+**PRK**  
+An intermediate secret inside **HKDF** before keys are expanded for different uses.
 
 **PSRAM**  
-External pseudo-static RAM as an optional block device; **not** implemented in this workspace (see README and [Psram.md](Psram.md)).
+Optional external memory used as a **decoy** storage story in some designs. See [Psram.md](Psram.md); behaviour is documented there.
+
+**Public key**  
+The shareable half of a key pair. Others use it to encrypt to you or verify your signatures. This project treats **public** material as what may cross the USB link; **private** material should not.
 
 ---
 
 ## R
 
 **RRAM**  
-Resistive RAM used as vault storage on the target platform; layout and size assumptions appear in vault documentation.
+A type of non-volatile memory used for **vault** storage on the target hardware.
+
+**Rust**  
+The programming language most of this project is written in. It helps prevent many memory-safety bugs by construction.
 
 **RustCrypto**  
-Ecosystem of Rust cryptography crates; many dependencies here come from that community with published audit history.
+A community of audited cryptographic libraries in Rust used as dependencies here.
 
 ---
 
 ## S
 
-**Sequoia**  
-**Sequoia PGP** — Rust OpenPGP implementation. **`galdra-core-host`** uses it for multi-recipient OpenPGP encryption and decryption on the host (`encrypt.rs`). Token private keys are not stored in Sequoia; host-side operations use public certificates and delegate private operations to the device when required.
-
-**SQLCipher**  
-SQLite extension that encrypts the database file at rest. **Galdra** can open the contacts/audit database with `rusqlite` + **SQLCipher** when a key is supplied (for example `database_key_env` in config pointing to an environment variable with the passphrase). See [GALDRA-TOOL.md](GALDRA-TOOL.md) and `galdra-core-host` `db`/`config` modules.
+**Sequoia PGP**  
+A Rust library for **OpenPGP** on the host. **Galdra** uses it for multi-recipient encryption and similar tasks; private keys remain on the token when that is how the workflow is set up.
 
 **Shamir secret sharing**  
-Split a secret into *n* shares such that any *k* of them reconstruct (*k*-of-*n* threshold); fewer than *k* reveal no information in the ideal model. Implemented with `vsss-rs`.
+Split a master secret into several **shares** so that any **k** of **n** shares can reconstruct it, but fewer than **k** reveal nothing in the ideal model. Useful for backups and quorum policies.
+
+**Signature (digital)**  
+Proof that someone holding the **private** key approved a message. Others verify using the **public** key.
+
+**SQLCipher**  
+Optional encryption for **Galdra**’s local contact database on disk. See [GALDRA-TOOL.md](GALDRA-TOOL.md).
 
 ---
 
 ## T
 
 **Token**  
-The hardware device (smartcard-style or USB gadget) that holds private keys and runs **Galdr** firmware, as opposed to the host PC running **Galdra**.
+The **USB hardware device** (or board running this firmware) that holds secrets and runs **Galdr**, as opposed to software on your PC.
 
 **TRNG (true random number generator)**  
-Hardware entropy source exposed through `galdr-core` HAL traits for key generation and nonces where required.
+Hardware noise used to generate unpredictable keys and nonces. A token needs good randomness to be secure.
+
+---
+
+## U
+
+**USB**  
+The cable interface used to connect the token to a PC. Unplugging clears the **session**; you typically must enter the **PIN** again after reconnect for protected actions.
+
+**UF2**  
+A drag-and-drop file format used in **bootloader** mode to load firmware on some boards. Described in upstream **Xous** / **Baochip** documentation.
 
 ---
 
 ## V
 
-**Vault (`vault` crate)**  
-RRAM-backed sealed blob layout, HKDF policy (`KeyPurpose`), and cryptographic wrappers for on-device storage and protocols.
+**Vault**  
+The on-device protected storage and policy layer in firmware: sealed blobs, key derivation rules, and cryptographic wrappers around sensitive data.
+
+**Verify (a PIN)**  
+Prove to the token that you know the PIN so it allows signing or decryption for that **session**.
 
 ---
 
 ## W
 
 **Welch’s *t*-test**  
-Statistical test comparing two timing distributions; **dudect** here reports a *t*-statistic against a fixed threshold. Not a proof of absence of leakage, but a regression-style check.
+A statistical comparison used inside **dudect** timing reports. Values near zero are desired; large values warrant investigation.
 
 **Wycheproof**  
-Google’s JSON test vectors for many primitives; this project runs selected Wycheproof suites in `vault` tests (see README and [TEST_RESULTS.md](TEST_RESULTS.md)).
+A large public collection of test vectors from Google. This project runs selected suites to cross-check implementations (see [TEST_RESULTS.md](TEST_RESULTS.md)).
 
 ---
 
 ## X
 
 **X25519**  
-Curve25519 Diffie–Hellman (**RFC 7748**), fixed-length keys, used for ECDH in this codebase.
+A popular modern **elliptic-curve** method for key agreement, standardized for interoperability.
 
 **Xous**  
-Capability-safe microkernel this firmware is built to run on (`github.com/betrusted-io/xous-core`). A full bootable image links Galdr libraries with Xous and board support.
+A capability-oriented microkernel this firmware is intended to run under. See the main README and upstream **xous-core** documentation.
 
 ---
 
 ## Z
 
 **Zeroisation (zeroization)**  
-Secure erasure of sensitive material in RAM or non-volatile storage; `ZeroiseController` and policy-driven wipes. Simulation tests exist; hardware verification is called out separately in [HARDWARE_VERIFICATION.md](HARDWARE_VERIFICATION.md).
+Securely erasing secrets from memory or storage so they cannot be recovered by ordinary means. Simulation tests exist in software; **hardware** verification is tracked separately in [HARDWARE_VERIFICATION.md](HARDWARE_VERIFICATION.md).
 
 ---
 
 ## See also
 
-- [README.md](../README.md) — overview, capabilities table, ECDH/TLS scope
-- [GALDRA-TOOL.md](GALDRA-TOOL.md) — Galdra CLI, daemon, GUI, database, and operational behaviour
-- [ARCHITECTURE.md](ARCHITECTURE.md) — system structure
-- [GALDRALAG_DEV_REFERENCE.md](GALDRALAG_DEV_REFERENCE.md) — developer commands and workflows
-- [TEST_RESULTS.md](TEST_RESULTS.md) — test and dudect summaries
+- [README.md](../README.md) — project overview, token behaviour, security notes
+- [GALDRA-TOOL.md](GALDRA-TOOL.md) — host tools and workflows
+- [ARCHITECTURE.md](ARCHITECTURE.md) — how subsystems fit together
+- [TEST_RESULTS.md](TEST_RESULTS.md) — what automated checks cover

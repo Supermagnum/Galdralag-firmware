@@ -27,7 +27,7 @@ Not every test runs in every command; that is intentional.
 > your own critical judgement. Independent expert review is strongly recommended
 > before any production deployment.
 
-It is ready for testing by humans. **You** decide whether to build or run any of this software; there may be bugs that **unit tests, fuzzing, and other checks** have not found. Using an **optional virtual machine** for experimentation **reduces risk** to your host system but does not eliminate it. Detailed results are in **[Test results](#test-results)** ([`docs/TEST_RESULTS.md#run-metadata`](docs/TEST_RESULTS.md#run-metadata)).
+It is ready for testing by humans. **You** decide whether to build or run any of this software; there may be bugs that **unit tests, fuzzing, and other checks** have not found. Using an **optional virtual machine** for experimentation **reduces risk** to your host system but does not eliminate it. Detailed results are in **[Test results](#test-results)** ([`docs/TEST_RESULTS.md#run-metadata`](docs/TEST_RESULTS.md#run-metadata)). **Plain-language definitions** (A–Z) of technical terms: **[Glossary](docs/GLOSSARY.md)**.
 
 ## Table of contents
 
@@ -45,6 +45,7 @@ It is ready for testing by humans. **You** decide whether to build or run any of
 - [What this is](#what-this-is)
   - [Signed firmware (Ed25519, boot0)](#signed-firmware-ed25519-boot0)
 - [Documentation](#documentation)
+- [Glossary (plain language)](docs/GLOSSARY.md)
 - [OpenPGP and GnuPG compatibility](#openpgp-and-gnupg-compatibility)
 - [Token session and key export](#token-session-and-key-export)
 - [Standards vs. firmware-specific features](#standards-vs-firmware-specific-features)
@@ -205,6 +206,8 @@ Shippable firmware for **Baochip-1x** is **signed** with **Ed25519**. You sign t
 
 ## Documentation
 
+**Glossary:** [docs/GLOSSARY.md](docs/GLOSSARY.md) — terms explained in **plain language** (sorted A–Z). Start here if the README or other docs feel jargon-heavy.
+
 **Browse all files:** [github.com/Supermagnum/Galdralag-firmware — `docs/`](https://github.com/Supermagnum/Galdralag-firmware/tree/main/docs)
 
 **Hardware (USB dongle and related):** [Hardware/](Hardware/) — KiCad project (`dabao_v3c`), gerbers, BOM, production outputs, and [pinout docs](Hardware/docs/pinout/README.md). The USB-A dongle PCB layout (minimal token vs Pico-format eval) is described in [docs/USB_DONGLE_PCB.md](docs/USB_DONGLE_PCB.md).
@@ -215,7 +218,7 @@ Shippable firmware for **Baochip-1x** is **signed** with **Ed25519**. You sign t
 | [docs/API_REFERENCE.md](docs/API_REFERENCE.md) | Code map + **annex** for IETF/I-D/GnuPG/Sequoia: Shamir GF(256) construction, GALDRA SHARE armour, ephemeral ECDH wire format, HKDF labels, preimages; `galdrad` routes; rustdoc hints |
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | High-level firmware architecture and major subsystems |
 | [docs/GALDRA-TOOL.md](docs/GALDRA-TOOL.md) | Host tools (`galdra`, `galdrad`, `galdra-gtk`): workflows, provisioning, PIN policy, operational behaviour |
-| [docs/GLOSSARY.md](docs/GLOSSARY.md) | Definitions of terms used across the repository |
+| [docs/GLOSSARY.md](docs/GLOSSARY.md) | **Plain-language glossary** (A–Z) for non-technical readers; technical detail remains in linked docs |
 | [docs/GALDRALAG_DEV_REFERENCE.md](docs/GALDRALAG_DEV_REFERENCE.md) | Toolchain, `xtask` commands, fuzzing and crypto test entry points |
 | [docs/dev-ref.md](docs/dev-ref.md) | Workspace layout, crates, HAL traits, USB/PSRAM behaviour, security invariants |
 | [docs/OPENPGP_CARD.md](docs/OPENPGP_CARD.md) | OpenPGP card application, GnuPG/CCID host setup, key slots, algorithms, udev |
@@ -267,7 +270,7 @@ The firmware implements the **OpenPGP card application** (documented as version 
 
 **What may leave the device:** By design, **only public key material** is permitted to cross the USB link (for example OpenPGP **public** key packets and related data the card specification exposes to the host). **Private** keys, raw secret scalars, and sealed key blobs **do not** leave the device through normal firmware paths; private-key operations run **on the token**. The host receives **cryptographic results** (signatures, decrypted plaintext for card-assisted decrypt workflows) where the standard commands require it, not a portable copy of the private key.
 
-**Importing keys onto the device:** It must also be possible to **import public keys** into the token (for example trust anchors, peer certificates, or OpenPGP public packets for on-device verification). The firmware **vault** provides **public-key slots** for non-secret material (`crates/vault/src/public_key_vault.rs`). Host tooling for loading those slots is described in [docs/GALDRA-TOOL.md](docs/GALDRA-TOOL.md) as integration matures.
+**Importing keys onto the device:** It is also possible to **import public keys** into the token (for example trust anchors, peer certificates, or OpenPGP public packets for on-device verification). The firmware **vault** provides **public-key slots** for non-secret material (`crates/vault/src/public_key_vault.rs`). Host tooling for loading those slots is described in [docs/GALDRA-TOOL.md](docs/GALDRA-TOOL.md) as integration matures.
 
 ---
 
@@ -508,11 +511,11 @@ The items below are **Galdralag firmware capabilities**, not requirements of the
   of multiple independent ciphers (e.g. ChaCha20-Poly1305 + Serpent-256 per CESS cascade rows) can
   be selected per session. Every profile selection is logged in the audit trail.
 
-- **Optional microSD decoy volume** — if a microsd card is fitted, an extra bulk
+- **Optional microSD decoy volume** — if a PSRAM chip is fitted, an extra bulk
   decoy LUN can appear after unlock. **If no microSD is fitted, the device is
   still a hardware security token** (vault, PIN policy, OpenPGP/CCID, and other
   token functions are unchanged); only that optional bulk volume is absent. For
-  uninformed hosts, the device still presents the usual mass-storage
+  uninformed hosts, the device still presents the usual on-chip mass-storage
   decoy persona where configured. MicroSD content, when present, is intentionally
   unencrypted and unremarkable. Real key material lives in on-chip RRAM behind
   the vault and PIN policy.
