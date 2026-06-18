@@ -459,11 +459,26 @@ Nothing is implemented in-tree.
 
 - Minimum length: **5 alphanumeric characters** — enforced at parser boundary,
   before `pin-policy` is called. Short inputs do not increment the counter.
-- Default attempt threshold: **3** (configurable 3–10 at provisioning).
+- Default attempt threshold: **3** (configurable **3–10** at provisioning).
   Matches hardware token industry standard (Nitrokey, YubiKey, ISO 7816).
 - On threshold: full hardware zeroisation triggered.
 - Challenge/response passphrase (USB informed-host path): minimum 5 characters,
   transmitted only as `HMAC-SHA256(HostChallengeKey, nonce || passphrase)`.
+
+**Setting or adjusting the attempt threshold:** The counter limit is written when the token is **first provisioned**; it is **not** a runtime `gpg` setting. Use the **`galdra`** host tool after [building](#compile-and-install-host-tools-galdra-galdrad-galdra-gtk) it:
+
+```bash
+galdra device provision --pin-attempts 5
+```
+
+| Flag | Range | Default | Meaning |
+|------|--------|---------|---------|
+| `--pin-attempts` | 3–10 | **3** | Failed PIN attempts allowed before lockout / zeroisation |
+| `--min-pin-length` | 5–32 | **5** | Minimum user PIN length (alphanumeric) stored in policy |
+
+Omit both flags to keep defaults (`3` attempts, `5` character minimum). Example with both: `galdra device provision --pin-attempts 7 --min-pin-length 8`.
+
+The policy is **stored on the token** (vault policy). The host tool cannot raise or lower the threshold **after** provisioning without going through the device’s own authenticated management flow; treat provisioning as the moment to choose **3–10** for your threat model. Rationale (defaults vs higher limits) is spelled out in [docs/GALDRA-TOOL.md](docs/GALDRA-TOOL.md) under the PIN policy section.
 
 ---
 
