@@ -12,7 +12,7 @@
 > your own critical judgement. Independent expert review is strongly recommended
 > before any production deployment.
 
-It is ready for testing by humans; using a **virtual machine** for that is suggested. There may be bugs that automated tests have not discovered.
+It is ready for testing by humans. **You** decide whether to build or run any of this software; there may be bugs that **unit tests, fuzzing, and other checks** have not found. Using an **optional virtual machine** for experimentation **reduces risk** to your host system but does not eliminate it. Detailed results are in **[Test results](#test-results)** ([`docs/TEST_RESULTS.md#last-full-run`](docs/TEST_RESULTS.md#last-full-run)).
 
 ## Why Rust?
 
@@ -22,71 +22,80 @@ approach to safety.
 
 ### Memory Safety
 
-The majority of serious security vulnerabilities and system-damaging bugs in
-firmware and operating systems — estimated at around 70% by Microsoft and
-Google — are caused by memory errors: buffer overflows, use-after-free,
-null pointer dereferences, and similar mistakes. In C and C++ these errors
-are silent and often only discovered after damage is done.
+A large share of security-relevant bugs in industry codebases come from **memory unsafety** (buffer overflows, use-after-free, null dereferences, and similar). Microsoft’s MSRC has **repeatedly reported** that roughly **70% of CVEs addressed in their own products** fall into this category; the **Chrome** team has published similar proportions for Chrome. Those figures describe **those vendors’ products**, not a universal law for all firmware, but they illustrate why memory-safe languages matter.
 
-Rust eliminates this entire class of bugs at compile time. If the code
-compiles, these errors cannot occur. This is enforced by the compiler,
-not by programmer discipline or runtime checks.
+In **safe Rust** (the default), the **borrow checker** rules out data races and the usual undefined-behaviour memory errors at compile time **without** relying on garbage collection. **Unsafe Rust** and **FFI** to C can still introduce memory bugs; they must be kept small and reviewed.
 
-### System Damage Prevention
+### System-level robustness (with limits)
 
-Beyond security vulnerabilities, Rust's ownership model prevents classes
-of bugs that can cause physical or unrecoverable damage to embedded hardware:
+Rust’s **bounds checking** on slices and its **ownership rules** reduce several classes of failure modes common in C/C++ embedded code:
 
-- **Flash/storage wear** — uncontrolled write loops that exhaust
-  finite-cycle storage are prevented by type-enforced write paths
-- **Hardware register corruption** — wild pointer writes that can
-  damage peripheral configuration are confined to explicitly marked
-  and auditable `unsafe` blocks
-- **Memory exhaustion** — memory is freed deterministically when it
-  leaves scope, preventing silent leaks that crash resource-constrained
-  devices
-- **Stack corruption** — bounds checking prevents overflows that can
-  overwrite return addresses and cause unpredictable hardware behavior
-- **Deadlocks** — Rust's concurrency model makes deadlocks that could
-  starve hardware watchdogs significantly harder to produce
+- **Buffer and stack smashes** that corrupt control flow are caught at compile time in safe code or via checked indexing at runtime instead of silent UB.
+- **Data races** in concurrent safe Rust are rejected by the compiler (deadlocks are **not** eliminated — see below).
+- **`unsafe` blocks** must be explicit; **MMIO** and raw pointers for registers live there, so reviewers can **grep** for the audit surface (unsafe does **not** make incorrect MMIO impossible, only easier to localize).
 
-### Key Material Protection
+Rust does **not** by itself stop **logic bugs** such as a tight loop that wears **flash**, or choosing wrong register values. Those remain engineering and review concerns.
 
-Sensitive cryptographic key material in this firmware:
+### Key material protection (project patterns)
 
-- Is zeroed from memory automatically and unconditionally on drop,
-  even if a panic occurs mid-operation
-- Cannot be accidentally copied or cloned — the compiler enforces this
-- Is compared in constant time, preventing timing side-channel attacks
-- Is domain-separated by type, preventing keys for one purpose from
-  being accidentally used for another
+This codebase applies common Rust patterns for secrets; they are **not** automatic for every type:
 
-### Auditable by Design
+- Types like **`zeroize::Zeroize` / `ZeroizeOnDrop`** clear buffers on drop; callers opt in.
+- **Secret comparisons** use **`subtle::ConstantTimeEq`** (and similar) where timing matters — ordinary `==` is not magically constant-time.
+- **No `Copy` on secret wrappers** reduces accidental duplication; domain separation uses **distinct types** and **HKDF labels** ([Cryptographic dependency policy](#cryptographic-dependency-policy)).
+- **Panic behaviour** and **drop order** follow Rust rules; use `catch_unwind` or `abort` strategies where your platform requires stronger guarantees.
 
-All code that interacts directly with hardware or bypasses safety
-guarantees must be explicitly marked `unsafe`. This makes the
-complete audit surface searchable and bounded — reviewers know
-exactly where to focus scrutiny. Dependencies are drawn exclusively
-from the audited RustCrypto ecosystem, inheriting their published
-audit history.
+### Auditable by design
 
-### What Rust Does Not Prevent
+**`unsafe`** must be **spelled out** in source, which narrows manual review. **Dependencies:** this project’s cryptographic policy favours **audited Rust crates** (RustCrypto and others); see the table in [Cryptographic dependency policy](#cryptographic-dependency-policy) — not every dependency is from a single umbrella project.
 
-In the interest of transparency: Rust does not prevent logic bugs,
-incorrect protocol design, physical hardware attacks (power analysis,
-fault injection), or damage caused by a correct but wrong firmware
-image. Those risks are addressed by the project's cryptographic
-design, reproducible builds, and manifest verification — described
-in the sections below.
+### What Rust does not prevent
+
+Rust does **not** remove **deadlocks** (e.g. mis-ordered `Mutex` locks), **logic bugs**, **incorrect protocols**, **flash wear** from bad loops, **physical attacks** (glitching, power analysis), or risks from a **correct build of the wrong image**. It also does not guarantee constant-time execution on all hardware without careful coding. Those areas rely on **design, review, testing**, and the project’s **crypto and supply-chain** practices described elsewhere in this README.
+
+**Verification (tests and fuzzing):** Beyond the language, this repository uses **unit tests**, **integration tests**, **dudect** timing harnesses, and **libFuzzer** (`cargo-fuzz`) targets. Summaries and matrices are in **[Test results](#test-results)**; the **recorded run metadata** starts at [`docs/TEST_RESULTS.md#last-full-run`](docs/TEST_RESULTS.md#last-full-run). **Passing tests do not** prove production readiness or absence of vulnerabilities — they narrow risk. **You** judge whether running builds or tests is acceptable for your environment; a **virtual machine** is optional but **limits blast radius** on your machine.
+
+### Setting up a virtual machine for evaluation
+
+Any major VM platform is suitable — **VirtualBox** (free, open source),
+**QEMU** (free, open source, command-line), or **VMware**. A **Linux guest**
+is recommended as the build environment is best supported there.
+
+Quick start with QEMU and Ubuntu:
+
+```bash
+# Install QEMU
+sudo apt install qemu-system-x86  # Debian/Ubuntu host
+# or
+brew install qemu                  # macOS host
+
+# Download an Ubuntu Server ISO and boot it
+qemu-system-x86_64 -m 2G -cdrom ubuntu-24.04-live-server-amd64.iso
+```
+
+Inside the VM, the standard build instructions apply. The VM can
+be **snapshotted** before each experiment and **rolled back** cleanly if
+anything goes wrong.
+
+### Risk assessment and deployment
+
+**Ultimately, whether this firmware is safe to deploy in your
+environment is a decision only you can make**, based on your own
+risk assessment, the sensitivity of what you are protecting, and
+whether you choose to wait for an independent third-party audit
+before deployment. This project aims to give you all the
+information needed to make that decision for yourself.
 
 ## Table of contents
 
 - [Why Rust?](#why-rust)
-  - [Memory safety](#memory-safety)
-  - [System damage prevention](#system-damage-prevention)
-  - [Key material protection](#key-material-protection)
+  - [Memory Safety](#memory-safety)
+  - [System-level robustness (with limits)](#system-level-robustness-with-limits)
+  - [Key material protection (project patterns)](#key-material-protection-project-patterns)
   - [Auditable by design](#auditable-by-design)
   - [What Rust does not prevent](#what-rust-does-not-prevent)
+  - [Setting up a virtual machine for evaluation](#setting-up-a-virtual-machine-for-evaluation)
+  - [Risk assessment and deployment](#risk-assessment-and-deployment)
 - [About the name](#about-the-name)
 - [What this is](#what-this-is)
 - [Documentation](#documentation)
@@ -184,13 +193,13 @@ At that point the project will be a complete, tested, open-source hardware secur
 | [docs/EPHEMERAL_SESSION.md](docs/EPHEMERAL_SESSION.md) | Authenticated ephemeral ECDH session protocol |
 | [docs/PQ_SIGNATURES.md](docs/PQ_SIGNATURES.md) | Post-quantum stateful signatures (XMSS, LMS/HSS), feature gating |
 | [docs/Psram.md](docs/Psram.md) | Optional PSRAM decoy volume and related behaviour |
-| [docs/TEST_RESULTS.md](docs/TEST_RESULTS.md) | Vectors, dudect, cargo-fuzz matrices, key lifecycle checks |
+| [docs/TEST_RESULTS.md](docs/TEST_RESULTS.md#last-full-run) | Opens at **Last full run**; vectors, dudect, cargo-fuzz ([Section 10](docs/TEST_RESULTS.md#10-cargo-fuzz-libfuzzer-summary)), key lifecycle |
 | [docs/PERFORMANCE.md](docs/PERFORMANCE.md) | Performance notes |
 | [docs/HARDWARE_VERIFICATION.md](docs/HARDWARE_VERIFICATION.md) | Hardware zeroisation: simulation vs silicon verification |
 | [docs/HARDWARE_TEST.md](docs/HARDWARE_TEST.md) | Hardware-oriented testing notes |
 | [docs/NFC_PN532_INTEGRATION.md](docs/NFC_PN532_INTEGRATION.md) | PN532 / NFC: libnfc, Rust options, door passive vs USB panel, quorum with Shamir and PIN |
 | [docs/SDMMC_STORAGE_INTEGRATION.md](docs/SDMMC_STORAGE_INTEGRATION.md) | `embedded-sdmmc` + SPI microSD as optional bulk storage; BOM alternative to PSRAM |
-| [docs/usb-pcb.md](docs/usb-pcb.md) | USB-A dongle PCB (Dabao-derived): KiCad, FreeCAD enclosure, 5 V / 500 mA class vs USB-C PD, QSPI PSRAM routing |
+| [docs/USB_DONGLE_PCB.md](docs/USB_DONGLE_PCB.md) | How to make a USB-A dongle PCB from the Dabao reference: Pico-format eval is for firmware bring-up; this strips GPIO header for a minimal token; KiCad, FreeCAD, 5 V / 500 mA vs USB-C PD, QSPI PSRAM routing |
 
 The same paths resolve on GitHub under [`tree/main/docs`](https://github.com/Supermagnum/Galdralag-firmware/tree/main/docs).
 
@@ -215,7 +224,7 @@ The firmware implements the **OpenPGP card application** (documented as version 
 
 **OpenPGP card vs. OpenPGP messages:** The **card** specification defines how the token exposes PINs, key slots, and on-card operations over CCID. **GnuPG** uses that through `scdaemon`. The **OpenPGP message format** for files and mail (RFC 4880 and successors) is a **host-side** layer: the card supplies keys; GnuPG still applies the message format on the PC. Neither the card spec nor RFC 4880 defines **Shamir splitting**, **ephemeral ECDH sessions**, or **cipher profiles** — those are [firmware-specific](#standards-vs-firmware-specific-features).
 
-**Integration status:** The OpenPGP and CCID logic lives in **`usb-personality`** and is covered by unit tests, integration tests, and the **`openpgp_dispatch`** fuzz target (see [docs/TEST_RESULTS.md](docs/TEST_RESULTS.md)). Wiring the USB **CCID** service into the running **Xous** image is still **integration work**; follow [docs/XOUS_CCID_INTEGRATION.md](docs/XOUS_CCID_INTEGRATION.md). Until that is done, **end-to-end GnuPG against real hardware** is not available, even though the card application behaviour is implemented in firmware sources.
+**Integration status:** The OpenPGP and CCID logic lives in **`usb-personality`** and is covered by unit tests, integration tests, and the **`openpgp_dispatch`** fuzz target (see [TEST_RESULTS — Section 10](docs/TEST_RESULTS.md#10-cargo-fuzz-libfuzzer-summary)). Wiring the USB **CCID** service into the running **Xous** image is still **integration work**; follow [docs/XOUS_CCID_INTEGRATION.md](docs/XOUS_CCID_INTEGRATION.md). Until that is done, **end-to-end GnuPG against real hardware** is not available, even though the card application behaviour is implemented in firmware sources.
 
 ---
 
@@ -619,9 +628,7 @@ confirmation) has not yet been performed. See
 
 ## Test results
 
-Full vector coverage, dudect t-statistics, RFC / BSI / NIST CAVP pass/fail
-tables, fuzzing (including **openpgp_dispatch** libFuzzer notes), and key lifecycle results:
-**[docs/TEST_RESULTS.md](docs/TEST_RESULTS.md)** — see **Section 10** for cargo-fuzz matrices and the recorded **`openpgp_dispatch`** long-run interpretation.
+Authoritative write-up: **[`docs/TEST_RESULTS.md#last-full-run`](docs/TEST_RESULTS.md#last-full-run)** (commit, scope, and how sections are organised). That page includes unit test totals, vector coverage (Wycheproof, RFC, BSI, NIST CAVP), **dudect** timing caches, key lifecycle checks, and **[Section 10 — cargo-fuzz](docs/TEST_RESULTS.md#10-cargo-fuzz-libfuzzer-summary)** (matrices, **`chacha_roundtrip`**, recorded **`openpgp_dispatch`** long run). **You** decide whether those results are enough to try building or running this project; a **virtual machine** remains optional but **reduces** host risk.
 
 ```
 cargo run -p xtask -- test-all

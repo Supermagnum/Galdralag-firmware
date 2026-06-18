@@ -1,8 +1,14 @@
-# USB dongle PCB (Dabao-derived)
+# How to make a suitable PCB for a USB dongle
 
 This document describes how to create a **modified PCB** for a **USB-A security dongle** based on the Baochip **Dabao** reference, using **[KiCad](https://www.kicad.org/)** for layout and **[FreeCAD](https://www.freecad.org/)** for a **mechanical enclosure** fitted to the board and connector.
 
 **Upstream board:** clone or fork **[github.com/baochip/dabao](https://github.com/baochip/dabao)** as the starting point.
+
+---
+
+## Why a dedicated dongle layout (vs the stock Dabao board)
+
+The **Dabao** evaluation board follows a **Raspberry Pi Pico**–style layout: **40 pins** along the **edges** (castellated / through-hole header). That is **ideal for firmware testing** (breadboard, logic probes, shields). A **USB dongle** product does **not** need that exposed GPIO; the goal is a **compact** board with **USB-A** and the **SoC** (and **optional QSPI PSRAM**), not a development breakout. This guide assumes you **remove** the Pico header and related area to free space for **edge-mount USB-A** and **PSRAM routing** — same silicon and power tree as the reference, **different** outline and connector strategy.
 
 ---
 
@@ -82,7 +88,7 @@ Optional: the **KiCad StepUp** ecosystem (community workbenches) can align KiCad
 ## Quad-SPI bus (PSRAM)
 
 | Baochip signal | PSRAM |
-|----------------|--------|
+|----------------|-------|
 | BIO23 (QSPI1D0) | SIO0 |
 | BIO24 (QSPI1D1) | SIO1 |
 | BIO25 (QSPI1D2) | SIO2 |
