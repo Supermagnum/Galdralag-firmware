@@ -49,6 +49,11 @@
     "status": "PASS",
     "t": -1.2242576990983909
   },
+  "timing_camellia_tag_check": {
+    "samples": 100000,
+    "status": "PASS",
+    "t": -2.393756832137705
+  },
   "timing_cascade_auth_failure": {
     "samples": 100000,
     "status": "PASS",
