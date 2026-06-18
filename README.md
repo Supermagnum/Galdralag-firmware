@@ -37,6 +37,16 @@ This project is **registered with the [Open Invention Network (OIN)](https://ope
 - [Glossary (plain language)](docs/GLOSSARY.md)
 - [OpenPGP and GnuPG compatibility](#openpgp-and-gnupg-compatibility)
 - [Token session and key export](#token-session-and-key-export)
+- [Web of Trust and Key Signing Parties](#web-of-trust-and-key-signing-parties)
+  - [What is the web of trust?](#what-is-the-web-of-trust)
+  - [How it works](#how-it-works)
+  - [Key signing parties](#key-signing-parties)
+  - [Typical workflow at a key signing party](#typical-workflow-at-a-key-signing-party)
+  - [Fingerprints instead of full keys at the event](#fingerprints-instead-of-full-keys-at-the-event)
+  - [Keyservers](#keyservers)
+  - [Using keyservers](#using-keyservers)
+  - [Common keyservers](#common-keyservers)
+  - [Best practices and caveats](#best-practices-and-caveats)
 - [Standards vs. firmware-specific features](#standards-vs-firmware-specific-features)
 - [Shamir secret sharing and drive encryption](#shamir-secret-sharing-and-drive-encryption)
 - [German eID and Governikus as a trust anchor for public keys](#german-eid-and-governikus-as-a-trust-anchor-for-public-keys)
@@ -385,6 +395,108 @@ The firmware implements the **OpenPGP card application** (documented as version 
 
 ---
 
+## Web of Trust and Key Signing Parties
+
+OpenPGP and **GnuPG** use a decentralised trust model—the **web of trust**—to help verify who owns which keys and whether to rely on a given **public key**. That model is entirely **host-side**. Where chip-backed attestations such as [German eID and Governikus](#german-eid-and-governikus-as-a-trust-anchor-for-public-keys) are unavailable or inappropriate, it is the usual decentralised alternative (**key signing parties**, signatures on certificates); where they **are** available, both approaches can coexist as complementary paths.
+
+### What is the web of trust?
+
+OpenPGP-compliant implementations include a certificate vetting scheme to assist with verifying key ownership; its operation has been termed a web of trust. OpenPGP **certificates** (one or more public keys plus owner/user-ID material) can be **digitally signed** by other users who, by doing so, endorse the association between that **public key** and the person or entity named on the certificate.
+
+### How it works
+
+1. **Key distribution.** You publish or send your **public key** (for example one generated with `gpg --full-generate-key` on the host, or carried on an OpenPGP-capable token).
+2. **Identity verification.** Others check that the **public key** really belongs to you—typically **in person** or through channels they already trust.
+3. **Key signing.** Once satisfied, they **sign your certificate** with their own **private key**.
+4. **Trust propagation.** Each signature adds evidence to the web; people who trust the **signer** may extend **partial trust** to your key according to their **GnuPG** trust settings.
+
+### Key signing parties
+
+A **key signing party** is an in-person meeting where participants exchange **key fingerprints** and verify each other's identity before signing certificates later.
+
+Typical characteristics:
+
+- Participants meet **face-to-face** and verify identity using government ID, organisational credentials, or other agreed proof.
+- After verification, participants **sign each other's public keys** (usually **after** the event—see workflow below).
+
+That yields a social graph: if Alice trusts Bob and Bob signed Charlie's key, Alice may choose to trust Charlie's key depending on trust depth and policy.
+
+Why such events matter:
+
+- **In-person verification** can be stronger than purely remote confirmation for linking a key to a human.
+- **Trust network.** Evidence spreads beyond pairwise meetings for those who use ownertrust and signature chains.
+- **Community norm.** Used in amateur radio circles, open-source projects, and cryptography conferences.
+- **Operational hygiene.** Reduces uptake of wrong or substituted keys when procedures are followed.
+
+### Typical workflow at a key signing party
+
+Parties usually **avoid computers during identity exchange**, so attackers have fewer chances to slip in substituted keys or malware on shared machines.
+
+**Before the event.** Compute and record your **fingerprint** (a hash-derived digest of the **public key**—short enough to compare reliably). Do **not** rely on exchanging full keys on paper at this stage unless your organisers specify otherwise.
+
+```bash
+# Key fingerprint for YOUR_KEY_ID (example)
+gpg --fingerprint YOUR_KEY_ID
+```
+
+Bring the fingerprint on paper or another durable medium (example shape: `ABCD 1234 EFGH 5678 90AB CDEF 1234 5678 90AB CDEF`).
+
+**At the event (fingerprints only).** Exchange **fingerprints**, verify IDs, and note which fingerprints belong to which verified person. Confirm each participant's claimed identity matches the documents checked.
+
+**After the event.** Fetch full **public keys** from **keyservers** or direct distribution; confirm downloaded keys match the **fingerprints** recorded on paper; **sign** the keys you verified; optionally **upload** signatures so others can use them.
+
+### Fingerprints instead of full keys at the event
+
+- **Operational security.** Keeps substitution attacks tied to verified fingerprints rather than trusting arbitrary machines mid-event.
+- **Simplicity.** Fingerprints fit on paper and are quick to read aloud or compare.
+- **Verification.** After download, recomputing the fingerprint checks integrity end-to-end.
+
+### Keyservers
+
+**Keyservers** are networked repositories that store and replicate **public** OpenPGP keys (and updates such as signatures and revocations). They make keys discoverable by **User ID**, **key ID**, or **fingerprint** and underpin wide-area distribution for the web of trust.
+
+How they behave in principle:
+
+- **Distributed replication.** Uploading to one server participating in a sync mesh often propagates to peers (classic **SKS**-style pools worked this way).
+- **Synchronisation.** New keys, signatures, and revocation certificates spread according to each server's policy and connectivity.
+- **Public read access.** Only **public** material is intended for publication; **private keys** must never be uploaded.
+
+**Privacy.** Published keys expose **User IDs** (often including mail addresses). Treat uploads as **public and long-lived** on many servers; upload **revocation certificates** when a key must be retired. Policy varies by operator ([keys.openpgp.org](https://keys.openpgp.org/) differs from legacy pools).
+
+**Peer topology.** Graphs of server relationships appear at [spider.pgpkeys.eu/graphs/](https://spider.pgpkeys.eu/graphs/); SKS-oriented peer listings at [spider.pgpkeys.eu/sks-peers](https://spider.pgpkeys.eu/sks-peers).
+
+### Using keyservers
+
+```bash
+# Upload your signed key (after local signing)
+gpg --send-keys YOUR_KEY_ID
+
+# Search by mail or name (behaviour depends on keyserver configured in gpg.conf)
+gpg --search-keys email@example.com
+
+# Refresh imported keys from configured keyservers
+gpg --refresh-keys
+```
+
+### Common keyservers
+
+| Server | Notes |
+|--------|--------|
+| [keys.openpgp.org](https://keys.openpgp.org/) | Widely used; consent-oriented verification for mail-linked User IDs |
+| [pgp.mit.edu](https://pgp.mit.edu/) | MIT-hosted server historically tied to SKS-era meshes |
+| pool.sks-keyservers.net | Legacy pool hostname associated with the former SKS ecosystem; connectivity today varies |
+
+### Best practices and caveats
+
+- Publish your **public key** (or signatures on others' keys) when your policy allows wider discovery.
+- Run **`gpg --refresh-keys`** periodically so revocations and new signatures propagate locally.
+- **Key signing asserts identity linkage**, not cipher strength—sign only after proportionate verification.
+- A signature means: you attest this **public key** belonged to that verified identity **at signing time**; others still choose trust paths themselves.
+
+For authoritative behaviour of **`gpg`**, trust models, and distribution options, see the **GnuPG** manual and upstream documentation.
+
+---
+
 ## Standards vs. firmware-specific features
 
 Different parts of this project align with different standards. **GnuPG interoperability** is limited to what the **OpenPGP card application** and **CCID** define. Other features are implemented in firmware (and sometimes in **Galdra** host tools) but are **not** something you can invoke through standard `gpg` card workflows.
@@ -498,6 +610,8 @@ One concrete pattern is a **drive or volume** encrypted using **Brainpool** curv
 | Regulatory alignment (EU / BSI) | Brainpool satisfies many **German and EU** government cryptography requirements |
 
 ## German eID and Governikus as a trust anchor for public keys
+
+If Governikus-style OpenPGP signing or comparable chip-backed national **eID** attestation is **not** available or practical for your jurisdiction or workflow, [Web of Trust and Key Signing Parties](#web-of-trust-and-key-signing-parties) describes an alternative host-side approach based on **in-person verification** and third-party signatures on certificates.
 
 [Governikus OpenPGP key authentication](https://pgp.governikus.de/?lang=EN) is an online service run on behalf of the **BSI** (Germany's Federal Office for Information Security). After the submitter authenticates with a **German eID**-capable ID card, an EU **eID** card for EU citizens, or an **electronic residence permit**, the service checks that the authenticated **legal name** matches the OpenPGP **User ID** on the uploaded public key. If it matches, Governikus signs that public key with the service signing key so third parties can verify the attestation.
 
