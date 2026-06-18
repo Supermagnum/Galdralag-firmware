@@ -27,6 +27,7 @@ This project is **registered with the [Open Invention Network (OIN)](https://ope
 - [Skipped and ignored tests](#skipped-and-ignored-tests)
 - [About the name](#about-the-name)
 - [Documentation](#documentation)
+- [Code map (function and module index)](docs/CODE_MAP.md)
 - [Debugging instructions](docs/DEBUG_INSTRUCTIONS.md)
 - [docs/AUDIT_LOG.md](docs/AUDIT_LOG.md)
 - [docs/BIOMETRIC_API.md](docs/BIOMETRIC_API.md)
