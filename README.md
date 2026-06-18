@@ -91,9 +91,11 @@ That is not a reason to hide the point from everyone else. People evaluating the
 
 **BLAKE3 reference vectors** are the official test corpus published alongside the BLAKE3 specification by its authors. They cover 35 input lengths from 0 to 102400 bytes, specifically chosen to exercise all internal chunk and tree-hashing boundary conditions that are invisible to short-input tests. All three BLAKE3 modes — default hash, keyed hash, and derive-key — are covered. BLAKE3 is used throughout this firmware for HKDF key derivation and inter-layer integrity checks in the cascade cipher profiles; the boundary coverage matters because BLAKE3's tree construction only activates above 1024 bytes.
 
-It is now up to the reader to judge whether these claims are false or not.
 
 **The test suite is also tamper detection for the supply chain.** All cryptographic primitives in this firmware come from audited RustCrypto crates — no cryptography is implemented in-tree. Because the conformance vectors above are run against those crates on every `cargo test --workspace`, any dependency that has been tampered with or substituted will produce a known-answer test failure before the compromised code reaches a deployed system. `python3 scripts/verify_cascade_kats.py` adds a second independent path: a Python implementation checks the same intermediate values in the cascade KAT fixture, so even a compromised Rust toolchain producing wrong output is caught by the cross-check. This is a meaningfully stronger supply chain integrity story than binding to a C library, where equivalent verification of every internal operation requires significantly more effort and specialist tooling.
+
+It is now up to the reader to judge whether these claims are false or not.
+
 
 ## Table of contents
 
