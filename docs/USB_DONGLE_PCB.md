@@ -10,6 +10,10 @@ This document describes how to create a **modified PCB** for a **USB-A security 
 
 The **Dabao** evaluation board follows a **Raspberry Pi Pico**–style layout: **40 pins** along the **edges** (castellated / through-hole header). That is **ideal for firmware testing** (breadboard, logic probes, shields). A **USB dongle** product does **not** need that exposed GPIO; the goal is a **compact** board with **USB-A** and the **SoC** (and **optional QSPI PSRAM**), not a development breakout. This guide assumes you **remove** the Pico header and related area to free space for **edge-mount USB-A** and **PSRAM routing** — same silicon and power tree as the reference, **different** outline and connector strategy.
 
+**Vault storage:** Long-lived keys and PIN policy use **on-chip RRAM** (4,194,304 bytes on the Baochip-1x — see [`docs/RRAM_LAYOUT.md`](RRAM_LAYOUT.md)), not an external key-storage IC. Optional **PSRAM** or **microSD** serve other roles (decoy bulk storage, design docs); they do not replace the on-chip vault.
+
+**Power and peripherals:** A minimal dongle targets the usual **USB 2.0** **5 V** budget (often up to **500 mA** on a compliant port). An optional **microSD** or always-on **PSRAM** adds current; **characterise your BOM**. Connecting **additional USB devices** (e.g. a future biometric matcher) from the **same** host port usually requires a **powered hub**; this firmware repo does not specify biometric hardware.
+
 On the stock **Dabao** eval board, **SW2** is used to **toggle bootloader mode** (for flashing); **SW1** is reset. A **USB dongle** product normally **omits** both switches and fixes reset and enable as below.
 
 ---

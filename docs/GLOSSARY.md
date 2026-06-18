@@ -12,8 +12,14 @@ Extra context (such as labels) that is checked for tampering together with an en
 **AEAD (authenticated encryption with associated data)**  
 Encryption that both hides content and detects tampering. If someone changes the ciphertext, decryption fails. ChaCha20-Poly1305 and AES-GCM are examples used in this project.
 
+**APDU**  
+A **packet** format used between a host and a smart card (command and response bytes). **OpenPGP** card operations over **CCID** use APDUs; see [OPENPGP_CARD.md](OPENPGP_CARD.md).
+
 **age**  
 A simple modern format for encrypting files (separate from OpenPGP). Whether **Galdra** supports it for a given workflow depends on the tool version; see [GALDRA-TOOL.md](GALDRA-TOOL.md).
+
+**Audit log (security)**  
+A record of security-relevant events (e.g. which **cipher profile** was chosen). This repository builds **audit strings** and hooks but **not** a full on-chip append-only log yet; see [AUDIT_LOG.md](AUDIT_LOG.md).
 
 ---
 
@@ -25,8 +31,17 @@ The family of chips this firmware is built for. It is a small computer on a chip
 **Bootloader**  
 A tiny program that runs first when the device powers on. It checks that firmware is allowed to run (for example that it is **signed**) before starting the main system.
 
+**boot0**  
+Immutable **ROM** in **Baochip** that verifies the early boot chain and firmware signature before later stages run.
+
+**boot1**  
+Loadable boot stage after **boot0**; continues the signed chain (e.g. toward application images such as **UF2** payloads). Details are in upstream **Baochip** / **Xous** documentation.
+
 **Brainpool**  
 A set of standard **elliptic curves** (shapes used for modern public-key math) common in European standards. This project uses them for signing and key agreement.
+
+**Biometric pre-gate**  
+An optional **“something you are”** check (fingerprint, vein pattern, etc.) **before** or with **PIN** unlock. **Not implemented** in this firmware tree yet; see [BIOMETRIC_API.md](BIOMETRIC_API.md) and [THREE_FACTOR_AUTH.md](THREE_FACTOR_AUTH.md).
 
 **BSI TR-03111**  
 A German government guideline for elliptic-curve cryptography. The project uses its test data as an extra check that implementations behave as expected.
@@ -38,6 +53,9 @@ A German government guideline for elliptic-curve cryptography. The project uses 
 **CAVP (Cryptographic Algorithm Validation Program)**  
 A NIST program that publishes official test vectors. This repository runs a **small subset** of such tests locally; that is **not** the same as a formal lab certification.
 
+**CBOR**  
+**Concise Binary Object Representation** — a compact encoding for structured data. A future **biometric** wire format might use it; nothing in this tree defines CBOR payloads for biometrics today.
+
 **CCID**  
 A standard way for a PC to talk to a smart card over **USB**. Your operating system treats the token like a smart card reader so **GnuPG** and similar tools can use it without special vendor drivers.
 
@@ -46,6 +64,9 @@ An open design (*Cryptologically Enchanted Shamir’s Secret*) for combining sec
 
 **Cipher**  
 Another word for an encryption method or the details of how data is transformed (for example which algorithm and mode).
+
+**Cipher profile**  
+A **named bundle** of choices in this project: which **symmetric** ciphers form a cascade, which **curve** is used for sessions, and **Shamir** metadata — see [CIPHER_PROFILES.md](CIPHER_PROFILES.md).
 
 **ComboHash**  
 A hardware block on **Baochip** that can speed up hashing. If firmware uses it, the **meaning** of derived keys must stay the same as in software-only builds.
@@ -62,6 +83,9 @@ The field of techniques for protecting information: encryption, signatures, key 
 
 **Decrypt**  
 Turn ciphertext back into readable data using the right key. On a **token**, decryption of sensitive material often happens **on the device** so the long-term secret never leaves it.
+
+**Decoy volume**  
+A **plausible** bulk storage view (e.g. mass-storage LUN) meant to look ordinary while real secrets stay in the **vault**. Design in [Psram.md](Psram.md); **not** fully implemented in firmware here yet.
 
 **Domain separation**  
 Using different labels or contexts when deriving keys so that keys meant for one feature cannot accidentally be reused for another (like separate locks for separate doors).
@@ -88,12 +112,18 @@ Scramble data so that only someone with the right key can read it.
 **Encrypt-then-MAC**  
 A safe ordering: encrypt first, then authenticate the result. The vault uses this style for some storage paths.
 
+**Ephemeral ECDH**  
+In this project’s **session** stack, using **fresh ephemeral** keys per session for **ECDH**, authenticated by **long-term** signing keys — see [EPHEMERAL_SESSION.md](EPHEMERAL_SESSION.md). Related to **forward secrecy**.
+
 **EtM**  
 Short for **encrypt-then-MAC**.
 
 ---
 
 ## F
+
+**Finger vein recognition**  
+A **biometric** that compares patterns inside a finger using infrared imaging of blood flow. Sometimes grouped under **vascular biometrics**. **Not** implemented in this firmware; third-party matchers may integrate in future.
 
 **Firmware**  
 Software stored inside the device that runs the token. **Galdr** is firmware; **Galdra** tools run on your PC.
@@ -158,6 +188,9 @@ A fixed test where inputs and expected outputs are published so software can sel
 **Key agreement**  
 Two parties compute a shared secret without sending it in full over the wire (see **ECDH**).
 
+**Key lifecycle**  
+The **full story** of a key on the token: **generate**, **import**, **use**, **rotate**, **delete**, and **zeroise** under policy — see [KEY_LIFECYCLE.md](KEY_LIFECYCLE.md).
+
 **KeyPurpose**  
 Internal labels in the vault so different features derive different keys from the same root material safely.
 
@@ -168,8 +201,18 @@ Internal labels in the vault so different features derive different keys from th
 **Lock (the token)**  
 End an authenticated session: PIN verification is cleared; you must unlock again before protected operations, similar to other smart cards.
 
+**Liveness detection**  
+Checks that a **biometric** sample comes from a **live** person (not a photo or cast). Policy for a future **biometric pre-gate**; **not** coded here.
+
 **LMS / XMSS**  
 Families of **post-quantum** **signatures** based on hashes. Optional in this project with feature flags; treat as **not yet independently audited** until stated otherwise in [PQ_SIGNATURES.md](PQ_SIGNATURES.md).
+
+---
+
+## M
+
+**Monotonic counter**  
+A counter that **only increases** (hardware-backed in design) so **PIN** attempts or **stateful** signatures cannot be “rewound” in software on production parts. See `MonotonicCounter` in the `galdr-core` HAL (`crates/galdr-core/src/hal.rs`).
 
 ---
 
@@ -181,12 +224,24 @@ Standard padding schemes for **RSA** encryption (**OAEP**) and signatures (**PSS
 **OpenPGP**  
 A family of standards for encrypted email, files, and key certificates. **GnuPG** is a popular implementation. The token implements an **OpenPGP card** profile so desktop tools can use it like a smart card.
 
+**OpenPGP card**  
+The **smart-card application** profile (APDUs, PINs, key slots) that makes a USB token look like an OpenPGP smart card to **GnuPG** over **CCID**. See [OPENPGP_CARD.md](OPENPGP_CARD.md).
+
 ---
 
 ## P
 
 **PBKDF2**  
 A method to stretch a **password** into a cryptographic key using many iterations, so guessing the password is slower.
+
+**Palm vein**  
+**Biometric** pattern from the palm’s blood vessels (infrared). A modality a future matcher might use; **not** implemented in this firmware.
+
+**Palmprint**  
+The **pattern of lines** on the palm’s skin surface (compare **palm vein**). Not implemented here.
+
+**pcscd**  
+The **PC/SC** daemon on Linux — bridges USB **CCID** readers to user-space apps such as **GnuPG**’s smart-card layer.
 
 **PIN**  
 A secret you type to **unlock** the token for signing or decryption. Too many wrong attempts can trigger **lockout** or **zeroisation**, depending on policy.
@@ -217,7 +272,7 @@ The shareable half of a key pair. Others use it to encrypt to you or verify your
 ## R
 
 **RRAM**  
-A type of non-volatile memory used for **vault** storage on the target hardware.
+**Resistive RAM** — on **Baochip-1x**, **4,194,304 bytes** (4 MiB) of on-chip non-volatile storage used for the **vault**, PIN policy blobs, sealed keys, and related data. Layout sketches: [RRAM_LAYOUT.md](RRAM_LAYOUT.md).
 
 **Rust**  
 The programming language most of this project is written in. It helps prevent many memory-safety bugs by construction.
@@ -229,11 +284,20 @@ A community of audited cryptographic libraries in Rust used as dependencies here
 
 ## S
 
+**scdaemon**  
+GnuPG’s **smart-card daemon** — talks **CCID** / PC/SC to reach an **OpenPGP card** on USB.
+
 **Sequoia PGP**  
 A Rust library for **OpenPGP** on the host. **Galdra** uses it for multi-recipient encryption and similar tasks; private keys remain on the token when that is how the workflow is set up.
 
+**session token (biometric)**  
+A short-lived secret proving a **recent biometric match** at a host or gateway; **not** defined or implemented in this repository. Future docs may specify binding to `galdrad` or firmware.
+
 **Shamir secret sharing**  
-Split a master secret into several **shares** so that any **k** of **n** shares can reconstruct it, but fewer than **k** reveal nothing in the ideal model. Useful for backups and quorum policies.
+Split a master secret into several **shares** so that any **k** of **n** shares can reconstruct it, but fewer than **k** reveal nothing in the ideal model. Useful for backups and quorum policies. GF(256) math in the **`vault`** crate uses **`vsss-rs`**.
+
+**SignedMatchResult**  
+A placeholder name for a future **signed** structure reporting a biometric matcher outcome. **No** type or wire format exists in this tree; see [BIOMETRIC_API.md](BIOMETRIC_API.md).
 
 **Signature (digital)**  
 Proof that someone holding the **private** key approved a message. Others verify using the **public** key.
@@ -241,9 +305,15 @@ Proof that someone holding the **private** key approved a message. Others verify
 **SQLCipher**  
 Optional encryption for **Galdra**’s local contact database on disk. See [GALDRA-TOOL.md](GALDRA-TOOL.md).
 
+**sweet platform**  
+Research **biometric** / hand-scan hardware context referenced in roadmap discussions; **not** integrated in this codebase.
+
 ---
 
 ## T
+
+**Three-factor authentication**  
+Classic factors: **something you have** (the token), **something you know** (PIN), and optionally **something you are** (biometric). This repository implements **have + know**; biometric is **not** implemented — [THREE_FACTOR_AUTH.md](THREE_FACTOR_AUTH.md).
 
 **Token**  
 The **USB hardware device** (or board running this firmware) that holds secrets and runs **Galdr**, as opposed to software on your PC.
@@ -271,9 +341,18 @@ The on-device protected storage and policy layer in firmware: sealed blobs, key 
 **Verify (a PIN)**  
 Prove to the token that you know the PIN so it allows signing or decryption for that **session**.
 
+**Vascular biometrics**  
+**Biometric** methods based on **blood-vessel** patterns (often infrared), e.g. **finger vein** or **palm vein**. Not implemented in this firmware.
+
+**vsss-rs**  
+A Rust **finite-field** / secret-sharing helper crate used with **Shamir** GF(256) in **`vault`**.
+
 ---
 
 ## W
+
+**Wear levelling**  
+Spreading **writes** across many cells so **flash-like** or **RRAM** media does not wear out one spot too fast. **No** wear-levelling algorithm is implemented in this repository; endurance is an **open engineering** topic — [RRAM_LAYOUT.md](RRAM_LAYOUT.md).
 
 **Welch’s *t*-test**  
 A statistical comparison used inside **dudect** timing reports. Values near zero are desired; large values warrant investigation.
@@ -303,6 +382,9 @@ Securely erasing secrets from memory or storage so they cannot be recovered by o
 ## See also
 
 - [README.md](../README.md) — project overview, token behaviour, security notes
+- [RRAM_LAYOUT.md](RRAM_LAYOUT.md) — on-chip storage map (sketches)
+- [KEY_LIFECYCLE.md](KEY_LIFECYCLE.md) — keys on the token
+- [THREE_FACTOR_AUTH.md](THREE_FACTOR_AUTH.md) — factors and scope
 - [GALDRA-TOOL.md](GALDRA-TOOL.md) — host tools and workflows
 - [ARCHITECTURE.md](ARCHITECTURE.md) — how subsystems fit together
 - [TEST_RESULTS.md](TEST_RESULTS.md) — what automated checks cover

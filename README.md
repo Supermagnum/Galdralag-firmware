@@ -50,6 +50,11 @@ It is ready for testing by humans. **You** decide whether to build or run any of
   - [What this firmware is (and is not)](#what-this-firmware-is-and-is-not)
   - [Signed firmware (Ed25519, boot0)](#signed-firmware-ed25519-boot0)
 - [Documentation](#documentation)
+- [docs/AUDIT_LOG.md](docs/AUDIT_LOG.md)
+- [docs/BIOMETRIC_API.md](docs/BIOMETRIC_API.md)
+- [docs/KEY_LIFECYCLE.md](docs/KEY_LIFECYCLE.md)
+- [docs/RRAM_LAYOUT.md](docs/RRAM_LAYOUT.md)
+- [docs/THREE_FACTOR_AUTH.md](docs/THREE_FACTOR_AUTH.md)
 - [Glossary (plain language)](docs/GLOSSARY.md)
 - [OpenPGP and GnuPG compatibility](#openpgp-and-gnupg-compatibility)
 - [Token session and key export](#token-session-and-key-export)
@@ -238,11 +243,14 @@ Shippable firmware for **Baochip-1x** is **signed** with **Ed25519**. You sign t
 | [Hardware/kicad-sd-card/](Hardware/kicad-sd-card/) | **USB dongle** KiCad project `dabao_v3c_sdcard` (micro-SD holder); gerbers, BOM, pinout under [docs/pinout](Hardware/kicad-sd-card/docs/pinout/README.md); complements [USB_DONGLE_PCB.md](docs/USB_DONGLE_PCB.md) |
 | [docs/API_REFERENCE.md](docs/API_REFERENCE.md) | Code map + **annex** for IETF/I-D/GnuPG/Sequoia: Shamir GF(256) construction, GALDRA SHARE armour, ephemeral ECDH wire format, HKDF labels, preimages; `galdrad` routes; rustdoc hints |
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | High-level firmware architecture and major subsystems |
+| [docs/AUDIT_LOG.md](docs/AUDIT_LOG.md) | Profile audit records (`cipher-profile`), OpenPGP `OpenPgpAudit` hook; **no** append-only RRAM log implemented yet |
+| [docs/BIOMETRIC_API.md](docs/BIOMETRIC_API.md) | Biometric pre-gate **placeholder** — not implemented in this repository |
 | [docs/GALDRA-TOOL.md](docs/GALDRA-TOOL.md) | Host tools (`galdra`, `galdrad`, `galdra-gtk`): workflows, provisioning, PIN policy, operational behaviour |
 | [docs/GLOSSARY.md](docs/GLOSSARY.md) | **Plain-language glossary** (A–Z) for non-technical readers; technical detail remains in linked docs |
 | [CLAUDE.md](CLAUDE.md) | Instructions for **Claude** / AI coding agents; points to [`.cursor/rules/`](.cursor/rules/) for **Cursor** |
 | [docs/GALDRALAG_DEV_REFERENCE.md](docs/GALDRALAG_DEV_REFERENCE.md) | Toolchain, `xtask` commands, fuzzing and crypto test entry points |
 | [docs/dev-ref.md](docs/dev-ref.md) | Workspace layout, crates, HAL traits, USB/PSRAM behaviour, security invariants |
+| [docs/KEY_LIFECYCLE.md](docs/KEY_LIFECYCLE.md) | Key generation, import, export policy, rotation, zeroisation, Shamir (as reflected in `vault` / OpenPGP) |
 | [docs/OPENPGP_CARD.md](docs/OPENPGP_CARD.md) | OpenPGP card application, GnuPG/CCID host setup, key slots, algorithms, udev |
 | [docs/XOUS_CCID_INTEGRATION.md](docs/XOUS_CCID_INTEGRATION.md) | Wiring CCID/OpenPGP USB into Xous on Baochip |
 | [docs/CIPHER_PROFILES.md](docs/CIPHER_PROFILES.md) | Cipher profile system and configuration |
@@ -253,7 +261,9 @@ Shippable firmware for **Baochip-1x** is **signed** with **Ed25519**. You sign t
 | [Supermagnum/CESS](https://github.com/Supermagnum/CESS) | **CESS** (*Cryptologically Enchanted Shamir's Secret*) — open specification (normative text and test vectors) for threshold secret sharing with authenticated encryption, password-based share wrapping, and optional post-quantum hybrid key exchange; separate from this firmware but in the same design space as Shamir and cipher profiles here |
 | [docs/PQ_SIGNATURES.md](docs/PQ_SIGNATURES.md) | Post-quantum stateful signatures (XMSS, LMS/HSS), feature gating |
 | [docs/Psram.md](docs/Psram.md) | Optional microSD decoy volume and related behaviour |
+| [docs/RRAM_LAYOUT.md](docs/RRAM_LAYOUT.md) | **4,194,304 byte** on-chip RRAM: vault offsets from source, HAL mapping, wear / zeroisation notes |
 | [docs/TEST_RESULTS.md](docs/TEST_RESULTS.md#run-metadata) | Opens at **Run metadata**; pipeline summary, vectors, dudect, cargo-fuzz ([Section 6](docs/TEST_RESULTS.md#6-cargo-fuzz-libfuzzer)), key lifecycle |
+| [docs/THREE_FACTOR_AUTH.md](docs/THREE_FACTOR_AUTH.md) | Token + PIN + optional biometric: what this repo implements vs placeholder; threat sketch |
 | [docs/PERFORMANCE.md](docs/PERFORMANCE.md) | Performance notes |
 | [docs/HARDWARE_VERIFICATION.md](docs/HARDWARE_VERIFICATION.md) | Hardware zeroisation: simulation vs silicon verification |
 | [docs/HARDWARE_TEST.md](docs/HARDWARE_TEST.md) | Hardware-oriented testing notes |
@@ -516,6 +526,8 @@ If you copied binaries manually, remove the files you added. Firmware is not “
 
 The items below are **Galdralag firmware capabilities**, not requirements of the [OpenPGP card application](#standards-vs-firmware-specific-features) or GnuPG.
 
+- **Three-factor-ready security model** — **Possession** of the USB token and **knowledge** of the PIN are enforced in firmware today; an optional **biometric** third factor is **not** implemented in this repository (placeholder: [docs/BIOMETRIC_API.md](docs/BIOMETRIC_API.md)). See [docs/THREE_FACTOR_AUTH.md](docs/THREE_FACTOR_AUTH.md) for scope and limits.
+
 - **Authenticated ephemeral ECDH on-device** — true cryptographic forward
   secrecy. Each session generates a fresh ephemeral key pair on the token's
   hardware TRNG. The long-term key signs the ephemeral offer but never
@@ -600,6 +612,8 @@ Nothing is implemented in-tree.
 | Hardware zeroisation | TRNG-sourced multi-pass overwrite; boot0 zeroises before USB enumeration |
 | No secret on USB bus | Uninformed host sees only standard mass-storage; no fingerprint possible |
 | Monotonic tamper evidence | Hardware one-way counters in always-on domain |
+| Three-factor authentication | **Possession:** USB token; **knowledge:** on-device PIN (`pin-policy`); optional **biometric** not implemented — [docs/THREE_FACTOR_AUTH.md](docs/THREE_FACTOR_AUTH.md) |
+| RRAM counters and audit trail | Monotonic HAL for PIN (and future stateful PQ signatures); profile audit records and in-RAM OpenPGP audit hook — append-only NV audit log **not** implemented — [docs/AUDIT_LOG.md](docs/AUDIT_LOG.md), [docs/RRAM_LAYOUT.md](docs/RRAM_LAYOUT.md) |
 | Constant-time operations | All secret comparisons via `subtle`; verified by dudect harnesses |
 | test-hal never in production | Enforced by `check-fw` xtask |
 
@@ -671,7 +685,10 @@ The zeroisation implementation is **software-correct but hardware-unverified**.
 It has been tested using `test-hal` simulation only. Physical verification on
 Baochip-1x silicon (JTAG memory inspection, power-cycle resilience, side-channel
 confirmation) has not yet been performed. See
-[docs/HARDWARE_VERIFICATION.md](docs/HARDWARE_VERIFICATION.md).
+[docs/HARDWARE_VERIFICATION.md](docs/HARDWARE_VERIFICATION.md). Intended
+**region order** and **layout anchors** for vault subsystems are summarised in
+[docs/RRAM_LAYOUT.md](docs/RRAM_LAYOUT.md); **physical** wipe ordering remains
+platform and **boot0** integration work.
 
 ---
 

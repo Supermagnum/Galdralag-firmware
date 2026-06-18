@@ -12,3 +12,10 @@ release notes until the audit is complete.
 
 Do not enable `pq-signatures` in production firmware until this document is
 updated with audit identifiers and test coverage summaries.
+
+**Stateful hash signatures (XMSS / LMS):** When an implementation lands, **private
+state** (for example chain / index position) must be updated atomically in
+**non-volatile storage**. On Baochip-1x the natural store is **on-chip RRAM**
+(4,194,304 bytes total — see [RRAM_LAYOUT.md](RRAM_LAYOUT.md)). **No** reserved
+RRAM slots or wear model for such state exist in this repository yet; the layout
+must be defined with boot and vault integrators before production use.
