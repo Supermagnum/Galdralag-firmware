@@ -32,6 +32,7 @@ Portions of this repository (including documentation, tests, and tooling) may ha
   - [Using keys with Galdra and the token](#using-keys-with-galdra-and-the-token)
   - [OpenPGP tooling versus Brainpool in firmware](#openpgp-tooling-versus-brainpool-in-firmware)
 - [Implemented cryptographic capabilities](#implemented-cryptographic-capabilities)
+- [Example: Serpent-256, ChaCha20-Poly1305, ECDHE, and Shamir](#example-serpent-256-chacha20-poly1305-ecdhe-and-shamir)
 - [Cryptographic primitives explained](#cryptographic-primitives-explained)
   - [Brainpool P-256r1, P-384r1, P-512r1 (ECDH and ECDSA)](#brainpool-p-256r1-p-384r1-p-512r1-ecdh-and-ecdsa)
   - [X25519 (ECDH)](#x25519-ecdh)
@@ -230,6 +231,8 @@ Exact flags and token-backed signing readiness evolve with releases; use `galdra
 You can combine both: establish trust and distribute **public** certificates with OpenPGP tools, while the token performs private operations using firmware-defined algorithms and policies.
 
 ## Implemented cryptographic capabilities
+
+**Combined example:** In one **Galdra cipher profile** you can combine **Serpent-256**, **ChaCha20-Poly1305**, **ECDHE** (authenticated ephemeral Brainpool ECDH for session keys), and **Shamir's secret sharing** (K-of-N for long-term key recovery). The walkthrough is in [Example: Serpent-256, ChaCha20-Poly1305, ECDHE, and Shamir](#example-serpent-256-chacha20-poly1305-ecdhe-and-shamir) (also under [Cryptographic primitives explained](#cryptographic-primitives-explained)); see [docs/CIPHER_PROFILES.md](docs/CIPHER_PROFILES.md) for profile rules and CLI usage.
 
 | Algorithm | Standard | Provided by | Tests |
 |-----------|----------|-------------|-------|
