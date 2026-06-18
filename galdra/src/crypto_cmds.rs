@@ -1,0 +1,456 @@
+//! OpenPGP encrypt / decrypt / sign / verify CLI wiring.
+
+use galdra_core_host::audit::{self, AuditAction, AuditEntry};
+use galdra_core_host::contacts::{self, ContactFilter, Identity};
+use galdra_core_host::encrypt::{self, try_decrypt_session_key_from_cert};
+use galdra_core_host::groups;
+use galdra_core_host::sign;
+use galdra_core_host::GaldraError;
+use sequoia_openpgp::parse::Parse;
+use sequoia_openpgp::policy::StandardPolicy;
+use std::io::{Read, Write};
+use std::path::PathBuf;
+
+use crate::common::{print_json, resolve_identity, OutputMode};
+
+fn identity_to_cert(id: &Identity) -> Result<sequoia_openpgp::Cert, GaldraError> {
+    let bytes = id.pgp_pubkey.as_ref().ok_or_else(|| {
+        GaldraError::OpenPgp(format!("contact {} has no OpenPGP key", id.id))
+    })?;
+    sequoia_openpgp::Cert::from_bytes(bytes).map_err(|e| GaldraError::OpenPgp(e.to_string()))
+}
+
+fn collect_recipient_identities(
+    db: &galdra_core_host::db::Db,
+    group: Option<String>,
+    to: Vec<String>,
+) -> Result<Vec<Identity>, GaldraError> {
+    if let Some(gname) = group {
+        if !to.is_empty() {
+            return Err(GaldraError::Config(
+                "use either --group or --to, not both".to_string(),
+            ));
+        }
+        return groups::group_active_members(db, &gname);
+    }
+    if to.is_empty() {
+        return Err(GaldraError::Config(
+            "specify --group or at least one --to".to_string(),
+        ));
+    }
+    let mut out = Vec::new();
+    for id_str in to {
+        out.push(resolve_identity(db, &id_str)?);
+    }
+    Ok(out)
+}
+
+/// Encrypt file to contacts or group members.
+#[allow(clippy::too_many_arguments)]
+pub fn run_encrypt(
+    db: &mut galdra_core_host::db::Db,
+    output_mode: OutputMode,
+    quiet: bool,
+    format: Option<String>,
+    age_recipient: Vec<String>,
+    group: Option<String>,
+    to: Vec<String>,
+    input: PathBuf,
+    output: PathBuf,
+    strict: bool,
+    hidden_recipient_cli: bool,
+    sign: bool,
+) -> Result<(), GaldraError> {
+    let fmt = format.as_deref().unwrap_or("openpgp");
+    if fmt == "age" {
+        return run_encrypt_age(
+            db,
+            output_mode,
+            quiet,
+            &age_recipient,
+            input,
+            output,
+        );
+    }
+    if fmt != "openpgp" {
+        return Err(GaldraError::Config(format!(
+            "unknown --format {fmt} (use openpgp or age)"
+        )));
+    }
+    if !age_recipient.is_empty() {
+        return Err(GaldraError::Config(
+            "--age-recipient is only used with --format age".to_string(),
+        ));
+    }
+    let policy = StandardPolicy::new();
+    let idents = collect_recipient_identities(db, group.clone(), to)?;
+    let mut certs = Vec::new();
+    for id in &idents {
+        certs.push(identity_to_cert(id)?);
+    }
+
+    let hidden = if let Some(ref gname) = group {
+        let g = groups::group_get(db, gname)?;
+        g.hidden_recipients || hidden_recipient_cli
+    } else {
+        hidden_recipient_cli
+    };
+
+    let plaintext = std::fs::read(&input).map_err(GaldraError::Io)?;
+    let fname = input
+        .file_name()
+        .and_then(|s| s.to_str())
+        .map(|s| s.to_string());
+
+    let ciphertext = if sign {
+        return Err(GaldraError::Config(
+            "cleartext signing during encrypt requires a connected token (not yet integrated)".to_string(),
+        ));
+    } else {
+        encrypt::encrypt_openpgp(
+            &policy,
+            &plaintext,
+            fname.as_deref(),
+            &certs,
+            hidden,
+            strict,
+        )?
+    };
+
+    std::fs::write(&output, &ciphertext).map_err(GaldraError::Io)?;
+
+    audit::audit_append(
+        db,
+        AuditEntry {
+            timestamp: chrono::Utc::now(),
+            operator: None,
+            action: AuditAction::Encrypt,
+            subject: group,
+            detail: Some(format!(
+                "recipients={},bytes={}",
+                idents.len(),
+                ciphertext.len()
+            )),
+            device_serial: None,
+        },
+    )?;
+
+    if output_mode == OutputMode::Json {
+        print_json(&serde_json::json!({
+            "output": output,
+            "bytes": ciphertext.len(),
+            "recipients": idents.len(),
+        }))?;
+    } else if !quiet {
+        eprintln!(
+            "Wrote {} bytes for {} recipient(s).",
+            ciphertext.len(),
+            idents.len()
+        );
+    }
+    Ok(())
+}
+
+fn run_encrypt_age(
+    db: &mut galdra_core_host::db::Db,
+    output_mode: OutputMode,
+    quiet: bool,
+    age_recipient: &[String],
+    input: PathBuf,
+    output: PathBuf,
+) -> Result<(), GaldraError> {
+    if age_recipient.is_empty() {
+        return Err(GaldraError::Config(
+            "age encryption requires at least one --age-recipient (age1...)".to_string(),
+        ));
+    }
+    let mut recipients: Vec<Box<dyn age::Recipient + Send>> = Vec::new();
+    for s in age_recipient {
+        let r: age::x25519::Recipient = s
+            .parse()
+            .map_err(|e| GaldraError::Config(format!("invalid --age-recipient: {e}")))?;
+        recipients.push(Box::new(r));
+    }
+    let plaintext = std::fs::read(&input).map_err(GaldraError::Io)?;
+    let encryptor = age::Encryptor::with_recipients(recipients).ok_or_else(|| {
+        GaldraError::Config("age encryption requires at least one valid recipient".to_string())
+    })?;
+    let mut ciphertext = Vec::new();
+    {
+        let mut writer = encryptor
+            .wrap_output(&mut ciphertext)
+            .map_err(|e| GaldraError::Config(format!("{e}")))?;
+        writer
+            .write_all(&plaintext)
+            .map_err(|e| GaldraError::Config(format!("{e}")))?;
+        writer
+            .finish()
+            .map_err(|e| GaldraError::Config(format!("{e}")))?;
+    }
+    std::fs::write(&output, &ciphertext).map_err(GaldraError::Io)?;
+
+    audit::audit_append(
+        db,
+        AuditEntry {
+            timestamp: chrono::Utc::now(),
+            operator: None,
+            action: AuditAction::Encrypt,
+            subject: None,
+            detail: Some(format!("format=age,bytes={}", ciphertext.len())),
+            device_serial: None,
+        },
+    )?;
+
+    if output_mode == OutputMode::Json {
+        print_json(&serde_json::json!({
+            "output": output,
+            "bytes": ciphertext.len(),
+            "format": "age",
+        }))?;
+    } else if !quiet {
+        eprintln!(
+            "Wrote {} bytes (age) for {} recipient(s).",
+            ciphertext.len(),
+            age_recipient.len()
+        );
+    }
+    Ok(())
+}
+
+/// Decrypt ciphertext (requires token integration for production keys).
+pub fn run_decrypt(
+    db: &mut galdra_core_host::db::Db,
+    output_mode: OutputMode,
+    quiet: bool,
+    format: Option<String>,
+    age_identity: Option<PathBuf>,
+    recipient: Option<String>,
+    input: PathBuf,
+    output: PathBuf,
+) -> Result<(), GaldraError> {
+    let fmt = format.as_deref().unwrap_or("openpgp");
+    if fmt == "age" {
+        return run_decrypt_age(
+            db,
+            output_mode,
+            quiet,
+            age_identity,
+            input,
+            output,
+        );
+    }
+    if fmt != "openpgp" {
+        return Err(GaldraError::Config(format!(
+            "unknown --format {fmt} (use openpgp or age)"
+        )));
+    }
+    let recipient = recipient.ok_or_else(|| {
+        GaldraError::Config("decrypt (OpenPGP) requires a recipient contact identifier".to_string())
+    })?;
+    if age_identity.is_some() {
+        return Err(GaldraError::Config(
+            "--age-identity is only used with --format age".to_string(),
+        ));
+    }
+    let policy = StandardPolicy::new();
+    let id = resolve_identity(db, &recipient)?;
+    let cert = identity_to_cert(&id)?;
+    let ciphertext = std::fs::read(&input).map_err(GaldraError::Io)?;
+
+    let try_decrypt = |pkesk: &sequoia_openpgp::packet::PKESK,
+                       sym: Option<sequoia_openpgp::types::SymmetricAlgorithm>| {
+        try_decrypt_session_key_from_cert(&policy, &cert, pkesk, sym)
+    };
+
+    let plain = encrypt::decrypt_openpgp(&policy, &ciphertext, &cert, try_decrypt, &[])
+        .map_err(|e| {
+            if matches!(e, GaldraError::OpenPgp(_)) {
+                GaldraError::Config(
+                    "decryption failed — host stores public keys only; use a connected token with decryption support (integration pending)".to_string(),
+                )
+            } else {
+                e
+            }
+        })?;
+
+    std::fs::write(&output, &plain).map_err(GaldraError::Io)?;
+
+    audit::audit_append(
+        db,
+        AuditEntry {
+            timestamp: chrono::Utc::now(),
+            operator: None,
+            action: AuditAction::Decrypt,
+            subject: Some(id.id.clone()),
+            detail: Some(format!("bytes={}", plain.len())),
+            device_serial: None,
+        },
+    )?;
+
+    if output_mode == OutputMode::Json {
+        print_json(&serde_json::json!({
+            "output": output,
+            "bytes": plain.len(),
+        }))?;
+    } else if !quiet {
+        eprintln!("Wrote {} bytes of plaintext.", plain.len());
+    }
+    Ok(())
+}
+
+fn run_decrypt_age(
+    db: &mut galdra_core_host::db::Db,
+    output_mode: OutputMode,
+    quiet: bool,
+    age_identity: Option<PathBuf>,
+    input: PathBuf,
+    output: PathBuf,
+) -> Result<(), GaldraError> {
+    let id_path = age_identity.ok_or_else(|| {
+        GaldraError::Config(
+            "age decryption requires --age-identity PATH to an age identity file".to_string(),
+        )
+    })?;
+    let ciphertext = std::fs::read(&input).map_err(GaldraError::Io)?;
+    let decryptor = match age::Decryptor::new(&ciphertext[..])
+        .map_err(|e| GaldraError::Config(e.to_string()))?
+    {
+        age::Decryptor::Recipients(d) => d,
+        age::Decryptor::Passphrase(_) => {
+            return Err(GaldraError::Config(
+                "age file uses passphrase encryption; decrypt with the age tool".to_string(),
+            ));
+        }
+    };
+    let idf = age::IdentityFile::from_file(id_path.display().to_string()).map_err(GaldraError::Io)?;
+    let identities: Vec<age::x25519::Identity> = idf
+        .into_identities()
+        .into_iter()
+        .map(|e| {
+            let age::IdentityFileEntry::Native(i) = e;
+            i
+        })
+        .collect();
+    if identities.is_empty() {
+        return Err(GaldraError::Config(
+            "no native age identities found in identity file".to_string(),
+        ));
+    }
+    let mut r = decryptor
+        .decrypt(identities.iter().map(|i| i as &dyn age::Identity))
+        .map_err(|e| GaldraError::Config(e.to_string()))?;
+    let mut plaintext = Vec::new();
+    r.read_to_end(&mut plaintext)
+        .map_err(|e| GaldraError::Config(e.to_string()))?;
+    std::fs::write(&output, &plaintext).map_err(GaldraError::Io)?;
+
+    audit::audit_append(
+        db,
+        AuditEntry {
+            timestamp: chrono::Utc::now(),
+            operator: None,
+            action: AuditAction::Decrypt,
+            subject: None,
+            detail: Some(format!("format=age,bytes={}", plaintext.len())),
+            device_serial: None,
+        },
+    )?;
+
+    if output_mode == OutputMode::Json {
+        print_json(&serde_json::json!({
+            "output": output,
+            "bytes": plaintext.len(),
+            "format": "age",
+        }))?;
+    } else if !quiet {
+        eprintln!("Wrote {} bytes of plaintext (age).", plaintext.len());
+    }
+    Ok(())
+}
+
+/// Detached-sign a file (token integration pending).
+pub fn run_sign(
+    _db: &mut galdra_core_host::db::Db,
+    _output_mode: OutputMode,
+    _quiet: bool,
+    _input: PathBuf,
+    _output: PathBuf,
+    _detach: bool,
+) -> Result<(), GaldraError> {
+    Err(GaldraError::Config(
+        "signing requires a connected token with signing key material (not yet integrated)".to_string(),
+    ))
+}
+
+fn verification_pool(
+    db: &galdra_core_host::db::Db,
+    signer: Option<String>,
+) -> Result<Vec<sequoia_openpgp::Cert>, GaldraError> {
+    if let Some(s) = signer {
+        let id = resolve_identity(db, &s)?;
+        return Ok(vec![identity_to_cert(&id)?]);
+    }
+    let list = contacts::contact_list(
+        db,
+        ContactFilter {
+            expired: false,
+            organisation: None,
+            role: None,
+        },
+    )?;
+    let mut certs = Vec::new();
+    for id in list {
+        if id.pgp_pubkey.is_some() {
+            certs.push(identity_to_cert(&id)?);
+        }
+    }
+    if certs.is_empty() {
+        return Err(GaldraError::OpenPgp(
+            "no contacts with public keys for verification".to_string(),
+        ));
+    }
+    Ok(certs)
+}
+
+/// Verify a detached or cleartext signature.
+pub fn run_verify(
+    db: &mut galdra_core_host::db::Db,
+    output_mode: OutputMode,
+    quiet: bool,
+    input: PathBuf,
+    sig: Option<PathBuf>,
+    signer: Option<String>,
+) -> Result<(), GaldraError> {
+    let policy = StandardPolicy::new();
+    let pool = verification_pool(db, signer)?;
+
+    if let Some(sig_path) = sig {
+        let data = std::fs::read(&input).map_err(GaldraError::Io)?;
+        let sig_bytes = std::fs::read(&sig_path).map_err(GaldraError::Io)?;
+        sign::verify_openpgp_detached(&policy, &sig_bytes, &data, &pool)?;
+    } else {
+        return Err(GaldraError::Config(
+            "inline-signed message verification is not wired yet; use --sig for detached signatures"
+                .to_string(),
+        ));
+    }
+
+    audit::audit_append(
+        db,
+        AuditEntry {
+            timestamp: chrono::Utc::now(),
+            operator: None,
+            action: AuditAction::Verify,
+            subject: Some(input.display().to_string()),
+            detail: None,
+            device_serial: None,
+        },
+    )?;
+
+    if output_mode == OutputMode::Json {
+        print_json(&serde_json::json!({ "ok": true }))?;
+    } else if !quiet {
+        println!("Good signature.");
+    }
+    Ok(())
+}

@@ -19,6 +19,7 @@ use vault::rsa_vault::{
     RsaVaultStoreContext,
 };
 use vault::serpent_cipher::{serpent_decrypt, serpent_encrypt, SerpentKey, SerpentNonce};
+use vault::twofish_cipher::{twofish_decrypt, twofish_encrypt, TwofishKey, TwofishNonce};
 use vault::shamir::{shamir_recover, shamir_split, ShamirShare};
 
 const SLOT_STRIDE: u64 = 8192;
@@ -691,6 +692,154 @@ fn lifecycle_serpent_full_vault_roundtrip() {
         *<&[u8; 32]>::try_from(&a[32..]).unwrap(),
     );
     let pt = serpent_decrypt(&k2, &n, b"", &ct).unwrap();
+    assert_eq!(pt.as_slice(), b"secret");
+    clear_slot(&mut st, 1);
+}
+
+#[test]
+fn lifecycle_twofish_generate() {
+    let k = TwofishKey::derive(&[0x33u8; 32], KeyPurpose::TwofishStorage, b"s").unwrap();
+    drop(k);
+}
+
+#[test]
+fn lifecycle_twofish_export() {
+    let k = TwofishKey::derive(&[0x33u8; 32], KeyPurpose::TwofishStorage, b"s").unwrap();
+    let b = k.raw_64_for_test();
+    assert!(b.iter().any(|x| *x != 0));
+}
+
+#[test]
+fn lifecycle_twofish_import() {
+    let k0 = TwofishKey::derive(&[0x33u8; 32], KeyPurpose::TwofishStorage, b"s").unwrap();
+    let b = k0.raw_64_for_test();
+    let k1 = TwofishKey::from_raw_cipher_mac_for_test(
+        *<&[u8; 32]>::try_from(&b[..32]).unwrap(),
+        *<&[u8; 32]>::try_from(&b[32..]).unwrap(),
+    );
+    assert_eq!(k0.raw_64_for_test(), k1.raw_64_for_test());
+}
+
+#[test]
+fn lifecycle_twofish_import_invalid() {
+    let k = TwofishKey::from_raw_cipher_mac_for_test([0u8; 32], [0u8; 32]);
+    let k_wrong = TwofishKey::from_raw_cipher_mac_for_test([1u8; 32], [1u8; 32]);
+    let mut trng = FakeTrng::from_seed(1);
+    let n = TwofishNonce::generate(&mut trng).unwrap();
+    let ct = twofish_encrypt(&k, &n, b"", b"x").unwrap();
+    assert!(twofish_decrypt(&k_wrong, &n, b"", &ct).is_err());
+}
+
+#[test]
+fn lifecycle_twofish_vault_store() {
+    let k = TwofishKey::derive(&[0x33u8; 32], KeyPurpose::TwofishStorage, b"v").unwrap();
+    let mut st = FakeVaultStorage::new(SLOT_STRIDE as usize * 2);
+    store_blob(&mut st, 0, &k.raw_64_for_test(), true).unwrap();
+}
+
+#[test]
+fn lifecycle_twofish_vault_load() {
+    let k = TwofishKey::derive(&[0x33u8; 32], KeyPurpose::TwofishStorage, b"v").unwrap();
+    let mut st = FakeVaultStorage::new(SLOT_STRIDE as usize * 2);
+    store_blob(&mut st, 0, &k.raw_64_for_test(), true).unwrap();
+    let raw = read_blob(&st, 0).unwrap();
+    let mut a = [0u8; 64];
+    a.copy_from_slice(&raw);
+    let k2 = TwofishKey::from_raw_cipher_mac_for_test(
+        *<&[u8; 32]>::try_from(&a[..32]).unwrap(),
+        *<&[u8; 32]>::try_from(&a[32..]).unwrap(),
+    );
+    assert_eq!(k.raw_64_for_test(), k2.raw_64_for_test());
+}
+
+#[test]
+fn lifecycle_twofish_vault_overwrite_denied() {
+    let k1 = TwofishKey::derive(&[0x33u8; 32], KeyPurpose::TwofishStorage, b"a").unwrap();
+    let k2 = TwofishKey::derive(&[0x33u8; 32], KeyPurpose::TwofishStorage, b"b").unwrap();
+    let mut st = FakeVaultStorage::new(SLOT_STRIDE as usize * 2);
+    store_blob(&mut st, 0, &k1.raw_64_for_test(), true).unwrap();
+    assert_eq!(
+        store_blob(&mut st, 0, &k2.raw_64_for_test(), false),
+        Err(HalError::Denied)
+    );
+}
+
+#[test]
+fn lifecycle_twofish_vault_overwrite_allowed() {
+    let k1 = TwofishKey::derive(&[0x33u8; 32], KeyPurpose::TwofishStorage, b"a").unwrap();
+    let k2 = TwofishKey::derive(&[0x33u8; 32], KeyPurpose::TwofishStorage, b"b").unwrap();
+    let mut st = FakeVaultStorage::new(SLOT_STRIDE as usize * 2);
+    store_blob(&mut st, 0, &k1.raw_64_for_test(), true).unwrap();
+    store_blob(&mut st, 0, &k2.raw_64_for_test(), true).unwrap();
+}
+
+#[test]
+fn lifecycle_twofish_vault_delete() {
+    let k = TwofishKey::derive(&[0x33u8; 32], KeyPurpose::TwofishStorage, b"x").unwrap();
+    let mut st = FakeVaultStorage::new(SLOT_STRIDE as usize * 2);
+    store_blob(&mut st, 0, &k.raw_64_for_test(), true).unwrap();
+    clear_slot(&mut st, 0);
+}
+
+#[test]
+fn lifecycle_twofish_vault_load_after_delete() {
+    let k = TwofishKey::derive(&[0x33u8; 32], KeyPurpose::TwofishStorage, b"x").unwrap();
+    let mut st = FakeVaultStorage::new(SLOT_STRIDE as usize * 2);
+    store_blob(&mut st, 0, &k.raw_64_for_test(), true).unwrap();
+    clear_slot(&mut st, 0);
+    assert!(read_blob(&st, 0).is_err());
+}
+
+#[test]
+fn lifecycle_twofish_use_after_store_load() {
+    let k = TwofishKey::derive(&[0x33u8; 32], KeyPurpose::TwofishStorage, b"u").unwrap();
+    let mut trng = FakeTrng::from_seed(4);
+    let n = TwofishNonce::generate(&mut trng).unwrap();
+    let mut st = FakeVaultStorage::new(SLOT_STRIDE as usize * 2);
+    store_blob(&mut st, 0, &k.raw_64_for_test(), true).unwrap();
+    let raw = read_blob(&st, 0).unwrap();
+    let mut a = [0u8; 64];
+    a.copy_from_slice(&raw);
+    let k2 = TwofishKey::from_raw_cipher_mac_for_test(
+        *<&[u8; 32]>::try_from(&a[..32]).unwrap(),
+        *<&[u8; 32]>::try_from(&a[32..]).unwrap(),
+    );
+    let ct = twofish_encrypt(&k2, &n, b"aad", b"pt").unwrap();
+    let pt = twofish_decrypt(&k, &n, b"aad", &ct).unwrap();
+    assert_eq!(pt.as_slice(), b"pt");
+}
+
+#[test]
+#[ignore = "ZeroizeOnDrop for TwofishKey is covered in twofish_cipher unit tests"]
+fn lifecycle_twofish_zeroise_on_drop() {}
+
+#[test]
+fn lifecycle_twofish_no_clone() {
+    assert_not_impl_any!(TwofishKey: Clone);
+}
+
+#[test]
+fn lifecycle_twofish_no_copy() {
+    assert_not_impl_any!(TwofishKey: Copy);
+}
+
+#[test]
+fn lifecycle_twofish_full_vault_roundtrip() {
+    let k = TwofishKey::derive(&[0x33u8; 32], KeyPurpose::TwofishStorage, b"rt").unwrap();
+    let mut trng = FakeTrng::from_seed(5);
+    let n = TwofishNonce::generate(&mut trng).unwrap();
+    let ct = twofish_encrypt(&k, &n, b"", b"secret").unwrap();
+    let mut st = FakeVaultStorage::new(SLOT_STRIDE as usize * 2);
+    store_blob(&mut st, 1, &k.raw_64_for_test(), true).unwrap();
+    drop(k);
+    let raw = read_blob(&st, 1).unwrap();
+    let mut a = [0u8; 64];
+    a.copy_from_slice(&raw);
+    let k2 = TwofishKey::from_raw_cipher_mac_for_test(
+        *<&[u8; 32]>::try_from(&a[..32]).unwrap(),
+        *<&[u8; 32]>::try_from(&a[32..]).unwrap(),
+    );
+    let pt = twofish_decrypt(&k2, &n, b"", &ct).unwrap();
     assert_eq!(pt.as_slice(), b"secret");
     clear_slot(&mut st, 1);
 }

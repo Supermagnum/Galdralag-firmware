@@ -14,7 +14,7 @@
 - [Tier 1 — Core library: `galdra-core-host`](#tier-1--core-library-galdra-core-host)
 - [Tier 2a — CLI: `galdra`](#tier-2a--cli-galdra)
 - [Tier 2b — Local daemon: `galdrad`](#tier-2b--local-daemon-galdrad)
-- [Tier 2c — Web GUI](#tier-2c--web-gui)
+- [Tier 2c — Desktop GUI (GTK4)](#tier-2c--desktop-gui-gtk4)
 - [Identity model](#identity-model)
 - [Group model](#group-model)
 - [Database schema](#database-schema)
@@ -116,7 +116,7 @@ lower tiers have no dependency on upper tiers.
 
 ```
 ┌─────────────────────────────────────────────────┐
-│  Tier 2c: Web GUI (HTML/JS, served by galdrad)  │
+│  Tier 2c: Desktop GUI (GTK4 + Rust, native)     │
 ├────────────────────┬────────────────────────────┤
 │  Tier 2a: galdra   │  Tier 2b: galdrad           │
 │  (CLI binary)      │  (local REST/socket daemon) │
@@ -204,9 +204,10 @@ The CLI must:
 pipe (Windows). Local only by default — does not bind to any network
 interface unless explicitly configured.
 
-The daemon exposes the full `galdra-core-host` API over HTTP so that GUI
-front-ends and third-party integrations can call it without depending on
-the Rust library directly.
+The daemon exposes the full `galdra-core-host` API over HTTP (or an
+equivalent local IPC channel) so that **GTK4** GUI clients and third-party
+integrations can call it without depending on the Rust library directly.
+There is **no** browser-based or HTML/JavaScript **web GUI** in scope.
 
 Authentication between clients and the daemon is by Unix socket ownership
 (same user only) by default. An optional local bearer token can be
@@ -246,15 +247,12 @@ GET    /audit                     → query audit log
 
 ---
 
-## Tier 2c — Web GUI
+## Tier 2c — Desktop GUI (GTK4)
 
-**Location:** `host-tools/galdra-web/`
-**Technology:** Static HTML, CSS, JavaScript — served by `galdrad` from a
-local port. No external dependencies fetched at runtime. No framework that
-requires a build step to be auditable.
-**Access:** `http://localhost:<port>` in any browser on the local machine.
+**Location:** `host-tools/galdra-gtk/` (or equivalent crate name under `host-tools/`)
+**Technology:** **GTK 4** with **Rust** bindings (**gtk4-rs** / **gtk-rs-core**). No HTML, no embedded browser engine, no SPA served over HTTP for the primary UI.
 
-The web GUI is a thin client over the `galdrad` REST API. It provides:
+The desktop application is a **native** client over the `galdrad` API (same endpoints as documented for REST over the local socket). It provides:
 
 - Contact management with search and filter
 - Group management with drag-and-drop membership editing
@@ -263,11 +261,10 @@ The web GUI is a thin client over the `galdrad` REST API. It provides:
 - Token status display (locked/unlocked, key slots used)
 - Audit log viewer
 
-The web GUI is appropriate for clinical staff, dispatch centres, and any
-environment where a polished interface matters more than scriptability.
+The GTK4 GUI is appropriate for clinical staff, dispatch centres, and any
+environment where a polished **desktop** interface matters more than scriptability.
 
-It must work without internet access. All assets are bundled into the
-binary or served from the local filesystem.
+It must work **without internet access**. UI resources ship with the application binary or load from the local filesystem; **no** runtime fetch of web frameworks.
 
 ---
 
@@ -1001,10 +998,10 @@ deliverable before the next phase begins.
 - Sync export/import
 - Group export/import packages
 
-**Phase 4 — Daemon and web GUI**
+**Phase 4 — Daemon and GTK4 desktop GUI**
 - `galdrad` REST API daemon
 - OpenAPI spec generation
-- Static web GUI
+- GTK4 desktop GUI (Rust bindings)
 
 **Phase 5 — Advanced integration**
 - LDAP / Active Directory
@@ -1060,8 +1057,9 @@ be addressed in future specifications.
 - **Multi-device synchronisation of private keys.** Private keys are
   token-resident and are not synchronised between tokens. Public key
   databases are synchronised via the sync package mechanism.
-- **Mobile native applications.** The web GUI served by `galdrad` covers
-  mobile use via a browser. Native iOS/Android apps are not in scope.
+- **Mobile native applications.** The GTK4 desktop GUI does not target
+  mobile; native iOS/Android apps are not in scope. A separate design would
+  be required for mobile toolkits.
 - **FIPS 140-3 certification of the host software.** The token hardware
   is the security boundary. The host software is not submitted for
   certification.

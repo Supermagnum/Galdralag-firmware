@@ -4,6 +4,7 @@ use galdr_core::fake_hal::FakeTrng;
 use serde_json::Value;
 use vault::kdf_policy::KeyPurpose;
 use vault::serpent_cipher::{serpent_decrypt, serpent_encrypt, SerpentKey, SerpentNonce};
+use vault::twofish_cipher::{twofish_decrypt, twofish_encrypt, TwofishKey, TwofishNonce};
 
 #[test]
 fn kat_blake3_empty_from_json() {
@@ -25,6 +26,16 @@ fn kat_serpent_etm_roundtrip_smoke() {
     let n = SerpentNonce::generate(&mut trng).unwrap();
     let ct = serpent_encrypt(&sk, &n, b"aad", b"pt").unwrap();
     let pt = serpent_decrypt(&sk, &n, b"aad", &ct).unwrap();
+    assert_eq!(pt.as_slice(), b"pt");
+}
+
+#[test]
+fn kat_twofish_etm_roundtrip_smoke() {
+    let sk = TwofishKey::derive(&[0x33u8; 32], KeyPurpose::TwofishStorage, b"kat").unwrap();
+    let mut trng = FakeTrng::from_seed(2);
+    let n = TwofishNonce::generate(&mut trng).unwrap();
+    let ct = twofish_encrypt(&sk, &n, b"aad", b"pt").unwrap();
+    let pt = twofish_decrypt(&sk, &n, b"aad", &ct).unwrap();
     assert_eq!(pt.as_slice(), b"pt");
 }
 

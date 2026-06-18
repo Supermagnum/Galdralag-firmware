@@ -196,6 +196,12 @@ fn update_test_right(test: &mut CtTest, datum: f64) {
 pub const DUDECT_THRESHOLD: f64 = 4.5;
 pub const DUDECT_SAMPLES: usize = 100_000;
 
+/// PBKDF2: long per-iteration work; extra samples reduce false positives from OS jitter at 100k.
+pub const DUDECT_SAMPLES_PBKDF2: usize = 150_000;
+
+/// SHA-3 (Keccak): host noise can push |t| slightly past 4.5 at 100k; larger N tightens the estimate.
+pub const DUDECT_SAMPLES_SHA3: usize = 200_000;
+
 /// Brainpool P512 ECDH: 100k samples would take excessive wall time. Same Welch threshold; lower N
 /// reduces statistical power slightly.
 pub const DUDECT_SAMPLES_BRAINPOOL_SLOW: usize = 15_000;

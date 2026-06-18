@@ -101,6 +101,12 @@ impl FakeZeroiseController {
     }
 }
 
+impl Default for FakeZeroiseController {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl ZeroiseController for FakeZeroiseController {
     fn zeroise_region(&mut self, region_id: u32) -> Result<(), HalError> {
         self.regions.push(region_id);

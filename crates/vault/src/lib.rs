@@ -26,6 +26,7 @@ pub mod shamir;
 pub mod brainpool384;
 pub mod brainpool512;
 pub mod serpent_cipher;
+pub mod twofish_cipher;
 pub mod rsa_keys;
 pub mod rsa_vault;
 pub mod public_key_vault;

@@ -6,6 +6,18 @@
 use sha2::Digest;
 use sha2::Sha256;
 
+/// Returned by [`verify_update_bundle_stub`] until signature verification is implemented.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct VerifyUpdateBundleStubError;
+
+impl core::fmt::Display for VerifyUpdateBundleStubError {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.write_str("update bundle verification is not implemented")
+    }
+}
+
+impl std::error::Error for VerifyUpdateBundleStubError {}
+
 /// Compute SHA-256 digest for a firmware image slice (host tool path).
 pub fn sha256_manifest_chunk(data: &[u8]) -> [u8; 32] {
     let h = Sha256::digest(data);
@@ -13,8 +25,11 @@ pub fn sha256_manifest_chunk(data: &[u8]) -> [u8; 32] {
 }
 
 /// Stub: verify detached signature on an update bundle (minisign / GPG / Sigstore — TBD).
-pub fn verify_update_bundle_stub(_image: &[u8], _sig: &[u8]) -> Result<(), ()> {
-    Err(())
+pub fn verify_update_bundle_stub(
+    _image: &[u8],
+    _sig: &[u8],
+) -> Result<(), VerifyUpdateBundleStubError> {
+    Err(VerifyUpdateBundleStubError)
 }
 
 #[cfg(test)]

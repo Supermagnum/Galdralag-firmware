@@ -9,6 +9,16 @@
 #[cfg(feature = "dudect")]
 mod dudect_stats;
 #[cfg(feature = "dudect")]
+mod timing_pbkdf2;
+#[cfg(feature = "dudect")]
+mod timing_sha2;
+#[cfg(feature = "dudect")]
+mod timing_sha3;
+#[cfg(feature = "dudect")]
+mod timing_blake2;
+#[cfg(feature = "dudect")]
+mod timing_blake3;
+#[cfg(feature = "dudect")]
 mod dudect_harnesses;
 
 #[cfg(feature = "dudect")]
@@ -52,6 +62,11 @@ pub fn timing_serpent_tag_check() -> DudectStatus {
     DudectStatus::NotRun
 }
 
+/// Placeholder for Twofish EtM tag verification timing classification.
+pub fn timing_twofish_tag_check() -> DudectStatus {
+    DudectStatus::NotRun
+}
+
 /// Placeholder for RSA-OAEP decrypt timing classification (valid vs invalid ciphertext).
 pub fn timing_rsa_oaep_decrypt() -> DudectStatus {
     DudectStatus::NotRun
@@ -83,6 +98,7 @@ mod tests {
         assert_eq!(timing_brainpool384_scalar_mult(), DudectStatus::NotRun);
         assert_eq!(timing_brainpool512_scalar_mult(), DudectStatus::NotRun);
         assert_eq!(timing_serpent_tag_check(), DudectStatus::NotRun);
+        assert_eq!(timing_twofish_tag_check(), DudectStatus::NotRun);
         assert_eq!(timing_rsa_oaep_decrypt(), DudectStatus::NotRun);
         assert_eq!(timing_rsa_pss_verify(), DudectStatus::NotRun);
     }
