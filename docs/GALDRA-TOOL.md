@@ -528,7 +528,7 @@ RESTful JSON API. Endpoints mirror the CLI command surface. Example:
 ```
 GET    /contacts                  → list all contacts (JSON mirrors `Identity` fields)
 POST   /contacts                  → create contact (**`email` required** in JSON; optional amateur-radio + postal + social ids)
-GET    /contacts/{id}             → get a contact by id, callsign, email, Fluxer id, Discord id, or IRC id (resolver matches CLI)
+GET    /contacts/{id}             → get a contact by id, callsign, email, 40-hex OpenPGP fingerprint, Fluxer id, Discord id, IRC id, or DMR id 1..=16777215 (resolver matches CLI)
 PATCH  /contacts/{id}             → partial metadata update (same optional fields as POST body)
 DELETE /contacts/{id}             → delete a contact
 

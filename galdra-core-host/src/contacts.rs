@@ -508,6 +508,109 @@ pub fn contact_get_by_irc_id(db: &Db, irc_id: &str) -> Result<Identity, GaldraEr
         })
 }
 
+/// Normalise raw user input into 40-character uppercase hexadecimal (OpenPGP v4 fingerprint),
+/// stripping spaces and separators. Returns [`None`] if the token is not exactly 40 hex digits.
+pub fn normalize_openpgp_fingerprint_hex(raw: &str) -> Option<String> {
+    let compact: String = raw.chars().filter(|c| c.is_ascii_hexdigit()).collect();
+    if compact.len() != 40 {
+        return None;
+    }
+    Some(compact.to_ascii_uppercase())
+}
+
+/// Load a contact whose stored fingerprint matches `fp_normalized` after the same normalisation as
+/// [`normalize_openpgp_fingerprint_hex`] (spacing and `:` tolerated in the DB column).
+pub fn contact_get_by_pgp_fingerprint_normalized(
+    db: &Db,
+    fp_normalized: &str,
+) -> Result<Identity, GaldraError> {
+    let mut stmt = db
+        .connection()
+        .prepare(
+            r"SELECT id, display_name, callsign, email, badge_number, organisation, department,
+            role, note, dmr_id, radio_affiliation, street, country, postal_code, region,
+            fluxer_id, discord_id, irc_id, pgp_fingerprint, pgp_pubkey, fetched_at, expires_at, source
+            FROM identities
+            WHERE replace(replace(upper(trim(ifnull(pgp_fingerprint,''))), ' ', ''), ':', '') = ?1",
+        )
+        .map_err(GaldraError::Database)?;
+    stmt.query_row([fp_normalized], row_to_identity)
+        .map_err(|e| match e {
+            rusqlite::Error::QueryReturnedNoRows => {
+                GaldraError::ContactNotFound(fp_normalized.to_string())
+            }
+            e => GaldraError::Database(e),
+        })
+}
+
+/// Load a contact by DMR subscriber id (1..=16777215).
+pub fn contact_get_by_dmr_id(db: &Db, dmr_id: i64) -> Result<Identity, GaldraError> {
+    let mut stmt = db
+        .connection()
+        .prepare(
+            r"SELECT id, display_name, callsign, email, badge_number, organisation, department,
+            role, note, dmr_id, radio_affiliation, street, country, postal_code, region,
+            fluxer_id, discord_id, irc_id, pgp_fingerprint, pgp_pubkey, fetched_at, expires_at, source
+            FROM identities WHERE dmr_id = ?1",
+        )
+        .map_err(GaldraError::Database)?;
+    stmt.query_row([dmr_id], row_to_identity)
+        .map_err(|e| match e {
+            rusqlite::Error::QueryReturnedNoRows => {
+                GaldraError::ContactNotFound(dmr_id.to_string())
+            }
+            e => GaldraError::Database(e),
+        })
+}
+
+fn try_parse_dmr_subscriber_id(token: &str) -> Option<i64> {
+    let t = token.trim();
+    if t.is_empty() || !t.chars().all(|c| c.is_ascii_digit()) {
+        return None;
+    }
+    let n: i64 = t.parse().ok()?;
+    if (1..=16_777_215).contains(&n) {
+        Some(n)
+    } else {
+        None
+    }
+}
+
+/// Resolve `id` to a contact using the same rules as the `galdra` CLI and `galdrad` HTTP API:
+/// row UUID, callsign, e-mail, OpenPGP fingerprint (40 hex characters, spaces ignored),
+/// Fluxer id, Discord id, IRC id, then DMR subscriber id when the token is decimal in 1..=16777215.
+pub fn resolve_contact_identifier(db: &Db, id: &str) -> Result<Identity, GaldraError> {
+    if let Ok(c) = contact_get_by_id(db, id) {
+        return Ok(c);
+    }
+    if let Ok(c) = contact_get_by_callsign(db, id) {
+        return Ok(c);
+    }
+    if let Ok(c) = contact_get_by_email(db, id) {
+        return Ok(c);
+    }
+    if let Some(fp) = normalize_openpgp_fingerprint_hex(id) {
+        if let Ok(c) = contact_get_by_pgp_fingerprint_normalized(db, &fp) {
+            return Ok(c);
+        }
+    }
+    if let Ok(c) = contact_get_by_fluxer_id(db, id) {
+        return Ok(c);
+    }
+    if let Ok(c) = contact_get_by_discord_id(db, id) {
+        return Ok(c);
+    }
+    if let Ok(c) = contact_get_by_irc_id(db, id) {
+        return Ok(c);
+    }
+    if let Some(dmr) = try_parse_dmr_subscriber_id(id) {
+        if let Ok(c) = contact_get_by_dmr_id(db, dmr) {
+            return Ok(c);
+        }
+    }
+    Err(GaldraError::ContactNotFound(id.to_string()))
+}
+
 /// Search contacts across textual fields using SQL `LIKE`.
 pub fn contact_search(db: &Db, query: &str) -> Result<Vec<Identity>, GaldraError> {
     let pattern = format!("%{}%", query.replace('%', "\\%").replace('_', "\\_"));

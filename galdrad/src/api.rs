@@ -73,22 +73,7 @@ fn identity_to_cert(id: &Identity) -> Result<sequoia_openpgp::Cert, GaldraError>
 }
 
 fn resolve_identity(db: &Db, id: &str) -> Result<Identity, GaldraError> {
-    if let Ok(c) = contacts::contact_get_by_id(db, id) {
-        return Ok(c);
-    }
-    if let Ok(c) = contacts::contact_get_by_callsign(db, id) {
-        return Ok(c);
-    }
-    if let Ok(c) = contacts::contact_get_by_email(db, id) {
-        return Ok(c);
-    }
-    if let Ok(c) = contacts::contact_get_by_fluxer_id(db, id) {
-        return Ok(c);
-    }
-    if let Ok(c) = contacts::contact_get_by_discord_id(db, id) {
-        return Ok(c);
-    }
-    contacts::contact_get_by_irc_id(db, id)
+    contacts::resolve_contact_identifier(db, id)
 }
 
 #[utoipa::path(get, path = "/health", responses((status = 200, description = "Liveness")))]
@@ -129,7 +114,11 @@ async fn list_contacts(
 #[utoipa::path(
     get,
     path = "/contacts/{id}",
-    params(("id" = String, Path, description = "Contact id, callsign, or email")),
+    params((
+        "id" = String,
+        Path,
+        description = "Contact row UUID, callsign, e-mail, 40-hex OpenPGP fingerprint, Fluxer / Discord / IRC id, or DMR id (1..=16777215)"
+    )),
     responses((status = 200, description = "Contact row"))
 )]
 async fn get_contact(

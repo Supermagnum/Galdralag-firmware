@@ -104,24 +104,12 @@ pub fn print_expiry_warnings(db: &Db, config: &Config, quiet: bool) -> Result<()
     Ok(())
 }
 
-/// Resolve a contact identifier (UUID, callsign, e-mail, Fluxer id, Discord id, or IRC id) to a row.
+/// Resolve a contact identifier to a row (UUID, callsign, e-mail, OpenPGP fingerprint,
+/// Fluxer id, Discord id, IRC id, or DMR subscriber id in range 1..=16777215).
+///
+/// Delegates to `galdra_core_host::contacts::resolve_contact_identifier`.
 pub fn resolve_identity(db: &Db, id: &str) -> Result<Identity, GaldraError> {
-    if let Ok(c) = contacts::contact_get_by_id(db, id) {
-        return Ok(c);
-    }
-    if let Ok(c) = contacts::contact_get_by_callsign(db, id) {
-        return Ok(c);
-    }
-    if let Ok(c) = contacts::contact_get_by_email(db, id) {
-        return Ok(c);
-    }
-    if let Ok(c) = contacts::contact_get_by_fluxer_id(db, id) {
-        return Ok(c);
-    }
-    if let Ok(c) = contacts::contact_get_by_discord_id(db, id) {
-        return Ok(c);
-    }
-    contacts::contact_get_by_irc_id(db, id)
+    contacts::resolve_contact_identifier(db, id)
 }
 
 /// Exit status mapping for CLI errors.
