@@ -110,4 +110,16 @@ pub enum GaldraError {
     /// Shamir share export, recovery, or vault Shamir error.
     #[error("Shamir: {0}")]
     Shamir(String),
+
+    /// Ephemeral key offer has passed its `expires_at` timestamp.
+    #[error("ephemeral offer expired: {0}")]
+    EpkExpired(String),
+
+    /// Ephemeral key offer has already been consumed (single-use).
+    #[error("ephemeral offer already consumed: {0}")]
+    EpkConsumed(String),
+
+    /// No ephemeral key offer found for the given session ID.
+    #[error("ephemeral offer not found: {0}")]
+    EpkNotFound(String),
 }

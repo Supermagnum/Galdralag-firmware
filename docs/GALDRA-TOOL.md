@@ -1395,6 +1395,85 @@ every build.
 
 ---
 
+## Ephemeral key offer management (`galdra epk`)
+
+The `epk` subcommand manages the lifecycle of out-of-band ephemeral BrainpoolP256r1 key offers
+distributed as GnuPG sign-and-encrypt blobs (`.epk.gpg`). See `docs/EPHEMERAL_KEY_EXCHANGE.md`
+for the full specification and interoperability notes.
+
+### `galdra epk generate`
+
+Generate a BrainpoolP256r1 ephemeral keypair and write a signed, encrypted `.epk.gpg` offer file.
+
+```
+galdra epk generate \
+    --gpg-key-id <KEY_ID_OR_FINGERPRINT> \
+    --recipient <RECIPIENT> [--recipient <RECIPIENT>...] \
+    [--expires <SECONDS>] \
+    --output <FILE.epk.gpg> \
+    [--operator <LABEL>]
+```
+
+| Argument | Required | Default | Description |
+|----------|----------|---------|-------------|
+| `--gpg-key-id` | Yes | — | GnuPG key ID or fingerprint used to sign the offer and identify the issuer. |
+| `--recipient` | Yes (repeat) | — | GnuPG key IDs or fingerprints that can decrypt the offer. |
+| `--expires` | No | `86400` | Offer lifetime in seconds from now. |
+| `--output` | Yes | — | Output path for the `.epk.gpg` file. |
+| `--operator` | No | — | Operator label written to the audit log. |
+
+The ephemeral private scalar is stored in the database for later use in ECDH derivation. Requires
+`gpg` on `PATH`.
+
+### `galdra epk import`
+
+Decrypt and validate a peer's `.epk.gpg` offer and store it in the local database.
+
+```
+galdra epk import <FILE.epk.gpg> \
+    --verify-fingerprint <FINGERPRINT> \
+    [--operator <LABEL>]
+```
+
+| Argument | Required | Description |
+|----------|----------|-------------|
+| `FILE.epk.gpg` | Yes | Path to the received `.epk.gpg` file. |
+| `--verify-fingerprint` | Yes | Expected GnuPG fingerprint of the offer issuer (hex, spaces optional). |
+| `--operator` | No | Operator label written to the audit log. |
+
+Rejects offers with a past `expires_at`, `consumed: true`, mismatched fingerprint, or invalid
+inner detached signature. Requires `gpg` on `PATH` with the recipient secret key available.
+
+### `galdra epk status`
+
+List all stored ephemeral key offers.
+
+```
+galdra epk status [--emit json]
+```
+
+Columns shown: session ID, long-term fingerprint (last 16 hex chars), expiry Unix timestamp,
+consumed flag, revoked flag, and whether the local private key is stored (self-generated offers).
+
+### `galdra epk expire`
+
+Immediately revoke an offer and zero its private key from the database. This is the manual
+revocation path; it does not wait for the automatic `expires_at` expiry.
+
+```
+galdra epk expire <SESSION_ID> --confirm
+```
+
+| Argument | Required | Description |
+|----------|----------|-------------|
+| `SESSION_ID` | Yes | The `session_id` of the offer to revoke (from `galdra epk status`). |
+| `--confirm` | Yes | Explicit confirmation flag; prevents accidental invocations. |
+
+Sets `revoked=1` and clears `my_private_key_pem` in the database. Appends an `epk_reject` audit
+event with `reason: manual_revoke`.
+
+---
+
 ## Out of scope
 
 The following are explicitly out of scope for this specification. They may

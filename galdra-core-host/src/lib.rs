@@ -11,6 +11,7 @@ pub mod contacts;
 pub mod db;
 pub mod device;
 pub mod encrypt;
+pub mod ephemeral_offers;
 pub mod error;
 pub mod groups;
 pub mod keyserver;

@@ -47,6 +47,14 @@ pub enum AuditAction {
     SyncImport,
     /// Configuration changed.
     ConfigChange,
+    /// Ephemeral key offer generated.
+    EpkGenerate,
+    /// Ephemeral key offer imported from a peer.
+    EpkImport,
+    /// Session keys derived from an ephemeral offer.
+    EpkDerive,
+    /// Ephemeral key offer rejected (bad schema, expired, consumed, fingerprint mismatch, etc.).
+    EpkReject,
 }
 
 impl AuditAction {
@@ -70,6 +78,10 @@ impl AuditAction {
             AuditAction::SyncExport => "sync_export",
             AuditAction::SyncImport => "sync_import",
             AuditAction::ConfigChange => "config_change",
+            AuditAction::EpkGenerate => "epk_generate",
+            AuditAction::EpkImport => "epk_import",
+            AuditAction::EpkDerive => "epk_derive",
+            AuditAction::EpkReject => "epk_reject",
         }
     }
 
@@ -93,6 +105,10 @@ impl AuditAction {
             "sync_export" => Some(AuditAction::SyncExport),
             "sync_import" => Some(AuditAction::SyncImport),
             "config_change" => Some(AuditAction::ConfigChange),
+            "epk_generate" => Some(AuditAction::EpkGenerate),
+            "epk_import" => Some(AuditAction::EpkImport),
+            "epk_derive" => Some(AuditAction::EpkDerive),
+            "epk_reject" => Some(AuditAction::EpkReject),
             _ => None,
         }
     }

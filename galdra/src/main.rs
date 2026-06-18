@@ -2,6 +2,7 @@
 
 mod common;
 mod crypto_cmds;
+mod epk_cmds;
 mod profile_cmds;
 mod qr;
 mod shamir_cmds;
@@ -89,6 +90,11 @@ enum Commands {
     Shamir {
         #[command(subcommand)]
         cmd: ShamirCmd,
+    },
+    /// Ephemeral key offer lifecycle (generate, import, status, expire).
+    Epk {
+        #[command(subcommand)]
+        cmd: EpkCmd,
     },
     /// Encrypt a file to a group or explicit contacts (OpenPGP or age).
     Encrypt {
@@ -461,6 +467,49 @@ pub enum ShamirCmd {
     },
 }
 
+#[derive(Subcommand)]
+pub enum EpkCmd {
+    /// Generate a BrainpoolP256r1 ephemeral key offer and write a .epk.gpg file.
+    Generate {
+        /// GnuPG key ID or fingerprint used to sign and identify the offer.
+        #[arg(long)]
+        gpg_key_id: String,
+        /// GnuPG key IDs or fingerprints that can decrypt the offer (repeat for multiple).
+        #[arg(long = "recipient", required = true)]
+        recipient: Vec<String>,
+        /// Offer lifetime in seconds from now.
+        #[arg(long, default_value = "86400")]
+        expires: i64,
+        /// Output path for the .epk.gpg file.
+        #[arg(long)]
+        output: PathBuf,
+        /// Optional operator label for the audit log.
+        #[arg(long)]
+        operator: Option<String>,
+    },
+    /// Import and validate a peer's .epk.gpg offer.
+    Import {
+        /// Path to the .epk.gpg file.
+        input: PathBuf,
+        /// Expected GnuPG fingerprint of the offer issuer (hex, spaces optional).
+        #[arg(long)]
+        verify_fingerprint: String,
+        /// Optional operator label for the audit log.
+        #[arg(long)]
+        operator: Option<String>,
+    },
+    /// List stored ephemeral key offers.
+    Status,
+    /// Immediately revoke an offer and zero its private key (manual expiry).
+    Expire {
+        /// Session ID of the offer to revoke.
+        session_id: String,
+        /// Confirm the destructive operation.
+        #[arg(long)]
+        confirm: bool,
+    },
+}
+
 fn parse_audit_action(s: &str) -> Result<AuditAction, GaldraError> {
     match s.to_ascii_lowercase().as_str() {
         "device_unlock" => Ok(AuditAction::DeviceUnlock),
@@ -480,6 +529,10 @@ fn parse_audit_action(s: &str) -> Result<AuditAction, GaldraError> {
         "sync_export" => Ok(AuditAction::SyncExport),
         "sync_import" => Ok(AuditAction::SyncImport),
         "config_change" => Ok(AuditAction::ConfigChange),
+        "epk_generate" => Ok(AuditAction::EpkGenerate),
+        "epk_import" => Ok(AuditAction::EpkImport),
+        "epk_derive" => Ok(AuditAction::EpkDerive),
+        "epk_reject" => Ok(AuditAction::EpkReject),
         _ => Err(GaldraError::Config(format!("unknown audit action: {s}"))),
     }
 }
@@ -519,6 +572,7 @@ fn run(cli: Cli, output_mode: OutputMode) -> Result<(), GaldraError> {
         Commands::Audit { cmd } => run_audit(cmd, output_mode, quiet, &mut db),
         Commands::Profile { cmd } => profile_cmds::run_profile(cmd, output_mode, quiet, &mut db),
         Commands::Shamir { cmd } => shamir_cmds::run_shamir(cmd, output_mode, quiet, &mut db),
+        Commands::Epk { cmd } => epk_cmds::run_epk(cmd, output_mode, quiet, &mut db),
         Commands::Encrypt {
             format,
             age_recipient,
