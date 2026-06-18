@@ -1,0 +1,29 @@
+---
+description: Galdralag firmware — project-wide defaults for all AI sessions
+alwaysApply: true
+---
+
+# Galdralag / Galdr — project rules
+
+## Scope
+
+Embedded Rust firmware for **Baochip-1x** / **Xous** (`riscv32imac-unknown-none-elf`). Cryptography uses audited workspace crates; post-quantum features are feature-gated.
+
+## Communication and edits
+
+- Use **plain, professional** prose in docs and user-facing text. **No emojis** in code, comments, commit messages, or documentation.
+- Prefer **focused diffs**: change only what the task requires; avoid drive-by refactors or unrelated files.
+- **Do not** create investigation reports or extra markdown files unless the user explicitly asks.
+- For jargon, the repo maintains **[docs/GLOSSARY.md](docs/GLOSSARY.md)** (plain language, A–Z).
+
+## Git
+
+- **Ask the user before** `git commit`, `git push`, or opening a PR unless they have explicitly asked to commit/push in this task.
+
+## Verification
+
+- Prefer **running** `cargo check`, `cargo test`, or `xtask` commands over only suggesting them, when the environment allows.
+
+## Security wording
+
+- Do not overclaim: passing tests or fuzzing does not prove production readiness. Align tone with [docs/TEST_RESULTS.md](docs/TEST_RESULTS.md) and README risk language.

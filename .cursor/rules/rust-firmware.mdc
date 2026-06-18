@@ -1,0 +1,23 @@
+---
+description: Rust crates — embedded, crypto, and style for this workspace
+globs:
+  - "**/*.rs"
+alwaysApply: false
+---
+
+# Rust (firmware and host crates)
+
+## Embedded
+
+- Prefer **safe Rust**. Keep **`unsafe`** small, documented, and reviewable (MMIO, FFI).
+- Respect **no_std** and heap limits where applicable; match existing patterns in each crate.
+
+## Cryptography
+
+- **Do not** add new cryptographic primitives in-tree for production paths. Use **audited** dependencies and existing `vault` / **RustCrypto** patterns.
+- Preserve **domain separation** (`KeyPurpose`, HKDF `info` strings) when touching key derivation.
+
+## Style
+
+- Match surrounding **naming**, **error types**, and **module layout**.
+- No emojis in source or comments.
