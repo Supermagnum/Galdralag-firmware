@@ -41,18 +41,35 @@ What this means in practice:
 - **Offline CA operations** — the device can hold a CA signing key and issue
   certificates through GnuPG's certificate tooling or OpenSC's PKCS#11 interface.
 
-On top of standard OpenPGP card behaviour, Galdralag adds capabilities that no
-commercial hardware security token currently provides as first-class features:
+On top of standard OpenPGP card behaviour, this repository adds or specifies the
+following (with the implementation boundaries called out where they matter):
 
-- Authenticated ephemeral ECDH on-device, providing true cryptographic forward
-  secrecy. Past sessions cannot be decrypted even from a fully compromised
-  long-term key.
-- Shamir K-of-N secret sharing on-device for multi-party key custody without
-  any single holder being able to recover the key alone.
-- Cipher-agnostic named profiles with cascade support and a full audit trail.
-- Optional microSD decoy volume with plausible deniability for the host.
-- Fully open stack: CERN-OHL-W-2.0 RTL, open schematics, reproducible
-  bootloader, Rust/Xous OS, IRIS-inspectable silicon.
+- **Authenticated ephemeral ECDH (forward secrecy design).** The `ephemeral-session`
+  crate implements the handshake and session key derivation (Brainpool curves,
+  HKDF); see [EPHEMERAL_SESSION.md](EPHEMERAL_SESSION.md). Host tooling links that
+  crate (`galdra-core-host`). Device firmware implements OpenPGP-side ECDH and
+  related primitives in `usb-personality` / `vault` but does **not** depend on
+  `ephemeral-session` directly. Strong forward-secrecy guarantees still depend on
+  product integration and on-device zeroisation behaviour; the same document notes
+  limits of hardware verification to date.
+- **Shamir K-of-N (split/recover math in `vault`).** GF(256) Shamir split and
+  recovery live in `crates/vault`. Today’s **host-orchestrated** flows export the
+  signing key from the token (when connected), run `vault::shamir::*` on the
+  **host** to build or combine shares, then re-import the recovered material —
+  see [API_REFERENCE.md](API_REFERENCE.md) and `galdra-core-host/src/shamir_ops.rs`.
+  That is multi-party **custody of shares**, not “the full Shamir lifecycle only
+  inside the MCU RAM.”
+- **Cipher-agnostic named profiles** with cascade support and audit metadata
+  (`cipher-profile` and related docs) — implemented in tree.
+- **Optional bulk decoy storage (microSD or PSRAM)** — specified in
+  [Psram.md](Psram.md) (and SD integration notes); **no working decoy volume stack
+  is implemented in this repository yet.** `usb-personality` models a
+  `MassStorageDecoy` persona and tests that secrets are not exposed on that path;
+  product behaviour remains future work aligned with the design spec.
+- **Fully open stack** (where the hardware and tooling ship that way): CERN-OHL-W-2.0
+  RTL, open schematics, reproducible bootloader, Rust/Xous OS, IRIS-inspectable
+  silicon — positioning for the Dabao/Baochip platform, not something this doc
+  proves line-by-line in source.
 
 This combination makes Galdralag a compelling device for journalism and source
 protection, whistleblower infrastructure, scientific data provenance, enterprise
@@ -138,10 +155,14 @@ and ML-DSA has completed an independent security audit.
 
 ## Audit Status Summary
 
+The "Yes" entries below record **dependency policy** (commonly cited independent
+audits for those crates). They are **not** assertions proven inside this
+repository; confirm against each upstream project before production sign-off.
+
 | Crate | Independently Audited |
 |-------|----------------------|
-| `aes-gcm`, `chacha20poly1305`, `ed25519-dalek`, `x25519-dalek`, `hkdf`, `pbkdf2`, `hmac`, `sha2`, `sha3`, `blake2`, `blake3`, `zeroize`, `subtle`, `p256`, `p384` | Yes (existing deps) |
-| `vsss-rs` | Yes (existing dep) |
+| `aes-gcm`, `chacha20poly1305`, `ed25519-dalek`, `x25519-dalek`, `hkdf`, `pbkdf2`, `hmac`, `sha2`, `sha3`, `blake2`, `blake3`, `zeroize`, `subtle`, `p256`, `p384` | Yes (per upstream; existing deps) |
+| `vsss-rs` | Yes (per upstream; existing dep) |
 | `der`, `cms`, `x509-cert`, `pkcs8`, `spki` | No |
 | `ml-kem`, `ml-dsa`, `slh-dsa` | No |
 | `postcard` | No |

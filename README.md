@@ -47,6 +47,7 @@ It is ready for testing by humans. **You** decide whether to build or run any of
   - [Risk assessment and deployment](#risk-assessment-and-deployment)
 - [About the name](#about-the-name)
 - [What this is](#what-this-is)
+  - [What this firmware is (and is not)](#what-this-firmware-is-and-is-not)
   - [Signed firmware (Ed25519, boot0)](#signed-firmware-ed25519-boot0)
 - [Documentation](#documentation)
 - [Glossary (plain language)](docs/GLOSSARY.md)
@@ -195,6 +196,19 @@ Hardware specification, boot model, requirement tables, and ComboHash/PKE
 usage are documented in **[Supermagnum/Baochip-1x-firmware](https://github.com/Supermagnum/Baochip-1x-firmware)**.
 The **Dabao** evaluation board (KiCad, schematics, switches, pinout) is **[baochip/dabao](https://github.com/baochip/dabao)**. To enter **bootloader mode** for flashing, **press SW2** to toggle it (see that repo’s schematic).
 Architecture notes for this repository: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
+
+### What this firmware is (and is not)
+
+**This firmware is** a **hardware security token** for **Baochip-1x**: an **OpenPGP card application** over **USB CCID**, with an on-device **vault**, **PIN policy**, and repository-specific features (cipher profiles, Shamir-related flows, authenticated ephemeral ECDH where implemented, and **Galdra** host tools). The primary interoperability target is **GnuPG-style** OpenPGP card usage, not every token protocol on the market.
+
+**This firmware is not:**
+
+- **FIDO2 / CTAP2 / WebAuthn** — different standards; no CTAP **user-presence** button model and no planned CTAP stack. Use a FIDO security key if you need WebAuthn. (See also [OpenPGP and GnuPG compatibility](#openpgp-and-gnupg-compatibility) and the standards table under [Standards vs. firmware-specific features](#standards-vs-firmware-specific-features).)
+- **TOTP / HOTP (OATH one-time passwords)** — those protocols expect a **real-time clock** (TOTP) or an OATH-oriented counter workflow and UX; this device is **not** built as a dedicated OTP token.
+- **USB HID keyboard “password typer”** — there is no USB keyboard personality to inject keystrokes into the host. Planned credential storage (see [docs/future-todo.md](docs/future-todo.md)) is described as retrieval through **authenticated host tooling**, not HID typing.
+- **A general multi-applet Java Card platform** — scope is this **Galdr** firmware and its documented surfaces, not arbitrary third-party smart-card applets.
+
+Crate-level exclusions aligned with the same constraints are listed under **[Crates Explicitly Excluded](docs/future-todo.md#crates-explicitly-excluded)** in [docs/future-todo.md](docs/future-todo.md).
 
 **CESS:** This firmware **conforms to CESS** for the normative constructions implemented in-tree (including **Mode A** outer AEAD, **HKDF-BLAKE3** for **`K_outer`**, and byte-wise GF(2^8) Shamir splitting). The full alignment statement, deviation register, and **certification level** (for example **CESS-CORE** for the full fixed layer) are documented in [docs/CESS_CONFORMANCE.md](docs/CESS_CONFORMANCE.md) and [CESS (related open standard)](#cess-related-open-standard) below.
 
