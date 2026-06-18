@@ -27,7 +27,7 @@ Architecture notes for this repository: [docs/ARCHITECTURE.md](docs/ARCHITECTURE
 
 ### What this firmware is (and is not)
 
-**This firmware is** a **hardware security token** for **Baochip-1x**: an **OpenPGP card application** over **USB CCID**, with an on-device **vault**, **PIN policy**, and repository-specific features (cipher profiles, Shamir-related flows, authenticated ephemeral ECDH where implemented, and **Galdra** host tools). The primary interoperability target is **GnuPG-style** OpenPGP card usage, not every token protocol on the market.
+**This firmware is** a **hardware security token** for **Baochip-1x**: an **OpenPGP card application** over **USB CCID**, with an on-device **vault**, **PIN policy**, and repository-specific features (**cipher profiles** — you can stack **up to four** different symmetric ciphers on top of one another, each with its own derived key, including **three**-layer profiles; see [Key capabilities](#key-capabilities)), Shamir-related flows, authenticated ephemeral ECDH where implemented, and **Galdra** host tools). The primary interoperability target is **GnuPG-style** OpenPGP card usage, not every token protocol on the market.
 
 **This firmware is not:**
 
@@ -327,7 +327,7 @@ Different parts of this project align with different standards. **GnuPG interope
 | **OpenPGP message format** — encrypted files, mail, key packets | RFC 4880 (and updates) | **Yes on the host** — GnuPG uses this; the card does not parse mail |
 | **Shamir K-of-N** — split / recover long-term key material in the vault | Not in OpenPGP card spec; not in GnuPG | **No** — firmware and provisioning tools only; not a `gpg --card-edit` operation (see [Shamir and full-disk encryption](#shamir-secret-sharing-and-drive-encryption)) |
 | **Authenticated ephemeral ECDH** — forward-secret session protocol on the token | Not in OpenPGP card spec | **No** — token-specific; not a GnuPG card command |
-| **Cipher profile system** — named cipher cascades and related policy | Not in OpenPGP card spec | **No** — firmware / host token tools |
+| **Cipher profile system** — named symmetric **cascades** (stack independent ciphers on top of each other; **up to four** layers, **three** is a supported depth) and related policy | Not in OpenPGP card spec | **No** — firmware / host token tools |
 | **microSD decoy / mass-storage personas** — uninformed-host USB behaviour | Not in OpenPGP card spec | **No** — separate USB personality code paths |
 | **WebAuthn / FIDO2** | CTAP / WebAuthn | **Not implemented** — different standard from OpenPGP card |
 
@@ -551,9 +551,43 @@ The items below are **Galdralag firmware capabilities**, not requirements of the
   token provides this as a first-class feature either.
 
 - **Cipher-agnostic profile system** — symmetric ciphers, ECDHE curves, and
-  Shamir configuration are combined into named, auditable profiles. A cascade
-  of multiple independent ciphers (e.g. ChaCha20-Poly1305 + Serpent-256 per CESS cascade rows) can
-  be selected per session. Every profile selection is logged in the audit trail.
+  Shamir configuration are combined into named, auditable profiles. For bulk
+  data under a profile, plaintext is encrypted **from the inside out**: you can
+  stack **up to four** **different** symmetric AEADs on top of each other — so
+  you can use **three** independent ciphers in one profile (for example
+  ChaCha20-Poly1305, then Serpent-256, then Twofish-256), or a fourth distinct
+  layer where policy allows — with **no cipher repeated** in the same profile
+  and **independent** HKDF-derived key and nonce material per layer. Built-in
+  names such as `standard`, `conservative`, and `high-assurance` ship with **one
+  or two** layers; deeper stacks are for advanced or custom profiles.
+  Full rules and wire layout: [docs/CIPHER_PROFILES.md](docs/CIPHER_PROFILES.md).
+  Every profile selection is logged in the audit trail.
+
+- **Optional keyed BLAKE3 between cascade layers (CESS)** — In addition to each
+  layer’s own AEAD tag and to the **Mode A** outer ChaCha20-Poly1305 envelope,
+  **CESS** allows an optional **keyed BLAKE3** integrity tag **between** inner
+  cascade stages. That yields an explicit authenticated checkpoint **after**
+  each stage as ciphertext moves outward, not only at the outer boundary. This
+  tree provides the HKDF-BLAKE3 `info` helper `cess::cess_blake3_integrity_info`
+  ([`inner_info.rs`](crates/cess/src/inner_info.rs)) in **`crates/cess`**; **framing and verification of inter-layer BLAKE3 tags
+  inside `cipher-profile` cascade encrypt/decrypt is not implemented yet** (see
+  [docs/CESS_CONFORMANCE.md](docs/CESS_CONFORMANCE.md)). **Combination counts**
+  under current `cipher-profile` rules (**four** AEAD primitives, **no cipher
+  repeated** in one profile, order matters):
+
+  | Cascade length | Ordered distinct-cipher stacks | × optional BLAKE3 on/off at each of the **length−1** gaps between layers |
+  |:--------------:|--------------------------------:|---------------------------------------------------------------------------:|
+  | 1 layer | 4 | 4 × 2^0 = **4** |
+  | 2 layers | 12 | 12 × 2^1 = **24** |
+  | 3 layers | 24 | 24 × 2^2 = **96** |
+  | 4 layers | 24 | 24 × 2^3 = **192** |
+  | **Total** | **64** | **316** |
+
+  The **64** figure counts **cipher stacks only** (permutations of 1–4 distinct
+  choices from AES-256-GCM, ChaCha20-Poly1305, Twofish-256, Serpent-256). The
+  **316** figure is the same stacks multiplied by every **independent**
+  on/off pattern for optional inter-layer BLAKE3 (**2^(k−1)** patterns for **k**
+  layers). Built-in profile names use a **small** subset of the 64.
 
 - **Optional microSD decoy volume** — if a PSRAM chip is fitted, an extra bulk
   decoy LUN can appear after unlock. **If no microSD is fitted, the device is
@@ -611,7 +645,7 @@ Nothing is implemented in-tree.
 |---------|-------|
 | Shamir K-of-N secret sharing | `vsss-rs` — on-device split and recovery |
 | Authenticated ephemeral ECDH | Forward-secret session protocol — `ephemeral-session` crate |
-| Cipher profile system | User-configurable cipher cascade — `cipher-profile` crate |
+| Cipher profile system | Symmetric **cascade**: **up to four** different AEADs stacked (e.g. **three** independent layers); per-layer keys — `cipher-profile` — [docs/CIPHER_PROFILES.md](docs/CIPHER_PROFILES.md) |
 
 ### Security properties
 

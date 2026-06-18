@@ -43,6 +43,61 @@ registry.register(profile)?;
 - Every session creation is logged with the full profile
   algorithm selection before any cryptographic operations begin.
 
+## Optional keyed BLAKE3 between cascade layers (CESS)
+
+In **CESS**, a registry profile may specify **additional** **keyed BLAKE3**
+integrity tags **between** inner bulk cascade layers. That is separate from:
+
+- each layer’s own AEAD authentication (AES-GCM tag, Poly1305, or EtM HMAC in
+  this codebase), and
+- the **Mode A** outer ChaCha20-Poly1305 envelope over `suite_id || inner_blob`.
+
+Those BLAKE3 checkpoints authenticate the intermediate ciphertext **after** each
+inner stage as data moves outward through the stack.
+
+This repository exposes the HKDF-BLAKE3 `info` UTF-8 builder
+`cess::cess_blake3_integrity_info` in [`crates/cess/src/inner_info.rs`](../crates/cess/src/inner_info.rs).
+**Framing and verification of inter-layer BLAKE3 tags inside
+`cipher-profile::cascade_encrypt` / `cascade_decrypt` is not implemented yet**
+(implementation posture: [CESS_CONFORMANCE.md](CESS_CONFORMANCE.md)).
+
+## Combination counts (cipher stacks and BLAKE3 gap patterns)
+
+Symmetric layers are chosen from **four** AEAD primitives (`CipherLayer`):
+AES-256-GCM, ChaCha20-Poly1305, Twofish-256, Serpent-256. Profiles require **at
+least one** layer, **at most four**, and **no cipher repeated** in the same
+profile; **order matters** (encrypt inner-first, decrypt outer-first).
+
+**Ordered distinct-cipher stacks** (permutation counts P(4, k) for k = 1…4):
+
+| Cascade length (k) | Stacks P(4, k) |
+|:------------------:|---------------:|
+| 1 | 4 |
+| 2 | 12 |
+| 3 | 24 |
+| 4 | 24 |
+| **Total** | **64** |
+
+If optional **CESS** keyed BLAKE3 is modelled as **independent** on/off at each
+of the **k − 1** boundaries between layers, there are **2^(k−1)** patterns per
+stack length **k** (one pattern when k = 1: no inter-layer gaps).
+
+| Cascade length (k) | Stacks × BLAKE3 gap patterns | Product |
+|:------------------:|-----------------------------:|--------:|
+| 1 | 4 × 2^0 | **4** |
+| 2 | 12 × 2^1 | **24** |
+| 3 | 24 × 2^2 | **96** |
+| 4 | 24 × 2^3 | **192** |
+| **Total** | | **316** |
+
+- **64** — cipher orderings only (what `cipher-profile` enforces today).
+- **316** — same stacks multiplied by every on/off assignment for optional
+  inter-layer BLAKE3 (theoretical CESS framing; not all combinations are
+  registry-backed or implemented in-tree).
+
+Built-in profile names in this document use a **small** subset of the 64
+cipher-only stacks.
+
 ## Forward secrecy
 
 All profiles use authenticated ephemeral ECDH for key agreement
