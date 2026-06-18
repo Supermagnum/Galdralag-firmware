@@ -239,7 +239,7 @@ The `galdra-unlock` crate itself is glue logic only:
    existing crates).
 3. Call `libcryptsetup_rs::CryptDevice::activate_by_volume_key()` (or the
    passphrase variant for Path A).
-4. Zeroize key material.
+4. Zeroize the **host-side copy** of the key material (see Security notes).
 5. Exit.
 
 No cryptographic primitives are implemented in `galdra-unlock` itself.
@@ -385,17 +385,51 @@ to a small header file that `galdra-unlock` reads at boot time.
 
 #### Security notes
 
-- Key material exists in host RAM only between the `crypt_get_volume_key()` call
-  and the `zeroize` call immediately following activation. The window is as short
-  as the implementation allows.
+**Host-side zeroisation scope — what is and is not zeroed**
+
+The `zeroize` calls in `galdra-unlock` apply exclusively to the **ephemeral
+host-side copy** of key material: the bytes returned over the authenticated
+session channel and held temporarily in the Linux host process's RAM during the
+unlock operation. Once `crypt_activate_by_volume_key()` returns, those bytes
+are overwritten using `zeroize` before the buffer is freed or goes out of scope.
+This closes the window during which the key material could be recovered from a
+swap file, crash dump, or cold-boot attack against host RAM.
+
+**`galdra-unlock` does not and cannot zeroise keys stored on the token.**
+The keys held in the token's on-chip RRAM are entirely separate from the
+host-side copy. They are protected by the token's own vault and PIN policy.
+The only firmware paths that trigger on-device zeroisation are deliberate ones:
+
+- The PIN attempt threshold being exceeded (after 3–10 consecutive wrong PINs,
+  configurable at provisioning).
+- An explicit authenticated wipe command sent through the management interface.
+
+Nothing in `galdra-unlock` sends any command that would trigger on-device
+zeroisation. The session channel is read-only with respect to vault contents:
+`galdra-unlock` retrieves key material; it does not write to, modify, or delete
+anything stored in the vault.
+
+This boundary means a bug or crash in `galdra-unlock` cannot accidentally
+destroy the keys on the token. The worst outcome of a `galdra-unlock` failure
+is a failed volume activation that falls back to the passphrase prompt — not
+loss of token key material.
+
+**Other security notes**
+
+- Host-side key material exists in RAM only between the session channel read
+  and the `zeroize` call immediately following activation. The window is as
+  short as the implementation allows.
 - The wrapped key blob stored in the token vault is protected by the vault PIN
-  policy; failed PIN attempts trigger the same zeroisation path as all other
-  vault secrets.
+  policy; failed PIN attempts trigger the same on-device zeroisation path as
+  all other vault secrets — but this is initiated by the token's own firmware,
+  not by anything the host tool does.
 - For Path B with Shamir, no single token holds enough shares to reconstruct
   the volume key without the quorum of other tokens or share holders.
 - A fallback LUKS passphrase key slot should always be provisioned and stored
   offline (e.g. on paper in a physically secure location) in case the token is
   lost, damaged, or the `galdra-unlock` binary is unavailable at boot time.
+  This is also the recovery path if the token is ever wiped due to PIN threshold
+  exhaustion.
 
 ---
 
