@@ -38,6 +38,7 @@ This project is **registered with the [Open Invention Network (OIN)](https://ope
 - [OpenPGP and GnuPG compatibility](#openpgp-and-gnupg-compatibility)
 - [Token session and key export](#token-session-and-key-export)
 - [Web of Trust and Key Signing Parties](#web-of-trust-and-key-signing-parties)
+  - [Obtaining your Galdralag fingerprint](#obtaining-your-galdralag-fingerprint)
   - [What is the web of trust?](#what-is-the-web-of-trust)
   - [How it works](#how-it-works)
   - [Key signing parties](#key-signing-parties)
@@ -404,6 +405,23 @@ The firmware implements the **OpenPGP card application** (documented as version 
 OpenPGP and **GnuPG** use a decentralised trust model—the **web of trust**—to help verify who owns which keys and whether to rely on a given **public key**. That model is entirely **host-side**. Where chip-backed attestations such as [German eID and Governikus](#german-eid-and-governikus-as-a-trust-anchor-for-public-keys) are unavailable or inappropriate, it is the usual decentralised alternative (**key signing parties**, signatures on certificates); where they **are** available, both approaches can coexist as complementary paths.
 
 **Galdralag fingerprint (`G:`):** For in-person verification workflows, **Galdra** can show a **device-bound** fingerprint derived from the token’s **SIG** public key (**BLAKE3-160**, `G:` prefix). It is **not** an OpenPGP v4 certificate fingerprint. It is **only** available when the active **cipher profile** has **`ephemeral_ecdh: false`**; built-in profiles default **`ephemeral_ecdh: true`**, so you typically add a user profile with **`galdra profile add ... --no-ephemeral-ecdh`** for workflows that need this identifier alongside **WoT**-style host signing. Plain-language definition and format specification: [Galdralag fingerprint](docs/GLOSSARY.md#g). Lifecycle, rotation policy, and the ephemeral ECDH gate: [KEY_LIFECYCLE.md — Galdralag fingerprint](docs/KEY_LIFECYCLE.md#galdralag-fingerprint-host).
+
+### Obtaining your Galdralag fingerprint
+
+The host prints a string that **always starts with `G:`** (BLAKE3-160 over the SIG public key bytes, **40 lowercase hexadecimal characters** after the prefix in canonical form).
+
+1. Install **[Galdra](docs/GALDRA-TOOL.md)** on the host and ensure **PC/SC** works (**`pcscd`**, **`libpcsclite`**) so the tool can speak CCID to the token (see [Compile and install host tools](#compile-and-install-host-tools-galdra-galdrad-galdra-gtk)).
+2. Connect the token (unlock if your workflow requires it).
+3. Select a **cipher profile** with **`ephemeral_ecdh: false`**. Confirm with **`galdra profile show <name>`** (`ephemeral_ecdh: off`). The default profile name **`standard`** usually has **`ephemeral_ecdh: on`**; create one with **`galdra profile add <name> ... --no-ephemeral-ecdh`** if needed.
+4. Run:
+
+```bash
+galdra identity fingerprint
+# If you use a non-default profile:
+galdra identity fingerprint --profile <name>
+```
+
+Machine-readable output: **`galdra --emit json identity fingerprint`** (optionally **`--profile <name>`**).
 
 ### What is the web of trust?
 
