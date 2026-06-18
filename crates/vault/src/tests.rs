@@ -3,7 +3,6 @@
 use crate::kdf_policy::KeyPurpose;
 use crate::key_material::{EphemeralEcdhSecretMaterial, VaultKey256};
 use crate::session::VaultSessionState;
-use crate::GaldrError;
 use hkdf::Hkdf;
 use proptest::prelude::*;
 use sha2::{Sha256, Sha512};
@@ -90,10 +89,14 @@ fn hkdf_sha256_twofish_distinct_from_serpent_storage() {
 }
 
 #[test]
-fn derive_stub_returns_not_implemented() {
+fn derive_subkey_sha512_matches_manual_hkdf() {
     let mut out = [0u8; 32];
-    let r = crate::derive_subkey_sha512_stub(b"k", b"s", KeyPurpose::VaultRootUnwrap, &mut out);
-    assert_eq!(r, Err(GaldrError::NotImplemented));
+    let mut expect = [0u8; 32];
+    let hk = Hkdf::<Sha512>::new(Some(b"s"), b"k");
+    hk.expand(KeyPurpose::VaultRootUnwrap.info(), &mut expect)
+        .unwrap();
+    crate::derive_subkey_sha512(b"k", b"s", KeyPurpose::VaultRootUnwrap, &mut out).unwrap();
+    assert_eq!(out, expect);
 }
 
 #[test]

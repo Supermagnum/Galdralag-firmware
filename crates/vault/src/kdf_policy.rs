@@ -1,9 +1,12 @@
 //! HKDF domain separation: every operational key **must** use a distinct `info` label (RFC 5869).
 //!
-//! **TODO (developer):** Firmware must call `hkdf` + `sha2` only (no hand-rolled KDF). When
-//! ComboHash accelerates SHA-512, feed the same byte-level `info` strings after validation.
+//! Production code uses [`hkdf`] with [`sha2::Sha512`] for SHA-512-backed derivation; `info`
+//! strings are fixed per [`KeyPurpose`]. When ComboHash accelerates SHA-512, keep the same
+//! byte-level `info` values after validation.
 
 use crate::GaldrError;
+use hkdf::Hkdf;
+use sha2::Sha512;
 
 /// Key derivation purposes for vault operations. Each maps to a unique `info` octet string.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -52,12 +55,18 @@ impl KeyPurpose {
     }
 }
 
-/// Stub: production must call HKDF-SHA512 with `purpose.info()` and validated IKM/salt.
-pub fn derive_subkey_sha512_stub(
-    _ikm: &[u8],
-    _salt: &[u8],
-    _purpose: KeyPurpose,
-    _out: &mut [u8],
+/// HKDF-SHA512 (RFC 5869): extract with `salt` and `ikm`, then expand into `out` with
+/// `purpose.info()` as the only `info` parameter.
+///
+/// Returns [`GaldrError::KeyDerivation`] if HKDF expand fails (for example requested output
+/// length exceeds the maximum allowed for SHA-512).
+pub fn derive_subkey_sha512(
+    ikm: &[u8],
+    salt: &[u8],
+    purpose: KeyPurpose,
+    out: &mut [u8],
 ) -> Result<(), GaldrError> {
-    Err(GaldrError::NotImplemented)
+    let hk = Hkdf::<Sha512>::new(Some(salt), ikm);
+    hk.expand(purpose.info(), out)
+        .map_err(|_| GaldrError::KeyDerivation)
 }
