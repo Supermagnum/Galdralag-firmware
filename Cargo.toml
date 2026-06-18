@@ -74,6 +74,7 @@ rand = { version = "0.8", default-features = false, features = ["std_rng", "getr
 proptest = "1.5"
 static_assertions = "1.1"
 hex = { version = "0.4", default-features = false, features = ["std"] }
+camellia = { version = "0.2.0", default-features = false, features = ["zeroize"] }
 serpent = { version = "0.6.0-rc.3", default-features = false, features = ["zeroize"] }
 twofish = { version = "0.8.0-rc.1", default-features = false }
 rsa = { version = "0.9.10", default-features = false, features = ["sha2"] }

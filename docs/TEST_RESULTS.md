@@ -20,7 +20,7 @@ MAINTENANCE CONTRACT FOR THIS FILE
 
 | Field | Value |
 |---|---|
-| Date (UTC) | 2026-05-04T18:00:00Z |
+| Date (UTC) | 2026-05-04T21:00:00Z |
 | Commit | `2a0f7f24d5db17f68d1017ea6d2597f4c90c773f` |
 | xtask version | 0.1.0 |
 | Flags | `--no-fuzz` (fuzz matrix run separately; see Section 6) |
@@ -35,26 +35,26 @@ MAINTENANCE CONTRACT FOR THIS FILE
 |------|---------|--------|
 | Firmware check (default) | `cargo run -p xtask -- check-fw` | PASS |
 | Firmware check (pq-signatures) | `cargo run -p xtask -- check-fw --features pq-signatures` | PASS |
-| Unit tests (workspace) | `cargo test --workspace --exclude xtask` | PASS (626 passed, 0 failed, 18 ignored) |
+| Unit tests (workspace) | `cargo test --workspace --exclude xtask` | PASS (636 passed, 0 failed, 18 ignored) |
 | Wycheproof vectors | `cargo test -p vault wycheproof` | PASS |
 | RFC vectors | `cargo test -p vault rfc_vectors` | PASS |
 | BSI Brainpool vectors | `cargo test -p vault bsi_brainpool` | PASS — ECDH + ECDSA, all three curves |
 | NIST CAVP subset | `cargo test -p vault nist_cavp` | PASS |
-| KAT vectors | `cargo test -p vault kat_vectors` | PASS — BLAKE3 hash, keyed-hash, derive-key (35 vectors) |
+| KAT vectors | `cargo test -p vault kat_vectors` | PASS — BLAKE3 (35 vectors, all modes), Camellia-256 RFC 3713 ECB, Serpent smoke, Twofish smoke |
 | Key lifecycle | `cargo test -p vault key_lifecycle` | PASS |
 | PIN lifecycle | `cargo test -p pin-policy pin_lifecycle` | PASS |
 | OpenPGP / CCID | `cargo test -p usb-personality` | PASS |
 | Biometric crates (mocks) | `cargo test -p biometric-api -p biometric-vault -p biometric-fingervein --features test-hal -p biometric-sweet --features test-hal` | PASS |
 | Zeroisation simulation | (see Section 7) | PASS |
-| Timing (dudect) | `cargo run -p xtask -- timing-test` | PASS (32/32) |
-| Cargo-fuzz (13 targets, 30 s in test-all) | (see Section 6) | PASS |
+| Timing (dudect) | `cargo run -p xtask -- timing-test` | PASS (33/33) |
+| Cargo-fuzz (14 targets, 30 s in test-all) | (see Section 6) | PASS |
 
 ---
 
 ## 1. Unit tests
 
 **Command:** `cargo test --workspace --exclude xtask`  
-**Result:** 626 passed, 0 failed, 18 ignored
+**Result:** 636 passed, 0 failed, 18 ignored
 
 Round-trip tests (encrypt/decrypt, seal/open, sign/verify,
 split/recover) are included in the 626 total and are not reported
@@ -184,6 +184,7 @@ ECDSA reject row: valid DER with last byte toggled (`^ 0x55`); runner asserts `E
 | `timing_signature_verify` | 10000 | +1.955 | PASS |  |
 | `timing_fingerprint_lookup` | 100000 | -1.546 | PASS | Null pairing — same absent fingerprint both classes |
 | `timing_shamir_recover` | 100000 | +2.701 | PASS |  |
+| `timing_camellia_tag_check` | 100000 | -2.394 | PASS |  |
 | `timing_serpent_tag_check` | 100000 | -1.674 | PASS |  |
 | `timing_twofish_tag_check` | 100000 | -1.425 | PASS |  |
 | `timing_cascade_auth_failure` | 100000 | +1.544 | PASS | Null pairing — identical tampered ciphertext per class |
@@ -240,6 +241,7 @@ rustup run nightly cargo fuzz run <target> \
 | `shamir_split_recover` | 0 | Fixed `data.len() >= 8` guard |
 | `brainpool384_ecdh` | 0 | |
 | `brainpool512_ecdh` | 0 | |
+| `camellia_aead` | 0 | 29,463 exec/s; 3.5M runs in 121 s |
 | `serpent_aead` | 0 | |
 | `twofish_aead` | 0 | |
 | `rsa_oaep_decrypt` | 0 | |

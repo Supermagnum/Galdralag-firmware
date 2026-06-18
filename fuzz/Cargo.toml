@@ -56,6 +56,13 @@ doc = false
 bench = false
 
 [[bin]]
+name = "camellia_aead"
+path = "fuzz_targets/camellia_aead.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
 name = "serpent_aead"
 path = "fuzz_targets/serpent_aead.rs"
 test = false

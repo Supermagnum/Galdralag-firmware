@@ -35,6 +35,7 @@ hkdf.workspace = true
 rand_core.workspace = true
 rsa.workspace = true
 sha2 = { workspace = true, features = ["oid"] }
+camellia.workspace = true
 serpent.workspace = true
 twofish.workspace = true
 hmac.workspace = true

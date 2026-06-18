@@ -69,20 +69,21 @@ or **custom** (unmapped) profiles do **not** add inter-layer MACs.
 
 ## Combination counts (cipher stacks and BLAKE3 gap patterns)
 
-Symmetric layers are chosen from **four** AEAD primitives (`CipherLayer`):
-AES-256-GCM, ChaCha20-Poly1305, Twofish-256, Serpent-256. Profiles require **at
-least one** layer, **at most four**, and **no cipher repeated** in the same
-profile; **order matters** (encrypt inner-first, decrypt outer-first).
+Symmetric layers are chosen from **five** AEAD primitives (`CipherLayer`):
+AES-256-GCM, ChaCha20-Poly1305, Twofish-256, Serpent-256, Camellia-256. Profiles require **at
+least one** layer, **at most four** (limited by the profile validator, not the primitive count),
+and **no cipher repeated** in the same profile; **order matters** (encrypt inner-first, decrypt
+outer-first).
 
-**Ordered distinct-cipher stacks** (permutation counts P(4, k) for k = 1…4):
+**Ordered distinct-cipher stacks** (permutation counts P(5, k) for k = 1…4):
 
-| Cascade length (k) | Stacks P(4, k) |
+| Cascade length (k) | Stacks P(5, k) |
 |:------------------:|---------------:|
-| 1 | 4 |
-| 2 | 12 |
-| 3 | 24 |
-| 4 | 24 |
-| **Total** | **64** |
+| 1 | 5 |
+| 2 | 20 |
+| 3 | 60 |
+| 4 | 120 |
+| **Total** | **205** |
 
 If optional **CESS** keyed BLAKE3 is modelled as **independent** on/off at each
 of the **k − 1** boundaries between layers, there are **2^(k−1)** patterns per
@@ -90,20 +91,20 @@ stack length **k** (one pattern when k = 1: no inter-layer gaps).
 
 | Cascade length (k) | Stacks × BLAKE3 gap patterns | Product |
 |:------------------:|-----------------------------:|--------:|
-| 1 | 4 × 2^0 | **4** |
-| 2 | 12 × 2^1 | **24** |
-| 3 | 24 × 2^2 | **96** |
-| 4 | 24 × 2^3 | **192** |
-| **Total** | | **316** |
+| 1 | 5 × 2^0 | **5** |
+| 2 | 20 × 2^1 | **40** |
+| 3 | 60 × 2^2 | **240** |
+| 4 | 120 × 2^3 | **960** |
+| **Total** | | **1245** |
 
-- **64** — cipher orderings only (what `cipher-profile` enforces today).
-- **316** — same stacks multiplied by every on/off assignment for optional
+- **205** — cipher orderings only (what `cipher-profile` enforces today).
+- **1245** — same stacks multiplied by every on/off assignment for optional
   inter-layer BLAKE3 (CESS design space; not all combinations are
   registry-backed). **This tree** turns inter-layer MACs **on** for every gap
   whenever the profile maps to a **`suite_id`** and has **≥ 2** layers (not a
   per-gap runtime toggle).
 
-Built-in profile names in this document use a **small** subset of the 64
+Built-in profile names in this document use a **small** subset of the 205
 cipher-only stacks.
 
 ## Forward secrecy

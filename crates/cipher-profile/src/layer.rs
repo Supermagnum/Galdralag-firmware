@@ -14,6 +14,10 @@ pub enum CipherLayer {
 
     /// Serpent-256 EtM (vault construction). AEAD at this layer.
     Serpent256,
+
+    /// Camellia-256 EtM (vault construction). AEAD at this layer.
+    /// Wire ID 0x05. Provenance: NESSIE (EU) + CRYPTREC (Japan); RFC 3713; ISO/IEC 18033-3.
+    Camellia256,
 }
 
 impl CipherLayer {
@@ -24,6 +28,7 @@ impl CipherLayer {
             CipherLayer::ChaCha20Poly1305 => b"chacha20poly1305",
             CipherLayer::Twofish256 => b"twofish256",
             CipherLayer::Serpent256 => b"serpent256",
+            CipherLayer::Camellia256 => b"camellia256",
         }
     }
 
@@ -34,6 +39,7 @@ impl CipherLayer {
             CipherLayer::ChaCha20Poly1305 => 0x02,
             CipherLayer::Twofish256 => 0x03,
             CipherLayer::Serpent256 => 0x04,
+            CipherLayer::Camellia256 => 0x05,
         }
     }
 
@@ -44,6 +50,7 @@ impl CipherLayer {
             0x02 => Some(CipherLayer::ChaCha20Poly1305),
             0x03 => Some(CipherLayer::Twofish256),
             0x04 => Some(CipherLayer::Serpent256),
+            0x05 => Some(CipherLayer::Camellia256),
             _ => None,
         }
     }

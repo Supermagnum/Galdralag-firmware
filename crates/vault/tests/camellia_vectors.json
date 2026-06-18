@@ -1,0 +1,8 @@
+[
+  {
+    "_source": "RFC 3713 Appendix A (256-bit key ECB). Key rows: 0123456789abcdeffedcba9876543210 || 00112233445566778899aabbccddeeff.",
+    "key": "0123456789abcdeffedcba987654321000112233445566778899aabbccddeeff",
+    "plaintext": "0123456789abcdeffedcba9876543210",
+    "ciphertext": "9acc237dff16d76c20ef7c919e3a7509"
+  }
+]

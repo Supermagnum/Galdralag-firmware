@@ -55,6 +55,7 @@ pub fn cess_inner_cascade_etm64_info(suite_id: u16, layer_index: u8, cipher: Ces
     push_hex_u16_be(&mut out, suite_id);
     push_layer_index(&mut out, layer_index);
     match cipher {
+        CessInnerEtM64Cipher::Camellia256 => out.extend_from_slice(b"-camellia256"),
         CessInnerEtM64Cipher::Serpent256 => out.extend_from_slice(b"-serpent256"),
         CessInnerEtM64Cipher::Twofish256 => out.extend_from_slice(b"-twofish256"),
     }
@@ -64,6 +65,7 @@ pub fn cess_inner_cascade_etm64_info(suite_id: u16, layer_index: u8, cipher: Ces
 /// Which 64-byte EtM profile the info tail names (distinct labels per cipher).
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum CessInnerEtM64Cipher {
+    Camellia256,
     Serpent256,
     Twofish256,
 }

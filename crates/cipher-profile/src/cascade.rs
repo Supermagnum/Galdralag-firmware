@@ -31,6 +31,10 @@ use subtle::ConstantTimeEq;
 use vault::chacha_aead::{
     chacha_decrypt, chacha_encrypt, ChaChaCiphertext, ChaChaKey, ChaChaNonce, ChaChaPlaintext,
 };
+use vault::camellia_cipher::{
+    camellia_decrypt, camellia_encrypt, CamelliaCiphertext, CamelliaKey, CamelliaNonce,
+    CamelliaPlaintext,
+};
 use vault::serpent_cipher::{
     serpent_decrypt, serpent_encrypt, SerpentCiphertext, SerpentKey, SerpentNonce, SerpentPlaintext,
 };
@@ -348,6 +352,15 @@ fn encrypt_layer(
                 .map_err(|e| map_serpent_encrypt_err(e, layer_idx))?;
             copy_ct_serpent(&ct)
         }
+        CipherLayer::Camellia256 => {
+            let key = CamelliaKey::derive_from_prk_label(prk.as_slice(), key_info)
+                .map_err(|_| CipherProfileError::KeyDerivation)?;
+            let nonce = CamelliaNonce::derive_from_prk_label(prk.as_slice(), nonce_info)
+                .map_err(|_| CipherProfileError::KeyDerivation)?;
+            let ct = camellia_encrypt(&key, &nonce, aad, data)
+                .map_err(|e| map_camellia_encrypt_err(e, layer_idx))?;
+            copy_ct_camellia(&ct)
+        }
     }
 }
 
@@ -410,6 +423,17 @@ fn encrypt_layer_cess(
                 .map_err(|e| map_serpent_encrypt_err(e, layer_idx))?;
             copy_ct_serpent(&ct)
         }
+        CipherLayer::Camellia256 => {
+            let inf = cess_inner_cascade_etm64_info(sid, layer_idx, CessInnerEtM64Cipher::Camellia256);
+            let okm = hkdf_blake3_okm64(ikm, inf.as_slice())?;
+            let key = CamelliaKey::from_okm64(&okm);
+            let n_inf = cess_inner_cascade_layer_nonce_info(sid, layer_idx);
+            let n_okm = hkdf_blake3_okm32(ikm, n_inf.as_slice())?;
+            let nonce = CamelliaNonce::from_okm32_prefix(&n_okm);
+            let ct = camellia_encrypt(&key, &nonce, aad, data)
+                .map_err(|e| map_camellia_encrypt_err(e, layer_idx))?;
+            copy_ct_camellia(&ct)
+        }
     }
 }
 
@@ -463,6 +487,17 @@ fn decrypt_layer(
             let pt = serpent_decrypt(&key, &nonce, aad, &ct)
                 .map_err(|_| CipherProfileError::AuthenticationFailed)?;
             copy_pt_serpent(&pt)
+        }
+        CipherLayer::Camellia256 => {
+            let key = CamelliaKey::derive_from_prk_label(prk.as_slice(), key_info)
+                .map_err(|_| CipherProfileError::AuthenticationFailed)?;
+            let nonce = CamelliaNonce::derive_from_prk_label(prk.as_slice(), nonce_info)
+                .map_err(|_| CipherProfileError::AuthenticationFailed)?;
+            let ct = CamelliaCiphertext::from_bytes_fuzz(data)
+                .map_err(|_| CipherProfileError::AuthenticationFailed)?;
+            let pt = camellia_decrypt(&key, &nonce, aad, &ct)
+                .map_err(|_| CipherProfileError::AuthenticationFailed)?;
+            copy_pt_camellia(&pt)
         }
     }
 }
@@ -540,6 +575,21 @@ fn decrypt_layer_cess(
             let pt = serpent_decrypt(&key, &nonce, aad, &ct)
                 .map_err(|_| CipherProfileError::AuthenticationFailed)?;
             copy_pt_serpent(&pt)
+        }
+        CipherLayer::Camellia256 => {
+            let inf = cess_inner_cascade_etm64_info(sid, layer_idx, CessInnerEtM64Cipher::Camellia256);
+            let okm = hkdf_blake3_okm64(ikm, inf.as_slice())
+                .map_err(|_| CipherProfileError::AuthenticationFailed)?;
+            let key = CamelliaKey::from_okm64(&okm);
+            let n_inf = cess_inner_cascade_layer_nonce_info(sid, layer_idx);
+            let n_okm = hkdf_blake3_okm32(ikm, n_inf.as_slice())
+                .map_err(|_| CipherProfileError::AuthenticationFailed)?;
+            let nonce = CamelliaNonce::from_okm32_prefix(&n_okm);
+            let ct = CamelliaCiphertext::from_bytes_fuzz(data)
+                .map_err(|_| CipherProfileError::AuthenticationFailed)?;
+            let pt = camellia_decrypt(&key, &nonce, aad, &ct)
+                .map_err(|_| CipherProfileError::AuthenticationFailed)?;
+            copy_pt_camellia(&pt)
         }
     }
 }
@@ -669,6 +719,29 @@ fn map_twofish_encrypt_err(e: vault::twofish_cipher::TwofishError, layer: u8) ->
 fn map_serpent_encrypt_err(e: vault::serpent_cipher::SerpentError, layer: u8) -> CipherProfileError {
     match e {
         vault::serpent_cipher::SerpentError::AuthenticationFailed => CipherProfileError::CipherError { layer },
+        _ => CipherProfileError::CipherError { layer },
+    }
+}
+
+fn copy_ct_camellia(ct: &CamelliaCiphertext) -> Result<Vec<u8, MAX_CT>, CipherProfileError> {
+    let mut out = Vec::new();
+    for b in ct.as_slice() {
+        out.push(*b).map_err(|_| CipherProfileError::PayloadTooLarge)?;
+    }
+    Ok(out)
+}
+
+fn copy_pt_camellia(pt: &CamelliaPlaintext) -> Result<Vec<u8, MAX_CT>, CipherProfileError> {
+    let mut out = Vec::new();
+    for b in pt.as_slice() {
+        out.push(*b).map_err(|_| CipherProfileError::AuthenticationFailed)?;
+    }
+    Ok(out)
+}
+
+fn map_camellia_encrypt_err(e: vault::camellia_cipher::CamelliaError, layer: u8) -> CipherProfileError {
+    match e {
+        vault::camellia_cipher::CamelliaError::AuthenticationFailed => CipherProfileError::CipherError { layer },
         _ => CipherProfileError::CipherError { layer },
     }
 }

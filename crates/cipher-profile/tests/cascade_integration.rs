@@ -21,15 +21,16 @@ fn tr<T, E: core::fmt::Debug>(r: Result<T, E>) -> T {
     }
 }
 
-/// P(4, 2): ordered distinct two-layer stacks (inner first, outer second).
+/// P(5, 2): ordered distinct two-layer stacks (inner first, outer second).
 fn two_layer_ordered_cipher_pairs() -> Vec<(CipherLayer, CipherLayer)> {
-    const L: [CipherLayer; 4] = [
+    const L: [CipherLayer; 5] = [
         CipherLayer::Aes256Gcm,
         CipherLayer::ChaCha20Poly1305,
         CipherLayer::Twofish256,
         CipherLayer::Serpent256,
+        CipherLayer::Camellia256,
     ];
-    let mut out = Vec::with_capacity(12);
+    let mut out = Vec::with_capacity(20);
     for inner in L {
         for outer in L {
             if inner != outer {
@@ -37,7 +38,7 @@ fn two_layer_ordered_cipher_pairs() -> Vec<(CipherLayer, CipherLayer)> {
             }
         }
     }
-    assert_eq!(out.len(), 12, "P(4,2) ordered cipher pairs");
+    assert_eq!(out.len(), 20, "P(5,2) ordered cipher pairs");
     out
 }
 

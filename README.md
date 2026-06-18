@@ -168,7 +168,9 @@ That is the short version. Here is what makes it different from other tokens you
 
 **The encryption is layered.** Rather than encrypting your data with a single cipher, the token can run it through multiple independent ciphers in sequence — for example ChaCha20, then Serpent, then Twofish — each using a separately derived key. A future breakthrough that breaks one cipher does not break the others. The specific combination is called a cipher profile, and you can choose from several built-in ones depending on how much caution your situation requires.
 
-**The algorithm choices are deliberate.** The ciphers used — ChaCha20-Poly1305, Serpent, Twofish — were all designed independently of government standards bodies. AES and the NIST suite are intentionally excluded. This is a conscious choice for users and organisations who want cryptographic independence from any single country's standards process.
+My personal recommendation is **BrainpoolP256r1 + ChaCha20-Poly1305 + BLAKE3**. This is the built-in `standard` profile. It uses the BSI Brainpool P-256 curve for ephemeral key agreement, ChaCha20-Poly1305 for symmetric encryption, and BLAKE3 for key derivation and inter-layer integrity. It is fast, well-tested, battery friendly (ChaCha20-Poly1305 was designed to be efficient on hardware without AES acceleration, reducing CPU time and host power draw; P-256 is the smallest of the three Brainpool curves in this firmware), and does not depend on any NIST-designed primitive. If you need a higher margin against a future cryptanalytic break against a single cipher, the `conservative` profile adds a Serpent-256 layer on top.
+
+**The algorithm choices are deliberate.** The ciphers used — ChaCha20-Poly1305, Serpent, Twofish, Camellia — were all designed independently of government standards bodies. AES and the NIST suite are intentionally excluded. This is a conscious choice for users and organisations who want cryptographic independence from any single country's standards process. Camellia was evaluated independently by the EU NESSIE project and Japan's CRYPTREC programme, and is specified in RFC 3713 and ISO/IEC 18033-3.
 
 **A wrong PIN locks you out properly.** The token counts failed PIN attempts before it checks whether the PIN is correct, not after. This means a crash or power loss mid-attempt cannot be exploited to reset the counter. After too many wrong attempts the token zeroises sensitive material.
 
@@ -616,25 +618,25 @@ The items below are **Galdralag firmware capabilities**, not requirements of the
   keep the legacy cascade without inter-layer MACs. See
   [docs/CIPHER_PROFILES.md](docs/CIPHER_PROFILES.md) and
   [docs/CESS_CONFORMANCE.md](docs/CESS_CONFORMANCE.md). **Combination counts**
-  under `cipher-profile` cipher rules (**four** AEAD primitives, **no cipher
+  under `cipher-profile` cipher rules (**five** AEAD primitives, **no cipher
   repeated** in one profile, order matters); the BLAKE3 column is the CESS
   **design-space** count (independent on/off per gap), not a per-message host toggle:
 
   | Cascade length | Ordered distinct-cipher stacks | × optional BLAKE3 on/off at each of the **length−1** gaps between layers |
   |:--------------:|--------------------------------:|---------------------------------------------------------------------------:|
-  | 1 layer | 4 | 4 × 2^0 = **4** |
-  | 2 layers | 12 | 12 × 2^1 = **24** |
-  | 3 layers | 24 | 24 × 2^2 = **96** |
-  | 4 layers | 24 | 24 × 2^3 = **192** |
-  | **Total** | **64** | **316** |
+  | 1 layer | 5 | 5 × 2^0 = **5** |
+  | 2 layers | 20 | 20 × 2^1 = **40** |
+  | 3 layers | 60 | 60 × 2^2 = **240** |
+  | 4 layers | 120 | 120 × 2^3 = **960** |
+  | **Total** | **205** | **1245** |
 
-  The **64** figure counts **cipher stacks only** (permutations of 1–4 distinct
-  choices from AES-256-GCM, ChaCha20-Poly1305, Twofish-256, Serpent-256). The
-  **316** figure is the same stacks multiplied by every **independent**
+  The **205** figure counts **cipher stacks only** (permutations of 1–4 distinct
+  choices from AES-256-GCM, ChaCha20-Poly1305, Twofish-256, Serpent-256, Camellia-256). The
+  **1245** figure is the same stacks multiplied by every **independent**
   on/off pattern for optional inter-layer BLAKE3 (**2^(k−1)** patterns for **k**
   layers). **This firmware** applies inter-layer MACs for **all** gaps when a
   built-in **`suite_id`** profile has **≥ 2** layers (not a per-gap toggle).
-  Built-in profile names use a **small** subset of the 64.
+  Built-in profile names use a **small** subset of the 205.
 
 - **Optional microSD decoy volume** — if a PSRAM chip is fitted, an extra bulk
   decoy LUN can appear after unlock. **If no microSD is fitted, the device is

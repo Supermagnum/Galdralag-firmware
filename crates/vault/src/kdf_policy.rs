@@ -28,6 +28,8 @@ pub enum KeyPurpose {
     KeyAgreement,
     /// Shamir recovery root expansion (profile-gated; uses `vsss-rs` at rest, HKDF after combine).
     ShamirRecovery,
+    /// Camellia-256 AEAD key (Encrypt-then-MAC in `camellia_cipher`).
+    CamelliaStorage,
     /// Serpent-256 AEAD key (Encrypt-then-MAC in `serpent_cipher`).
     SerpentStorage,
     /// Twofish-256 AEAD key (Encrypt-then-MAC in `twofish_cipher`).
@@ -66,6 +68,7 @@ impl KeyPurpose {
             KeyPurpose::OpenPgpSigning => b"galdr-v1/vault/openpgp-signing",
             KeyPurpose::KeyAgreement => b"galdr-v1/vault/key-agreement",
             KeyPurpose::ShamirRecovery => b"galdr-v1/vault/shamir-recovery",
+            KeyPurpose::CamelliaStorage => b"galdralag/camellia/storage/v1",
             KeyPurpose::SerpentStorage => b"galdralag/serpent/storage/v1",
             KeyPurpose::TwofishStorage => b"galdralag/twofish/storage/v1",
             KeyPurpose::RsaKeyWrap => b"galdralag/rsa/key-wrap/v1",

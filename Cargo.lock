@@ -801,6 +801,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "camellia"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "26f8497bae7a64e5ba66a107df01378570a9a6b282a61913d1e9c28e76f8c65a"
+dependencies = [
+ "byteorder",
+ "cipher 0.5.1",
+]
+
+[[package]]
 name = "cast5"
 version = "0.11.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5220,7 +5230,7 @@ dependencies = [
  "blowfish",
  "buffered-reader",
  "bzip2",
- "camellia",
+ "camellia 0.1.0",
  "cast5",
  "cfb-mode",
  "chrono",
@@ -6350,6 +6360,7 @@ dependencies = [
  "bp256",
  "bp384",
  "bp512",
+ "camellia 0.2.0",
  "chacha20poly1305",
  "ecdsa 0.17.0-rc.16",
  "ed25519-dalek",

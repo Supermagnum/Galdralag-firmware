@@ -37,6 +37,7 @@ pub fn layer_audit_name(c: CipherLayer) -> &'static str {
         CipherLayer::ChaCha20Poly1305 => "chacha20poly1305",
         CipherLayer::Twofish256 => "twofish256",
         CipherLayer::Serpent256 => "serpent256",
+        CipherLayer::Camellia256 => "camellia256",
     }
 }
 

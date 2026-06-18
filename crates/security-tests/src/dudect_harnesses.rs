@@ -638,6 +638,43 @@ fn bench_timing_serpent_tag_check() -> CtSummary {
     update_ct_stats(None, l, r).0
 }
 
+fn bench_timing_camellia_tag_check() -> CtSummary {
+    use vault::camellia_cipher::{camellia_encrypt, CamelliaKey, CamelliaNonce, CAMELLIA_TAG_LEN};
+    let key = CamelliaKey::from_raw_cipher_mac_for_test([0x2Du8; 32], [0x3Cu8; 32]);
+    let nonce = CamelliaNonce::from_counter(0);
+    let aad = b"camellia aad";
+    let pt = b"camellia plaintext for dudect bench";
+    let ct = camellia_encrypt(&key, &nonce, aad, pt).expect("camellia dudect encrypt");
+    let s = ct.as_slice();
+    let tag_good: [u8; CAMELLIA_TAG_LEN] = s[s.len() - CAMELLIA_TAG_LEN..]
+        .try_into()
+        .expect("camellia tag len");
+    let mut tag_bad = tag_good;
+    tag_bad[CAMELLIA_TAG_LEN - 1] ^= 0x01;
+    let n = samples_for_harness("timing_camellia_tag_check");
+    let mut rng = StdRng::seed_from_u64(0x43414D4C);
+    let mut work = Vec::with_capacity(n);
+    for _ in 0..n {
+        if rng.gen_bool(0.5) {
+            work.push((Class::Left, tag_good, tag_good));
+        } else {
+            work.push((Class::Right, tag_good, tag_bad));
+        }
+    }
+    let mut runner = CtRunner::default();
+    for (c, a, b) in work {
+        runner.run_one(c, move || {
+            let a = black_box(a);
+            let b = black_box(b);
+            let ga = GenericArray::<u8, U32>::from_slice(&a);
+            let gb = GenericArray::<u8, U32>::from_slice(&b);
+            black_box(ga.ct_eq(gb));
+        });
+    }
+    let (l, r) = runner.left_right();
+    update_ct_stats(None, l, r).0
+}
+
 fn bench_timing_twofish_tag_check() -> CtSummary {
     use hmac::digest::generic_array::typenum::U32;
     use hmac::digest::generic_array::GenericArray;
@@ -802,7 +839,7 @@ pub fn run_all() -> i32 {
     let mut executed = 0usize;
 
     type HarnessFn = fn() -> CtSummary;
-    let harnesses: [(&str, HarnessFn); 32] = [
+    let harnesses: [(&str, HarnessFn); 33] = [
         ("timing_subtle_eq_u256", bench_subtle_eq_u256),
         ("timing_chacha_tag_check", bench_timing_chacha_tag_check),
         ("timing_aes_gcm_tag_check", bench_timing_aes_gcm_tag_check),
@@ -817,6 +854,7 @@ pub fn run_all() -> i32 {
         ("timing_signature_verify", bench_timing_signature_verify),
         ("timing_fingerprint_lookup", bench_timing_fingerprint_lookup),
         ("timing_shamir_recover", bench_timing_shamir_recover),
+        ("timing_camellia_tag_check", bench_timing_camellia_tag_check),
         ("timing_serpent_tag_check", bench_timing_serpent_tag_check),
         ("timing_twofish_tag_check", bench_timing_twofish_tag_check),
         ("timing_cascade_auth_failure", bench_timing_cascade_auth_failure),

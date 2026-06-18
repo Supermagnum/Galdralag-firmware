@@ -5,3 +5,10 @@
 
 [target.riscv32imac-unknown-none-elf]
 runner = "qemu-riscv32"
+
+# The cascade integration tests allocate large heapless::Vec buffers on the stack
+# (MAX_CT = 65536 bytes each, several per encrypt/decrypt call frame). In debug
+# builds rustc does not reuse stack frames within a loop, so 20 two-layer pairs
+# can exceed the default 8 MiB limit. 16 MiB is sufficient.
+[env]
+RUST_MIN_STACK = "16777216"

@@ -1,7 +1,8 @@
-//! Known-answer tests for BLAKE3 (hash, keyed-hash, derive-key), Serpent smoke, Shamir JSON presence.
+//! Known-answer tests for BLAKE3 (hash, keyed-hash, derive-key), Camellia, Serpent, Twofish smokes, Shamir JSON presence.
 
 use galdr_core::fake_hal::FakeTrng;
 use serde_json::Value;
+use vault::camellia_cipher::{camellia_decrypt, camellia_encrypt, CamelliaKey, CamelliaNonce};
 use vault::kdf_policy::KeyPurpose;
 use vault::serpent_cipher::{serpent_decrypt, serpent_encrypt, SerpentKey, SerpentNonce};
 use vault::twofish_cipher::{twofish_decrypt, twofish_encrypt, TwofishKey, TwofishNonce};
@@ -38,6 +39,16 @@ fn kat_blake3_from_json() {
         let dk = blake3::derive_key(context, &msg);
         assert_eq!(dk.as_slice(), exp_dk.as_slice(), "derive_key row {i}");
     }
+}
+
+#[test]
+fn kat_camellia_etm_roundtrip_smoke() {
+    let sk = CamelliaKey::derive(&[0x33u8; 32], KeyPurpose::CamelliaStorage, b"kat").unwrap();
+    let mut trng = FakeTrng::from_seed(3);
+    let n = CamelliaNonce::generate(&mut trng).unwrap();
+    let ct = camellia_encrypt(&sk, &n, b"aad", b"pt").unwrap();
+    let pt = camellia_decrypt(&sk, &n, b"aad", &ct).unwrap();
+    assert_eq!(pt.as_slice(), b"pt");
 }
 
 #[test]
