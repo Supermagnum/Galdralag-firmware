@@ -1,0 +1,18 @@
+[package]
+name = "biometric-fingervein"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "ESP32-CAM finger-vein biometric backend driver (host; optional test-hal mocks)"
+
+[dependencies]
+biometric-api = { workspace = true }
+ed25519-dalek = { workspace = true }
+rand = { workspace = true }
+
+[features]
+default = []
+test-hal = []
+
+[lints]
+workspace = true

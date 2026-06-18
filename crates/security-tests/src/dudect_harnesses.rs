@@ -802,7 +802,7 @@ pub fn run_all() -> i32 {
     let mut executed = 0usize;
 
     type HarnessFn = fn() -> CtSummary;
-    let harnesses: [(&str, HarnessFn); 29] = [
+    let harnesses: [(&str, HarnessFn); 32] = [
         ("timing_subtle_eq_u256", bench_subtle_eq_u256),
         ("timing_chacha_tag_check", bench_timing_chacha_tag_check),
         ("timing_aes_gcm_tag_check", bench_timing_aes_gcm_tag_check),
@@ -835,6 +835,18 @@ pub fn run_all() -> i32 {
         ("timing_blake2b", bench_timing_blake2b),
         ("timing_blake2s", bench_timing_blake2s),
         ("timing_blake3", bench_timing_blake3),
+        (
+            "dudect_session_token_verify_constant_time",
+            crate::biometric_timing::bench_dudect_session_token_verify_constant_time,
+        ),
+        (
+            "dudect_template_decrypt_constant_time",
+            crate::biometric_timing::bench_dudect_template_decrypt_constant_time,
+        ),
+        (
+            "dudect_signature_verify_constant_time",
+            crate::biometric_timing::bench_dudect_signature_verify_constant_time,
+        ),
     ];
 
     for (name, f) in harnesses {

@@ -1,7 +1,11 @@
 # Biometric pre-gate API
 
-> **Status:** Not yet implemented — design specification only. There is **no** Rust
-> implementation of the flows below in this repository as of this document revision.
+> **Status:** Wire-format types, cryptographic helpers, vault-side template sealing, and
+> `test-hal` mock drivers exist in `crates/biometric-*`. **End-to-end** `galdrad` routing,
+> on-token CCID commands for template fetch, and `galdra biometric` CLI flows remain
+> **integration work** until Baochip-1x hardware (expected Q2) and host wiring land.
+> Treat this document as the **normative design** plus pointers to the crates that
+> implement pieces of it today.
 
 ## Overview
 
@@ -27,12 +31,15 @@ factor model, [RRAM_LAYOUT.md](RRAM_LAYOUT.md) for on-chip layout sketches, and
 [NFC_PN532_INTEGRATION.md](NFC_PN532_INTEGRATION.md) for optional NFC quorum
 narrative (not implemented as firmware NFC).
 
-**As of the current repository:** There is **no** Rust module implementing
-`SignedMatchResult`, **CBOR** payloads, **Ed25519**-signed match attestations,
-`galdrad` routes, or `galdra biometric` subcommands. Integration with
+**As of the current repository:** `crates/biometric-api`, `crates/biometric-vault`,
+`crates/biometric-fingervein`, and `crates/biometric-sweet` implement **CBOR** payloads,
+**Ed25519** match signatures (device side), session **HMAC** helpers, and template **AES-256-GCM**
+sealing with **HKDF**-derived per-slot keys. **Not yet wired:** `galdrad` production routes,
+`galdra biometric` subcommands, and firmware CCID surfaces that move encrypted templates
+between token and host. Integration with
 [`MonotonicCounter`](https://github.com/Supermagnum/Galdralag-firmware/blob/main/crates/galdr-core/src/hal.rs)
 and [`VaultStorage`](https://github.com/Supermagnum/Galdralag-firmware/blob/main/crates/galdr-core/src/hal.rs)
-for **session tokens** and template storage is **unspecified in code**.
+for **live** template storage is still future work.
 
 ---
 
@@ -203,8 +210,33 @@ for how those pieces fit together).
 
 ---
 
+## Testing
+
+The biometric layer is tested at five levels:
+
+| Level | Location | What it covers |
+|-------|----------|---------------|
+| Unit | `crates/biometric-api/src/tests.rs` | Wire format, crypto primitives, `galdrad`-side validation helpers |
+| Integration | `crates/biometric-api/tests/integration.rs` | Full auth flow with mock backends |
+| PAD | `crates/biometric-api/tests/pad.rs` | ISO/IEC 30107-3 attack resistance (mock data today) |
+| Timing | `security-tests/src/biometric_timing.rs` | Constant-time verification (dudect) |
+| Fuzz | `fuzz/fuzz_targets/biometric_dispatch.rs` | Deserialisation robustness |
+
+PAD tests currently use mock backends. Once hardware is available (Q2), replace mock
+results with measured APCER/BPCER values. See [docs/BIOMETRIC_TESTING.md](BIOMETRIC_TESTING.md) for full details.
+
+---
+
 ## References
 
-- [THREE_FACTOR_AUTH.md](THREE_FACTOR_AUTH.md)
-- [RRAM_LAYOUT.md](RRAM_LAYOUT.md)
-- [future-todo.md](future-todo.md)
+| Resource | Description |
+|----------|-------------|
+| [docs/BIOMETRIC_TESTING.md](BIOMETRIC_TESTING.md) | Test methodology, PAD metrics, datasets, how to run |
+| [docs/BIOMETRIC_DEVICE_GUIDE.md](BIOMETRIC_DEVICE_GUIDE.md) | How to add support for a new biometric device |
+| [docs/FINGERVEIN_DEVICE.md](FINGERVEIN_DEVICE.md) | ESP32-CAM finger vein device: hardware, protocol sketch, liveness |
+| [docs/SWEET_PLATFORM_INTEGRATION.md](SWEET_PLATFORM_INTEGRATION.md) | sweet platform: hardware, integration, liveness, dataset |
+| [ISO/IEC 30107-3](https://www.iso.org/standard/79520.html) | PAD testing methodology standard |
+| [CandyFV dataset](https://www.idiap.ch/en/scientific-research/data/candyfv) | sweet platform accuracy benchmark dataset |
+| [THREE_FACTOR_AUTH.md](THREE_FACTOR_AUTH.md) | Factor model |
+| [RRAM_LAYOUT.md](RRAM_LAYOUT.md) | On-chip layout |
+| [future-todo.md](future-todo.md) | Roadmap items |

@@ -1,0 +1,18 @@
+[package]
+name = "biometric-sweet"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "sweet platform full-hand biometric backend driver (host; optional test-hal mocks)"
+
+[dependencies]
+biometric-api = { workspace = true }
+ed25519-dalek = { workspace = true }
+rand = { workspace = true }
+
+[features]
+default = []
+test-hal = []
+
+[lints]
+workspace = true

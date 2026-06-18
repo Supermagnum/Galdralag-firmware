@@ -469,6 +469,52 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d86b93f97252c47b41663388e6d155714a9d0c398b99f1005cbc5f978b29f445"
 
 [[package]]
+name = "biometric-api"
+version = "0.1.0"
+dependencies = [
+ "biometric-fingervein",
+ "biometric-sweet",
+ "biometric-vault",
+ "cbor4ii",
+ "ed25519-dalek",
+ "rand 0.8.5",
+ "serde",
+ "serde_repr",
+]
+
+[[package]]
+name = "biometric-fingervein"
+version = "0.1.0"
+dependencies = [
+ "biometric-api",
+ "ed25519-dalek",
+ "rand 0.8.5",
+]
+
+[[package]]
+name = "biometric-sweet"
+version = "0.1.0"
+dependencies = [
+ "biometric-api",
+ "ed25519-dalek",
+ "rand 0.8.5",
+]
+
+[[package]]
+name = "biometric-vault"
+version = "0.1.0"
+dependencies = [
+ "aead",
+ "aes-gcm",
+ "biometric-api",
+ "hkdf 0.12.4",
+ "hmac 0.12.1",
+ "sha2 0.10.9",
+ "subtle",
+ "zeroize",
+]
+
+[[package]]
 name = "bit-set"
 version = "0.5.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -761,6 +807,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "26b07d673db1ccf000e90f54b819db9e75a8348d6eb056e9b8ab53231b7a9911"
 dependencies = [
  "cipher 0.4.4",
+]
+
+[[package]]
+name = "cbor4ii"
+version = "1.2.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "faed1a83001dc2c9201451030cc317e35bef36c84d3781d7c5bb9f343c397da8"
+dependencies = [
+ "serde",
 ]
 
 [[package]]
@@ -5077,6 +5132,8 @@ name = "security-tests"
 version = "0.1.0"
 dependencies = [
  "aes-gcm",
+ "biometric-api",
+ "biometric-vault",
  "blake2",
  "blake3",
  "chacha20poly1305",
@@ -5256,6 +5313,17 @@ dependencies = [
  "itoa",
  "serde",
  "serde_core",
+]
+
+[[package]]
+name = "serde_repr"
+version = "0.1.20"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "175ee3e80ae9982737ca543e96133087cbd9a485eecc3bc4de9c1a37b47ea59c"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.117",
 ]
 
 [[package]]

@@ -257,7 +257,31 @@ pub fn run(workspace_root: &Path, skip_fuzz: bool) -> i32 {
         cargo_ok(workspace_root, &["test", "-p", "usb-personality", "-q"]),
     );
 
-    eprintln!("test-all: 12/15 zeroise_simulation");
+    eprintln!("test-all: 12/15 biometric-api/vault + mocks");
+    log.push_step(
+        "biometric",
+        cargo_ok(
+            workspace_root,
+            &[
+                "test",
+                "-p",
+                "biometric-api",
+                "-p",
+                "biometric-vault",
+                "-p",
+                "biometric-fingervein",
+                "--features",
+                "test-hal",
+                "-p",
+                "biometric-sweet",
+                "--features",
+                "test-hal",
+                "-q",
+            ],
+        ),
+    );
+
+    eprintln!("test-all: 13/15 zeroise_simulation");
     log.push_step(
         "zeroise_simulation",
         cargo_ok(
@@ -275,7 +299,7 @@ pub fn run(workspace_root: &Path, skip_fuzz: bool) -> i32 {
         ),
     );
 
-    eprintln!("test-all: 13/15 timing-test (dudect_galdr)");
+    eprintln!("test-all: 14/15 timing-test (dudect_galdr)");
     let (timing_ok, dudect_report) = run_dudect_galdr(workspace_root);
     log.push_step("timing-test", timing_ok);
 
@@ -283,13 +307,13 @@ pub fn run(workspace_root: &Path, skip_fuzz: bool) -> i32 {
     let mut fuzz_notes: Vec<String> = Vec::new();
     let fuzz_skipped = skip_fuzz;
     if skip_fuzz {
-        eprintln!("test-all: 14/15 cargo-fuzz — skipped (--no-fuzz)");
+        eprintln!("test-all: 15/15 cargo-fuzz — skipped (--no-fuzz)");
         fuzz_notes.push(
             "Skipped: run without --no-fuzz to execute all fuzz targets (30s each).".to_string(),
         );
         log.push_step("cargo-fuzz (skipped)", true);
     } else {
-        eprintln!("test-all: 14/15 cargo-fuzz (30s per target)");
+        eprintln!("test-all: 15/15 cargo-fuzz (30s per target)");
         let fuzz_dir = workspace_root.join("fuzz");
         if fuzz_dir.join("Cargo.toml").is_file() {
             for bin in FUZZ_BINS {
@@ -457,6 +481,10 @@ fn run_embedded_check(root: &Path, sub: &[&str], pq: bool) -> bool {
         "-p",
         "vault",
         "-p",
+        "biometric-api",
+        "-p",
+        "biometric-vault",
+        "-p",
         "pin-policy",
         "-p",
         "usb-personality",
@@ -585,6 +613,7 @@ const FUZZ_BINS: &[&str] = &[
     "fuzz_ephemeral_handshake",
     "fuzz_cipher_profile",
     "openpgp_dispatch",
+    "biometric_dispatch",
 ];
 
 fn run_fuzz_status(fuzz_dir: &Path, bin: &str, secs: u64) -> Result<bool, String> {
@@ -732,6 +761,14 @@ fn build_markdown(
         pf(step_ok(steps, "pin_lifecycle"))
     ));
     s.push_str(&format!(
+        "| OpenPGP / CCID | `cargo test -p usb-personality` | {} |\n",
+        pf(step_ok(steps, "usb-personality"))
+    ));
+    s.push_str(&format!(
+        "| Biometric crates (mocks) | `cargo test -p biometric-api -p biometric-vault -p biometric-fingervein --features test-hal -p biometric-sweet --features test-hal` | {} |\n",
+        pf(step_ok(steps, "biometric"))
+    ));
+    s.push_str(&format!(
         "| Zeroisation simulation | (see Section 7) | {} |\n",
         pf(step_ok(steps, "zeroise_simulation"))
     ));
@@ -739,11 +776,8 @@ fn build_markdown(
         "| Timing (dudect) | `cargo run -p xtask -- timing-test` | {timing_status} |\n"
     ));
     s.push_str(&format!(
-        "| Cargo-fuzz (12 targets, 120 s) | (see Section 6) | {fuzz_status} |\n"
-    ));
-    s.push_str(&format!(
-        "| OpenPGP / CCID | `cargo test -p usb-personality` | {} |\n",
-        pf(step_ok(steps, "usb-personality"))
+        "| Cargo-fuzz ({} targets, 30 s in test-all) | (see Section 6) | {fuzz_status} |\n",
+        FUZZ_BINS.len()
     ));
     s.push_str("\n---\n\n## 1. Unit tests\n\n");
     s.push_str("**Command:** `cargo test --workspace --exclude xtask`  \n");

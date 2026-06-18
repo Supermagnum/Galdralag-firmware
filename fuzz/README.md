@@ -78,6 +78,18 @@ Suggested corpus seeds:
 - Truncated and extended-length APDU variants.
 - Raw bytes from `openpgp_command_flow` integration tests.
 
+### Biometric SignedMatchResult (`biometric_dispatch`)
+
+Exercises CBOR parsing and `galdrad_validate_match_result` on arbitrary bytes: must not panic, must reject invalid CBOR and bogus signatures, and must reject `liveness = false`.
+
+- **xtask aliases:** `biometric`, `biometric-dispatch`, `biometric_dispatch` (see `fuzz_bin_name`).
+
+Suggested corpus seeds:
+
+- Valid `SignedMatchResult` bytes from `biometric-api` unit tests.
+- Truncated valid payloads at each length prefix boundary.
+- Valid CBOR map with fields permuted or extra unknown keys (should still fail verify or policy).
+
 ### Shamir (`shamir_split_recover`)
 
 - Valid shares from a **k=2, n=3** split of a known secret.

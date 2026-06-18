@@ -1,0 +1,24 @@
+[package]
+name = "biometric-api"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Biometric pre-gate wire format (CBOR), Ed25519 match attestations, and validation helpers"
+
+[dependencies]
+serde = { version = "1.0.217", default-features = false, features = ["derive", "alloc"] }
+serde_repr = "0.1"
+cbor4ii = { workspace = true }
+ed25519-dalek = { workspace = true }
+
+[dev-dependencies]
+biometric-fingervein = { path = "../biometric-fingervein", features = ["test-hal"] }
+biometric-sweet = { path = "../biometric-sweet", features = ["test-hal"] }
+biometric-vault = { workspace = true }
+rand = { workspace = true }
+
+[features]
+default = []
+
+[lints]
+workspace = true

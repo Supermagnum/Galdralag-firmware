@@ -28,6 +28,8 @@ ephemeral-session = { workspace = true, optional = true }
 cipher-profile = { workspace = true, optional = true }
 heapless = { workspace = true, optional = true }
 serde_json = { workspace = true, optional = true }
+biometric-api = { workspace = true, optional = true }
+biometric-vault = { workspace = true, optional = true }
 
 [features]
 default = []
@@ -54,6 +56,8 @@ dudect = [
     "dep:cipher-profile",
     "dep:heapless",
     "dep:serde_json",
+    "dep:biometric-api",
+    "dep:biometric-vault",
 ]
 
 [[bin]]

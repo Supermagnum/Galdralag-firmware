@@ -12,6 +12,12 @@ Extra context (such as labels) that is checked for tampering together with an en
 **AEAD (authenticated encryption with associated data)**  
 Encryption that both hides content and detects tampering. If someone changes the ciphertext, decryption fails. ChaCha20-Poly1305 and AES-GCM are examples used in this project.
 
+**ACER (Average Classification Error Rate)**  
+In **ISO/IEC 30107-3** PAD evaluation: **(APCER + BPCER) / 2**, combining attack and bona-fide error rates.
+
+**APCER (Attack Presentation Classification Error Rate)**  
+In **ISO/IEC 30107-3**: the proportion of **presentation attacks** that liveness detection **incorrectly accepts** as genuine. Lower is better.
+
 **APDU**  
 A **packet** format used between a host and a smart card (command and response bytes). **OpenPGP** card operations over **CCID** use APDUs; see [OPENPGP_CARD.md](OPENPGP_CARD.md).
 
@@ -40,8 +46,11 @@ Loadable boot stage after **boot0**; continues the signed chain (e.g. toward app
 **Brainpool**  
 A set of standard **elliptic curves** (shapes used for modern public-key math) common in European standards. This project uses them for signing and key agreement.
 
+**BPCER (Bona fide Presentation Classification Error Rate)**  
+In **ISO/IEC 30107-3**: the proportion of **genuine** biometric presentations that liveness detection **incorrectly rejects**. Lower is better.
+
 **Biometric pre-gate**  
-An optional **“something you are”** check (fingerprint, vein pattern, etc.) **before** or with **PIN** unlock. **Not implemented** in this firmware tree yet; see [BIOMETRIC_API.md](BIOMETRIC_API.md) and [THREE_FACTOR_AUTH.md](THREE_FACTOR_AUTH.md).
+An optional **“something you are”** check **before** or together with **PIN** unlock: a verified biometric match (and policy gates) must succeed before the token accepts certain operations. Crates: `biometric-api`, `biometric-vault`, and device drivers under `crates/biometric-*`. **Full** host and firmware wiring is still in progress; see [BIOMETRIC_API.md](BIOMETRIC_API.md) and [THREE_FACTOR_AUTH.md](THREE_FACTOR_AUTH.md).
 
 **BSI TR-03111**  
 A German government guideline for elliptic-curve cryptography. The project uses its test data as an extra check that implementations behave as expected.
@@ -53,8 +62,11 @@ A German government guideline for elliptic-curve cryptography. The project uses 
 **CAVP (Cryptographic Algorithm Validation Program)**  
 A NIST program that publishes official test vectors. This repository runs a **small subset** of such tests locally; that is **not** the same as a formal lab certification.
 
+**CandyFV**  
+A **finger vein** dataset (120 subjects) collected with the **sweet platform** at Idiap; used to benchmark accuracy of that backend. [Dataset page](https://www.idiap.ch/en/scientific-research/data/candyfv).
+
 **CBOR**  
-**Concise Binary Object Representation** — a compact encoding for structured data. A future **biometric** wire format might use it; nothing in this tree defines CBOR payloads for biometrics today.
+**Concise Binary Object Representation (RFC 8949)** — compact structured binary encoding. The **`biometric-api`** crate uses CBOR for `SignedMatchResult` payloads before Ed25519 signing.
 
 **CCID**  
 A standard way for a PC to talk to a smart card over **USB**. Your operating system treats the token like a smart card reader so **GnuPG** and similar tools can use it without special vendor drivers.
@@ -70,6 +82,9 @@ A **named bundle** of choices in this project: which **symmetric** ciphers form 
 
 **ComboHash**  
 A hardware block on **Baochip** that can speed up hashing. If firmware uses it, the **meaning** of derived keys must stay the same as in software-only builds.
+
+**Coercion**  
+An attacker forces a legitimate user (physically or under threat) to authenticate — for example to enter a **PIN** or present a **biometric**. Cryptography does not remove this risk; see [THREAT_MODEL.md](THREAT_MODEL.md) (**T13**).
 
 **Constant-time (in cryptography)**  
 Coding discipline so that secret values do not change how long an operation takes in ways an outsider could measure. This project also runs **timing** statistical tests on the host; those tests help catch regressions but are not a complete proof on the device.
@@ -123,7 +138,7 @@ Short for **encrypt-then-MAC**.
 ## F
 
 **Finger vein recognition**  
-A **biometric** that compares patterns inside a finger using infrared imaging of blood flow. Sometimes grouped under **vascular biometrics**. **Not** implemented in this firmware; third-party matchers may integrate in future.
+A **biometric** that identifies people from **subcutaneous blood-vessel patterns** inside a finger, usually imaged with **near-infrared** light. Open-hardware matchers can integrate via **`biometric-fingervein`**; firmware CCID hooks are not complete yet.
 
 **Firmware**  
 Software stored inside the device that runs the token. **Galdr** is firmware; **Galdra** tools run on your PC.
@@ -132,7 +147,7 @@ Software stored inside the device that runs the token. **Galdr** is firmware; **
 A short identifier (often shown as hexadecimal) that helps you confirm you are using the correct **public** key without comparing the whole key by eye.
 
 **Forward secrecy**  
-If someone steals your long-term keys later, they still cannot read **old** conversations that used temporary session keys that were erased. A design goal for session features; full guarantees depend on how the product is integrated.
+If someone steals your long-term keys later, they still cannot read **old** conversations that used temporary session keys that were erased. A design goal for session features; full guarantees depend on how the product is integrated. Session protocol: [EPHEMERAL_SESSION.md](EPHEMERAL_SESSION.md); threat framing: [THREAT_MODEL.md](THREAT_MODEL.md) (**T6**).
 
 **Firmware signature**  
 A cryptographic stamp proving that a firmware image was produced by someone holding a **signing key**. The chip’s **bootloader** checks this before running an update.
@@ -158,6 +173,9 @@ Shared library behind the CLI and daemon: database, OpenPGP on the host, config.
 
 **GnuPG (`gpg`)**  
 Common **OpenPGP** software on Linux and other systems. It can use a smart card or CCID token for private-key operations while handling messages and keyrings on the PC.
+
+**Glitch attack**  
+A **fault injection** technique: disturb power, clock, or logic timing so a chip mis-executes (skips checks, leaks secrets). Physical-threat discussion: [THREAT_MODEL.md](THREAT_MODEL.md) (**T8**).
 
 ---
 
@@ -202,7 +220,7 @@ Internal labels in the vault so different features derive different keys from th
 End an authenticated session: PIN verification is cleared; you must unlock again before protected operations, similar to other smart cards.
 
 **Liveness detection**  
-Checks that a **biometric** sample comes from a **live** person (not a photo or cast). Policy for a future **biometric pre-gate**; **not** coded here.
+Hardware or algorithmic checks that a **biometric** sample came from a **live** person (not a photo, mould, or other **presentation attack**). Also called **presentation attack detection (PAD)**. Policy and types are in **`biometric-api`**; PAD metrics follow **ISO/IEC 30107-3** — see [BIOMETRIC_TESTING.md](BIOMETRIC_TESTING.md).
 
 **LMS / XMSS**  
 Families of **post-quantum** **signatures** based on hashes. Optional in this project with feature flags; treat as **not yet independently audited** until stated otherwise in [PQ_SIGNATURES.md](PQ_SIGNATURES.md).
@@ -231,14 +249,17 @@ The **smart-card application** profile (APDUs, PINs, key slots) that makes a USB
 
 ## P
 
-**PBKDF2**  
-A method to stretch a **password** into a cryptographic key using many iterations, so guessing the password is slower.
-
 **Palm vein**  
-**Biometric** pattern from the palm’s blood vessels (infrared). A modality a future matcher might use; **not** implemented in this firmware.
+**Vascular** **biometric**: the blood-vessel pattern on the inside of the palm, imaged with **near-infrared** light (`Modality::PalmVein` in **`biometric-api`**). Integrated on the **sweet** platform; firmware storage path still in progress.
 
 **Palmprint**  
-The **pattern of lines** on the palm’s skin surface (compare **palm vein**). Not implemented here.
+The **surface** line pattern on the inside of the palm, imaged in visible light; often fused with **palm vein** in multimodal systems (`Modality::Palmprint` in **`biometric-api`**).
+
+**PAD (presentation attack detection)**  
+Hardware or software that distinguishes **live** biometric presentations from **spoofs** (photos, masks, replayed video, etc.). See **liveness detection** and [BIOMETRIC_TESTING.md](BIOMETRIC_TESTING.md).
+
+**PBKDF2**  
+A method to stretch a **password** into a cryptographic key using many iterations, so guessing the password is slower.
 
 **pcscd**  
 The **PC/SC** daemon on Linux — bridges USB **CCID** readers to user-space apps such as **GnuPG**’s smart-card layer.
@@ -251,6 +272,12 @@ Rules stored on the device: how many tries you get, how comparison is done safel
 
 **Post-quantum (PQ)**  
 Algorithms designed with future **quantum computers** in mind. Some are standardized (**ML-KEM**, **ML-DSA**); this project’s roadmap and feature gates are in [PQ_SIGNATURES.md](PQ_SIGNATURES.md).
+
+**Power analysis**  
+Side-channel attacks (**SPA**, **DPA**) that infer secrets from power consumption. Silicon behaviour for this token is **not** independently characterised — [THREAT_MODEL.md](THREAT_MODEL.md) (**T8**), [HARDWARE_VERIFICATION.md](HARDWARE_VERIFICATION.md).
+
+**Presentation attack**  
+A fake or replayed **biometric** sample (photo, mask, cast, replayed video, etc.) presented to a sensor. Defended by **liveness** / **PAD**; measured rates are **APCER** / **BPCER** — [BIOMETRIC_TESTING.md](BIOMETRIC_TESTING.md), [THREAT_MODEL.md](THREAT_MODEL.md) (**T4**).
 
 **Private key**  
 The secret half of a key pair. In this design it should **stay on the token** and not be copied to the PC.
@@ -291,13 +318,16 @@ GnuPG’s **smart-card daemon** — talks **CCID** / PC/SC to reach an **OpenPGP
 A Rust library for **OpenPGP** on the host. **Galdra** uses it for multi-recipient encryption and similar tasks; private keys remain on the token when that is how the workflow is set up.
 
 **session token (biometric)**  
-A short-lived secret proving a **recent biometric match** at a host or gateway; **not** defined or implemented in this repository. Future docs may specify binding to `galdrad` or firmware.
+Short **HMAC-SHA256** value derived from a **nonce**, **device ID**, and **timestamp**, using a vault provisioned key—intended to be included with the **PIN** **APDU** so the token can confirm a recent biometric assertion. Implemented in **`biometric-vault`**; CCID binding is not finished.
 
 **Shamir secret sharing**  
 Split a master secret into several **shares** so that any **k** of **n** shares can reconstruct it, but fewer than **k** reveal nothing in the ideal model. Useful for backups and quorum policies. GF(256) math in the **`vault`** crate uses **`vsss-rs`**.
 
+**Shor's algorithm**  
+A quantum algorithm that breaks classical **RSA** and **elliptic-curve** discrete-log problems in polynomial time — a driver behind **post-quantum** migration. Risk framing: [THREAT_MODEL.md](THREAT_MODEL.md) (**T14**), [PQ_SIGNATURES.md](PQ_SIGNATURES.md).
+
 **SignedMatchResult**  
-A placeholder name for a future **signed** structure reporting a biometric matcher outcome. **No** type or wire format exists in this tree; see [BIOMETRIC_API.md](BIOMETRIC_API.md).
+**CBOR**-encoded payload (match outcome, score, **liveness**, modalities, nonce, etc.) plus an **Ed25519** signature from the biometric device. Defined in **`biometric-api`**; validated on the host before a session token is minted.
 
 **Signature (digital)**  
 Proof that someone holding the **private** key approved a message. Others verify using the **public** key.
@@ -305,15 +335,21 @@ Proof that someone holding the **private** key approved a message. Others verify
 **SQLCipher**  
 Optional encryption for **Galdra**’s local contact database on disk. See [GALDRA-TOOL.md](GALDRA-TOOL.md).
 
+**Supply chain attack**  
+Tampering with **build**, **dependency**, or **distribution** so users run malicious **firmware** or tools. Mitigations include signed boot (**boot0** / Ed25519) and reproducible builds; see [THREAT_MODEL.md](THREAT_MODEL.md) (**T9**).
+
 **sweet platform**  
-Research **biometric** / hand-scan hardware context referenced in roadmap discussions; **not** integrated in this codebase.
+Open **contactless** hand **biometric** research platform (Idiap, *Sensors* 2025). Captures **palm vein**, **palmprint**, and **finger veins** together. Host driver stub and **`test-hal`** mock: **`biometric-sweet`**. See [SWEET_PLATFORM_INTEGRATION.md](SWEET_PLATFORM_INTEGRATION.md).
 
 ---
 
 ## T
 
+**Threat model**  
+A structured description of **assets**, **adversaries**, and **mitigations** — what a system intends to protect and what it does **not** promise. This repository: [THREAT_MODEL.md](THREAT_MODEL.md).
+
 **Three-factor authentication**  
-Classic factors: **something you have** (the token), **something you know** (PIN), and optionally **something you are** (biometric). This repository implements **have + know**; biometric is **not** implemented — [THREE_FACTOR_AUTH.md](THREE_FACTOR_AUTH.md).
+Classic factors: **something you have** (the token), **something you know** (PIN), and optionally **something you are** (biometric). This repository implements **have + know** today; biometric crates exist but **full** pre-gate wiring is ongoing — [THREE_FACTOR_AUTH.md](THREE_FACTOR_AUTH.md).
 
 **Token**  
 The **USB hardware device** (or board running this firmware) that holds secrets and runs **Galdr**, as opposed to software on your PC.
@@ -342,7 +378,7 @@ The on-device protected storage and policy layer in firmware: sealed blobs, key 
 Prove to the token that you know the PIN so it allows signing or decryption for that **session**.
 
 **Vascular biometrics**  
-**Biometric** methods based on **blood-vessel** patterns (often infrared), e.g. **finger vein** or **palm vein**. Not implemented in this firmware.
+Modalities based on **blood-vessel** patterns beneath the skin (typically **NIR**), e.g. **finger vein** and **palm vein**. Types appear as **`Modality`** variants in **`biometric-api`**.
 
 **vsss-rs**  
 A Rust **finite-field** / secret-sharing helper crate used with **Shamir** GF(256) in **`vault`**.
@@ -388,3 +424,4 @@ Securely erasing secrets from memory or storage so they cannot be recovered by o
 - [GALDRA-TOOL.md](GALDRA-TOOL.md) — host tools and workflows
 - [ARCHITECTURE.md](ARCHITECTURE.md) — how subsystems fit together
 - [TEST_RESULTS.md](TEST_RESULTS.md) — what automated checks cover
+- [THREAT_MODEL.md](THREAT_MODEL.md) — assets, threats, explicit limitations

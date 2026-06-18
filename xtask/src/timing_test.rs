@@ -37,7 +37,9 @@ const ALL_KNOWN: &[&str] = &[
     "timing_sha3_512",
     "timing_blake2b",
     "timing_blake2s",
-    "timing_blake3",
+    "dudect_session_token_verify_constant_time",
+    "dudect_template_decrypt_constant_time",
+    "dudect_signature_verify_constant_time",
 ];
 
 const CACHE_REL: &str = "crates/security-tests/dudect_results.json";

@@ -6,6 +6,48 @@
 
 This project is **registered with the [Open Invention Network (OIN)](https://openinventionnetwork.com/)**. OIN is a defensive patent pool: members cross-license Linux-related patents so participants can ship and use open-source software with reduced patent exposure.
 
+## What this is
+
+Firmware for **Baochip-1x** (Dabao evaluation board) devices running the
+**[Xous](https://github.com/betrusted-io/xous-core)** microkernel, built
+for `riscv32imac-unknown-none-elf`.
+
+It's located here:
+https://www.baochip.com/
+
+The device is a hardware security token in the same category as
+Nitrokey-class devices, with OpenPGP smartcard-class behaviour and an
+encrypted vault. The full hardware stack — RTL, schematics, bootloader,
+OS — is open source and auditable.
+
+Hardware specification, boot model, requirement tables, and ComboHash/PKE
+usage are documented in **[Supermagnum/Baochip-1x-firmware](https://github.com/Supermagnum/Baochip-1x-firmware)**.
+The **Dabao** evaluation board (KiCad, schematics, switches, pinout) is **[baochip/dabao](https://github.com/baochip/dabao)**. To enter **bootloader mode** for flashing, **press SW2** to toggle it (see that repo’s schematic).
+Architecture notes for this repository: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
+
+### What this firmware is (and is not)
+
+**This firmware is** a **hardware security token** for **Baochip-1x**: an **OpenPGP card application** over **USB CCID**, with an on-device **vault**, **PIN policy**, and repository-specific features (cipher profiles, Shamir-related flows, authenticated ephemeral ECDH where implemented, and **Galdra** host tools). The primary interoperability target is **GnuPG-style** OpenPGP card usage, not every token protocol on the market.
+
+**This firmware is not:**
+
+- **FIDO2 / CTAP2 / WebAuthn** — different standards; no CTAP **user-presence** button model and no planned CTAP stack. Use a FIDO security key if you need WebAuthn. (See also [OpenPGP and GnuPG compatibility](#openpgp-and-gnupg-compatibility) and the standards table under [Standards vs. firmware-specific features](#standards-vs-firmware-specific-features).)
+- **TOTP / HOTP (OATH one-time passwords)** — those protocols expect a **real-time clock** (TOTP) or an OATH-oriented counter workflow and UX; this device is **not** built as a dedicated OTP token.
+- **USB HID keyboard “password typer”** — there is no USB keyboard personality to inject keystrokes into the host. Planned credential storage (see [docs/future-todo.md](docs/future-todo.md)) is described as retrieval through **authenticated host tooling**, not HID typing.
+- **A general multi-applet Java Card platform** — scope is this **Galdr** firmware and its documented surfaces, not arbitrary third-party smart-card applets.
+
+Crate-level exclusions aligned with the same constraints are listed under **[Crates Explicitly Excluded](docs/future-todo.md#crates-explicitly-excluded)** in [docs/future-todo.md](docs/future-todo.md).
+
+**CESS:** This firmware **conforms to CESS** for the normative constructions implemented in-tree (including **Mode A** outer AEAD, **HKDF-BLAKE3** for **`K_outer`**, and byte-wise GF(2^8) Shamir splitting). The full alignment statement, deviation register, and **certification level** (for example **CESS-CORE** for the full fixed layer) are documented in [docs/CESS_CONFORMANCE.md](docs/CESS_CONFORMANCE.md) and [CESS (related open standard)](#cess-related-open-standard) below.
+
+The only remaining work before physical hardware works is the Xous USB service wiring — and that is documented in [docs/XOUS_CCID_INTEGRATION.md](docs/XOUS_CCID_INTEGRATION.md), waiting for the BSP crates to be available.
+
+At that point the project will be a complete, tested, open-source hardware security token firmware: **OpenPGP card–style behaviour** for GnuPG over CCID (see [OpenPGP and GnuPG compatibility](#openpgp-and-gnupg-compatibility)), plus **additional on-device features** not currently defined by the OpenPGP card standard — ephemeral ECDH with forward secrecy, Shamir K-of-N, cipher-agnostic profiles, microSD decoy volume — as summarised in [Standards vs. firmware-specific features](#standards-vs-firmware-specific-features). All on open RTL with a reproducible bootloader.
+
+### Signed firmware (Ed25519, boot0)
+
+Shippable firmware for **Baochip-1x** is **signed** with **Ed25519**. You sign the firmware image with an **Ed25519** private key; **GnuPG** can do this with **`gpg --sign`** using an **Ed25519 signing subkey** (the usual OpenPGP detached-signature workflow, adapted to whatever packaging your build emits). The immutable **boot0** ROM in the SoC **verifies** that signature against the **corresponding public keys burned into the device** (and the wider **key manifest** for the boot chain) **before** the next stage — **boot1** — is allowed to run. **boot1** then loads signed application images (for example **UF2** blobs delivered over USB mass storage in bootloader mode). Default parts carry **four** on-chip Ed25519 public keys (roles such as code deployment, beta, and developer); **boot0** / **boot1** enforce a **mutual-distrust** policy between Baochip and third-party signing keys. Full boot flow, **UF2** delivery, console, **boot1** updates, and security model: **[Getting Started with Baochip Targets](https://github.com/betrusted-io/xous-core/blob/dev/README-baochip.md)** in **xous-core**.
+
 ## Skipped and ignored tests
 
 Not every test runs in every command; that is intentional.
@@ -36,6 +78,9 @@ It is ready for testing by humans. **You** decide whether to build or run any of
 ## Table of contents
 
 - [Open Invention Network](#open-invention-network)
+- [What this is](#what-this-is)
+  - [What this firmware is (and is not)](#what-this-firmware-is-and-is-not)
+  - [Signed firmware (Ed25519, boot0)](#signed-firmware-ed25519-boot0)
 - [Skipped and ignored tests](#skipped-and-ignored-tests)
 - [Why Rust?](#why-rust)
   - [Memory Safety](#memory-safety)
@@ -46,15 +91,13 @@ It is ready for testing by humans. **You** decide whether to build or run any of
   - [Setting up a virtual machine for evaluation](#setting-up-a-virtual-machine-for-evaluation)
   - [Risk assessment and deployment](#risk-assessment-and-deployment)
 - [About the name](#about-the-name)
-- [What this is](#what-this-is)
-  - [What this firmware is (and is not)](#what-this-firmware-is-and-is-not)
-  - [Signed firmware (Ed25519, boot0)](#signed-firmware-ed25519-boot0)
 - [Documentation](#documentation)
 - [docs/AUDIT_LOG.md](docs/AUDIT_LOG.md)
 - [docs/BIOMETRIC_API.md](docs/BIOMETRIC_API.md)
 - [docs/KEY_LIFECYCLE.md](docs/KEY_LIFECYCLE.md)
 - [docs/RRAM_LAYOUT.md](docs/RRAM_LAYOUT.md)
 - [docs/THREE_FACTOR_AUTH.md](docs/THREE_FACTOR_AUTH.md)
+- [docs/THREAT_MODEL.md](docs/THREAT_MODEL.md)
 - [Glossary (plain language)](docs/GLOSSARY.md)
 - [OpenPGP and GnuPG compatibility](#openpgp-and-gnupg-compatibility)
 - [Token session and key export](#token-session-and-key-export)
@@ -162,6 +205,8 @@ whether you choose to wait for an independent third-party audit
 before deployment. This project aims to give you all the
 information needed to make that decision for yourself.
 
+A structured list of assets, threats **T1–T14**, explicit non-goals, and Q2 verification gaps is in **[docs/THREAT_MODEL.md](docs/THREAT_MODEL.md)**.
+
 ---
 
 ## About the name
@@ -183,50 +228,6 @@ was only known to those who understood.
 
 ---
 
-## What this is
-
-Firmware for **Baochip-1x** (Dabao evaluation board) devices running the
-**[Xous](https://github.com/betrusted-io/xous-core)** microkernel, built
-for `riscv32imac-unknown-none-elf`.
-
-It's located here:
-https://www.baochip.com/
-
-The device is a hardware security token in the same category as
-Nitrokey-class devices, with OpenPGP smartcard-class behaviour and an
-encrypted vault. The full hardware stack — RTL, schematics, bootloader,
-OS — is open source and auditable.
-
-Hardware specification, boot model, requirement tables, and ComboHash/PKE
-usage are documented in **[Supermagnum/Baochip-1x-firmware](https://github.com/Supermagnum/Baochip-1x-firmware)**.
-The **Dabao** evaluation board (KiCad, schematics, switches, pinout) is **[baochip/dabao](https://github.com/baochip/dabao)**. To enter **bootloader mode** for flashing, **press SW2** to toggle it (see that repo’s schematic).
-Architecture notes for this repository: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
-
-### What this firmware is (and is not)
-
-**This firmware is** a **hardware security token** for **Baochip-1x**: an **OpenPGP card application** over **USB CCID**, with an on-device **vault**, **PIN policy**, and repository-specific features (cipher profiles, Shamir-related flows, authenticated ephemeral ECDH where implemented, and **Galdra** host tools). The primary interoperability target is **GnuPG-style** OpenPGP card usage, not every token protocol on the market.
-
-**This firmware is not:**
-
-- **FIDO2 / CTAP2 / WebAuthn** — different standards; no CTAP **user-presence** button model and no planned CTAP stack. Use a FIDO security key if you need WebAuthn. (See also [OpenPGP and GnuPG compatibility](#openpgp-and-gnupg-compatibility) and the standards table under [Standards vs. firmware-specific features](#standards-vs-firmware-specific-features).)
-- **TOTP / HOTP (OATH one-time passwords)** — those protocols expect a **real-time clock** (TOTP) or an OATH-oriented counter workflow and UX; this device is **not** built as a dedicated OTP token.
-- **USB HID keyboard “password typer”** — there is no USB keyboard personality to inject keystrokes into the host. Planned credential storage (see [docs/future-todo.md](docs/future-todo.md)) is described as retrieval through **authenticated host tooling**, not HID typing.
-- **A general multi-applet Java Card platform** — scope is this **Galdr** firmware and its documented surfaces, not arbitrary third-party smart-card applets.
-
-Crate-level exclusions aligned with the same constraints are listed under **[Crates Explicitly Excluded](docs/future-todo.md#crates-explicitly-excluded)** in [docs/future-todo.md](docs/future-todo.md).
-
-**CESS:** This firmware **conforms to CESS** for the normative constructions implemented in-tree (including **Mode A** outer AEAD, **HKDF-BLAKE3** for **`K_outer`**, and byte-wise GF(2^8) Shamir splitting). The full alignment statement, deviation register, and **certification level** (for example **CESS-CORE** for the full fixed layer) are documented in [docs/CESS_CONFORMANCE.md](docs/CESS_CONFORMANCE.md) and [CESS (related open standard)](#cess-related-open-standard) below.
-
-The only remaining work before physical hardware works is the Xous USB service wiring — and that is documented in [docs/XOUS_CCID_INTEGRATION.md](docs/XOUS_CCID_INTEGRATION.md), waiting for the BSP crates to be available.
-
-At that point the project will be a complete, tested, open-source hardware security token firmware: **OpenPGP card–style behaviour** for GnuPG over CCID (see [OpenPGP and GnuPG compatibility](#openpgp-and-gnupg-compatibility)), plus **additional on-device features** not currently defined by the OpenPGP card standard — ephemeral ECDH with forward secrecy, Shamir K-of-N, cipher-agnostic profiles, microSD decoy volume — as summarised in [Standards vs. firmware-specific features](#standards-vs-firmware-specific-features). All on open RTL with a reproducible bootloader.
-
-### Signed firmware (Ed25519, boot0)
-
-Shippable firmware for **Baochip-1x** is **signed** with **Ed25519**. You sign the firmware image with an **Ed25519** private key; **GnuPG** can do this with **`gpg --sign`** using an **Ed25519 signing subkey** (the usual OpenPGP detached-signature workflow, adapted to whatever packaging your build emits). The immutable **boot0** ROM in the SoC **verifies** that signature against the **corresponding public keys burned into the device** (and the wider **key manifest** for the boot chain) **before** the next stage — **boot1** — is allowed to run. **boot1** then loads signed application images (for example **UF2** blobs delivered over USB mass storage in bootloader mode). Default parts carry **four** on-chip Ed25519 public keys (roles such as code deployment, beta, and developer); **boot0** / **boot1** enforce a **mutual-distrust** policy between Baochip and third-party signing keys. Full boot flow, **UF2** delivery, console, **boot1** updates, and security model: **[Getting Started with Baochip Targets](https://github.com/betrusted-io/xous-core/blob/dev/README-baochip.md)** in **xous-core**.
-
----
-
 ## Documentation
 
 **Glossary:** [docs/GLOSSARY.md](docs/GLOSSARY.md) — terms explained in **plain language** (sorted A–Z). Start here if the README or other docs feel jargon-heavy.
@@ -244,7 +245,11 @@ Shippable firmware for **Baochip-1x** is **signed** with **Ed25519**. You sign t
 | [docs/API_REFERENCE.md](docs/API_REFERENCE.md) | Code map + **annex** for IETF/I-D/GnuPG/Sequoia: Shamir GF(256) construction, GALDRA SHARE armour, ephemeral ECDH wire format, HKDF labels, preimages; `galdrad` routes; rustdoc hints |
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | High-level firmware architecture and major subsystems |
 | [docs/AUDIT_LOG.md](docs/AUDIT_LOG.md) | Profile audit records (`cipher-profile`), OpenPGP `OpenPgpAudit` hook; **no** append-only RRAM log implemented yet |
-| [docs/BIOMETRIC_API.md](docs/BIOMETRIC_API.md) | Biometric pre-gate **placeholder** — not implemented in this repository |
+| [docs/BIOMETRIC_API.md](docs/BIOMETRIC_API.md) | Biometric pre-gate: architecture, wire format, vault layout; integration partially implemented |
+| [docs/BIOMETRIC_DEVICE_GUIDE.md](docs/BIOMETRIC_DEVICE_GUIDE.md) | How to add support for a new biometric hardware backend |
+| [docs/BIOMETRIC_TESTING.md](docs/BIOMETRIC_TESTING.md) | Test methodology: ISO/IEC 30107-3 PAD metrics, datasets, how to run |
+| [docs/FINGERVEIN_DEVICE.md](docs/FINGERVEIN_DEVICE.md) | ESP32-CAM open finger vein device: hardware, protocol sketch, liveness |
+| [docs/SWEET_PLATFORM_INTEGRATION.md](docs/SWEET_PLATFORM_INTEGRATION.md) | sweet platform hand scanner: hardware, integration, liveness, dataset |
 | [docs/GALDRA-TOOL.md](docs/GALDRA-TOOL.md) | Host tools (`galdra`, `galdrad`, `galdra-gtk`): workflows, provisioning, PIN policy, operational behaviour |
 | [docs/GLOSSARY.md](docs/GLOSSARY.md) | **Plain-language glossary** (A–Z) for non-technical readers; technical detail remains in linked docs |
 | [CLAUDE.md](CLAUDE.md) | Instructions for **Claude** / AI coding agents; points to [`.cursor/rules/`](.cursor/rules/) for **Cursor** |
@@ -264,6 +269,7 @@ Shippable firmware for **Baochip-1x** is **signed** with **Ed25519**. You sign t
 | [docs/RRAM_LAYOUT.md](docs/RRAM_LAYOUT.md) | **4,194,304 byte** on-chip RRAM: vault offsets from source, HAL mapping, wear / zeroisation notes |
 | [docs/TEST_RESULTS.md](docs/TEST_RESULTS.md#run-metadata) | Opens at **Run metadata**; pipeline summary, vectors, dudect, cargo-fuzz ([Section 6](docs/TEST_RESULTS.md#6-cargo-fuzz-libfuzzer)), key lifecycle |
 | [docs/THREE_FACTOR_AUTH.md](docs/THREE_FACTOR_AUTH.md) | Token + PIN + optional biometric: what this repo implements vs placeholder; threat sketch |
+| [docs/THREAT_MODEL.md](docs/THREAT_MODEL.md) | Threat model: assets, threats T1–T14, what is and is not defended, unverified items pending Q2 hardware, audit status |
 | [docs/PERFORMANCE.md](docs/PERFORMANCE.md) | Performance notes |
 | [docs/HARDWARE_VERIFICATION.md](docs/HARDWARE_VERIFICATION.md) | Hardware zeroisation: simulation vs silicon verification |
 | [docs/HARDWARE_TEST.md](docs/HARDWARE_TEST.md) | Hardware-oriented testing notes |
@@ -748,10 +754,13 @@ cargo run -p xtask -- check-fw
 cargo run -p xtask -- build-fw
 cargo run -p xtask -- test-host
 cargo run -p xtask -- test-all
+cargo run -p xtask -- test-biometric
+cargo run -p xtask -- timing-test biometric
+cargo run -p xtask -- fuzz biometric_dispatch 60
 cargo run -p xtask -- timing-test
 ```
 
-**Fuzzing (libFuzzer):** install `cargo-fuzz`, use nightly, then e.g. `cargo run -p xtask -- fuzz chacha_roundtrip 60` or `cargo run -p xtask -- fuzz openpgp_dispatch 60` (OpenPGP APDU path). Target names, xtask aliases, and **recommended corpus seeds** per target are in [fuzz/README.md](fuzz/README.md).
+**Fuzzing (libFuzzer):** install `cargo-fuzz`, use nightly, then e.g. `cargo run -p xtask -- fuzz chacha_roundtrip 60` or `cargo run -p xtask -- fuzz openpgp_dispatch 60` (OpenPGP APDU path) or `cargo run -p xtask -- fuzz biometric_dispatch 60` (biometric CBOR path). Target names, xtask aliases, and **recommended corpus seeds** per target are in [fuzz/README.md](fuzz/README.md).
 
 Enable `galdr-core` feature `test-hal` **only** in tests or host tools.
 Never enable it in production firmware images — enforced by `check-fw`.

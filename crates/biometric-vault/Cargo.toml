@@ -1,0 +1,19 @@
+[package]
+name = "biometric-vault"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "On-token biometric template encryption and session HMAC helpers"
+
+[dependencies]
+biometric-api = { workspace = true }
+aes-gcm = { workspace = true }
+aead = { workspace = true }
+hkdf = { workspace = true }
+hmac = { workspace = true }
+sha2 = { workspace = true }
+zeroize = { workspace = true, features = ["alloc"] }
+subtle = { workspace = true }
+
+[lints]
+workspace = true

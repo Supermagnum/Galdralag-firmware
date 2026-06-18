@@ -50,6 +50,32 @@ fn main() {
                 .expect("cargo");
             std::process::exit(st.code().unwrap_or(1));
         }
+        Some("test-biometric") => {
+            let st = Command::new("cargo")
+                .args([
+                    "test",
+                    "-p",
+                    "biometric-api",
+                    "-p",
+                    "biometric-vault",
+                    "-p",
+                    "biometric-fingervein",
+                    "--features",
+                    "test-hal",
+                    "-p",
+                    "biometric-sweet",
+                    "--features",
+                    "test-hal",
+                    "--",
+                    "--test-threads=1",
+                ])
+                .stdin(Stdio::inherit())
+                .stdout(Stdio::inherit())
+                .stderr(Stdio::inherit())
+                .status()
+                .expect("cargo");
+            std::process::exit(st.code().unwrap_or(1));
+        }
         Some("test-crypto") => {
             let st = Command::new("cargo")
                 .args([
@@ -79,7 +105,18 @@ fn main() {
             std::process::exit(st.code().unwrap_or(1));
         }
         Some("timing-test") => {
-            let code = timing_test::run(workspace_root(), a);
+            let mut rest: Vec<String> = a.collect();
+            if rest.first().map(|s| s.as_str()) == Some("biometric") {
+                rest.remove(0);
+                let mut v = vec![
+                    "dudect_session_token_verify_constant_time".to_string(),
+                    "dudect_template_decrypt_constant_time".to_string(),
+                    "dudect_signature_verify_constant_time".to_string(),
+                ];
+                v.append(&mut rest);
+                rest = v;
+            }
+            let code = timing_test::run(workspace_root(), rest.into_iter());
             std::process::exit(code);
         }
         Some("fuzz") => {
@@ -139,7 +176,7 @@ fn main() {
         }
         _ => {
             eprintln!(
-                "usage: cargo run -p xtask -- <build-fw|check-fw|test-session|test-profiles|test-host|test-crypto|test-all [--no-fuzz]|test-openpgp|wycheproof|timing-test [--all] [--full] [HARNESS...]|bench-rsa|fuzz [TARGET] [SECS]|fuzz-chacha [SECS]|fuzz-shamir [SECS]>"
+                "usage: cargo run -p xtask -- <build-fw|check-fw|test-session|test-profiles|test-host|test-crypto|test-biometric|test-all [--no-fuzz]|test-openpgp|wycheproof|timing-test [biometric] [--all] [--full] [HARNESS...]|bench-rsa|fuzz [TARGET] [SECS]|fuzz-chacha [SECS]|fuzz-shamir [SECS]>"
             );
             std::process::exit(2);
         }
@@ -168,6 +205,7 @@ fn fuzz_bin_name(name: &str) -> &str {
         }
         "cipher-profile" | "fuzz_cipher_profile" => "fuzz_cipher_profile",
         "openpgp" | "openpgp-dispatch" | "openpgp_dispatch" => "openpgp_dispatch",
+        "biometric" | "biometric-dispatch" | "biometric_dispatch" => "biometric_dispatch",
         other => other,
     }
 }
@@ -217,6 +255,10 @@ fn run_embedded(sub: &[&str]) {
             "galdr-core",
             "-p",
             "vault",
+            "-p",
+            "biometric-api",
+            "-p",
+            "biometric-vault",
             "-p",
             "pin-policy",
             "-p",

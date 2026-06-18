@@ -12,6 +12,8 @@ mod dudect_stats;
 #[cfg(feature = "dudect")]
 mod dudect_sample_counts;
 #[cfg(feature = "dudect")]
+mod biometric_timing;
+#[cfg(feature = "dudect")]
 mod timing_pbkdf2;
 #[cfg(feature = "dudect")]
 mod timing_sha2;
