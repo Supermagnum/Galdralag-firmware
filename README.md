@@ -15,8 +15,8 @@ Not every test runs in every command; that is intentional.
 - **`test-all --no-fuzz`:** Skips the **cargo-fuzz** step to keep CI or quick runs short and to avoid requiring a nightly toolchain for that step; run `cargo run -p xtask -- test-all` without `--no-fuzz`, or invoke fuzz targets separately (see [`fuzz/README.md`](fuzz/README.md)).
 - **Conformance vector suites:** Some groups are not executed (for example certain AES-GCM Wycheproof cases); see [`docs/TEST_RESULTS.md`](docs/TEST_RESULTS.md) for what is in scope.
 
-One can also check with this tool:
-https://github.com/Supermagnum/crypto-verify
+One can also check integrity of crates with this when the pr is closed:
+https://github.com/rust-lang/cargo/issues/16850
 
 
 > **Status:** Ready for testing by humans — no production-ready release exists.
