@@ -1,23 +1,78 @@
-# Galdralag — Future Expansion Areas and Rust Crates
+# Galdralag — Capabilities and Future Expansion
 
-This document surveys realistic future use cases for the Galdralag firmware and
-identifies suitable, existing Rust crates for each. The same standard applied to
-the current dependency tree applies here: preference for audited, `no_std`-compatible
-crates from the RustCrypto ecosystem or equivalently well-reviewed projects.
-Crates marked as not yet audited are noted as such; they should not be integrated
-until independent audits are available.
+This document describes what the Galdralag firmware already supports, and
+identifies realistic future additions with suitable Rust crates for each.
+
+The same standard applied to the current dependency tree applies to all future
+additions: preference for audited, `no_std`-compatible crates from the RustCrypto
+ecosystem or equivalently well-reviewed projects. Crates marked "not yet audited"
+should not be integrated until independent audits are available.
 
 ---
 
-## 1. Password Vault
+## Current Capabilities
+
+The device is already an OpenPGP card compatible security token. This is not a
+minor detail — OpenPGP card compatibility gives the device immediate, out-of-the-box
+support for a wide range of serious use cases through existing host-side tooling,
+with no further firmware work required.
+
+What this means in practice:
+
+- **GnuPG integration** — signing, encryption, and authentication operations via
+  GnuPG's OpenPGP card driver. Works on Linux, macOS, and Windows today.
+
+- **SSH authentication** — via `gpg-agent` with `enable-ssh-support`. The device
+  appears as an SSH authentication token to any SSH client that uses `gpg-agent`.
+  No additional firmware required.
+
+- **Git commit signing** — via `gpg.program=gpg` or `gpg.format=openpgp`.
+  Signed commits and tags using a hardware-bound key.
+
+- **S/MIME email signing and encryption** — through GnuPG's S/MIME support
+  (`gpgsm`) and compatible mail clients such as Thunderbird and Evolution.
+
+- **Code and artifact signing** — any tool that calls GnuPG for signing operations
+  benefits immediately, including release scripts, package managers, and CI pipelines.
+
+- **Document signing and notarisation** — signing arbitrary files with a
+  hardware-bound key whose private material never leaves the device.
+
+- **Offline CA operations** — the device can hold a CA signing key and issue
+  certificates through GnuPG's certificate tooling or OpenSC's PKCS#11 interface.
+
+On top of standard OpenPGP card behaviour, Galdralag adds capabilities that no
+commercial hardware security token currently provides as first-class features:
+
+- Authenticated ephemeral ECDH on-device, providing true cryptographic forward
+  secrecy. Past sessions cannot be decrypted even from a fully compromised
+  long-term key.
+- Shamir K-of-N secret sharing on-device for multi-party key custody without
+  any single holder being able to recover the key alone.
+- Cipher-agnostic named profiles with cascade support and a full audit trail.
+- Optional microSD decoy volume with plausible deniability for the host.
+- Fully open stack: CERN-OHL-W-2.0 RTL, open schematics, reproducible
+  bootloader, Rust/Xous OS, IRIS-inspectable silicon.
+
+This combination makes Galdralag a compelling device for journalism and source
+protection, whistleblower infrastructure, scientific data provenance, enterprise
+key custody, and software supply chain integrity — all without changes to
+existing host-side tooling.
+
+---
+
+## Planned Additions
+
+### 1. Password Vault
 
 Store per-site credentials encrypted in RRAM behind the existing PIN policy.
-Retrieval via the authenticated host-tools interface — no USB keyboard personality.
+Retrieval via the authenticated host-tools interface only — no USB keyboard
+personality, no HID emulation.
 
 | Crate | Role | Notes |
 |-------|------|-------|
-| `postcard` | Compact binary serialisation of credential records | `no_std`, deterministic output, used in production embedded Rust. Not a cryptographic crate — encryption is handled by existing deps. No formal security audit; assess suitability carefully. |
-| `serde` | Derive `Serialize`/`Deserialize` on credential entry types | Paired with `postcard`; already widely used in the Rust ecosystem. |
+| `postcard` | Compact binary serialisation of credential records | `no_std`, deterministic output, used in production embedded Rust. Not a cryptographic crate — encryption handled by existing deps. No formal security audit; assess suitability carefully. |
+| `serde` | Derive `Serialize`/`Deserialize` on credential entry types | Paired with `postcard`. |
 | `zeroize` | Zeroise credential structs on drop | Already in the dependency tree. |
 
 Cryptographic protection of vault entries uses `aes-gcm` or `chacha20poly1305`
@@ -26,123 +81,47 @@ in tree. No new cryptographic crates required.
 
 ---
 
-## 2. SSH Authentication
+### 2. Kerberos / PKINIT Enterprise Authentication
 
-Allow the device to serve as an SSH authentication token via `gpg-agent`
-forwarding to the OpenPGP/CCID interface. Also enables `sshsig` artifact signing.
-
-| Crate | Role | Notes |
-|-------|------|-------|
-| `ssh-key` | SSH key format encoding/decoding (RFC 4251/4253, OpenSSH formats), `sshsig` signatures, certificate validation, `authorized_keys` and `known_hosts` support | Pure Rust, `no_std` compatible, part of the RustCrypto ecosystem. Maintained by Tony Arcieri. Not yet independently audited. |
-
-Actual signing uses `ed25519-dalek` already in tree.
-Host-side tooling (`host-tools` crate) handles `gpg-agent` socket protocol;
-firmware only performs the signing operation over CCID.
-
----
-
-## 3. S/MIME Email Signing and Encryption
-
-Sign and encrypt email using certificate-based identities via the CCID interface,
-compatible with major mail clients.
+Authenticate to Active Directory, FreeIPA, or MIT Kerberos infrastructure using
+PKINIT (RFC 4556). The token presents a certificate-backed identity to a KDC
+instead of a password, via the existing CCID interface and OpenSC or PKCS#11
+middleware on the host.
 
 | Crate | Role | Notes |
 |-------|------|-------|
-| `cms` | Cryptographic Message Syntax (RFC 5652, RFC 5911, RFC 3274) — the wire format underlying S/MIME | Pure Rust, RustCrypto project, approximately 868K downloads/month, `no_std` compatible. Not yet independently audited. |
 | `x509-cert` | X.509 certificate parsing and encoding (RFC 5280) | Pure Rust, RustCrypto project, `no_std` compatible. Not yet independently audited. |
-| `der` | ASN.1 DER encoding/decoding — required by both `cms` and `x509-cert` | Pure Rust, RustCrypto project, `no_std` with heapless support, approximately 3.3M downloads/month. |
-
----
-
-## 4. Code and Artifact Signing (Software Supply Chain)
-
-Sign git commits, release tarballs, container images, and firmware update
-manifests. Integrates with Sigstore/cosign infrastructure for transparency-log
-backed signatures.
-
-| Crate | Role | Notes |
-|-------|------|-------|
-| `ssh-key` | `sshsig` format for git commit signing via `gpg.format=ssh` | See SSH section above. |
-| `cms` | CMS-wrapped detached signatures for release artifacts | See S/MIME section above. |
-| `sigstore` | Host-side Sigstore/cosign/Rekor integration for transparency-log backed keyless or key-based signing | `std` only — host-tools crate use exclusively. Under active development, not yet 1.0 stable. Experimental. |
-
-The device performs only the signing operation; the host-tools crate handles
-Sigstore protocol and Rekor submission.
-
----
-
-## 5. Certificate Authority Operations / Offline Root CA
-
-Store CA root key material in RRAM, use Shamir splitting for key ceremony
-multi-party custody, sign subordinate certificates offline.
-
-| Crate | Role | Notes |
-|-------|------|-------|
-| `x509-cert` | Parse, construct, and encode X.509 certificates including CA certificates and certificate chains | See S/MIME section above. |
-| `cms` | CRL (Certificate Revocation List) signing | See S/MIME section above. |
-| `der` | ASN.1 DER serialisation of all certificate structures | See S/MIME section above. |
+| `cms` | PKINIT AuthPack signing (DER-encoded CMS SignedData) | Pure Rust, RustCrypto project, `no_std` compatible. Not yet independently audited. |
+| `der` | ASN.1 DER encoding/decoding — required by `cms` and `x509-cert` | Pure Rust, RustCrypto project, `no_std` with heapless support. |
 | `pkcs8` | Private key encoding/decoding (RFC 5208, RFC 5958) | RustCrypto project, `no_std` compatible. |
 | `spki` | X.509 Subject Public Key Info encoding | RustCrypto project, `no_std` compatible. |
 
-Shamir key ceremony: `vsss-rs` is already in the dependency tree. The device's
-existing design maps directly onto CA key ceremony requirements — no new
-fundamental crates needed.
-
----
-
-## 6. Kerberos / PKINIT Enterprise Authentication
-
-Authenticate to Active Directory, FreeIPA, or MIT Kerberos infrastructure using
-PKINIT (RFC 4556) — the token presents a certificate-backed identity to a KDC
-instead of a password.
-
-| Crate | Role | Notes |
-|-------|------|-------|
-| `x509-cert` | Certificate storage and presentation | See above. |
-| `cms` | PKINIT AuthPack signing (DER-encoded CMS SignedData) | See above. |
-
-No standalone Rust PKINIT client crate exists at time of writing that is
-suitable for `no_std` embedded use. The firmware only needs to perform the
-signing operation; PKINIT protocol handling lives entirely in the host-side
-tooling via OpenSC or PKCS#11 middleware.
+No standalone Rust PKINIT client crate suitable for `no_std` embedded use exists
+at time of writing. The firmware only performs the signing operation; PKINIT
+protocol handling lives entirely in host-side tooling.
 
 Planned: Q2 hardware availability.
 
 ---
 
-## 7. Document and Dataset Notarisation / Timestamping
-
-Produce cryptographically verifiable signatures on documents, scientific datasets,
-legal records, or research data at the point of collection.
-
-| Crate | Role | Notes |
-|-------|------|-------|
-| `cms` | RFC 3161 Time-Stamp Protocol (TSP) request/response structures are built on CMS | See above. |
-| `x509-cert` | Timestamping Authority (TSA) certificate handling | See above. |
-
-The device provides the signing key; an RFC 3161 TSA on the host side provides
-the timestamp token. The firmware itself does not require a clock.
-
----
-
-## 8. Post-Quantum Cryptography Profile Additions
+### 3. Post-Quantum Cryptography Profile Additions
 
 Add ML-KEM, ML-DSA, and SLH-DSA algorithm entries to the existing cipher-agnostic
 profile system once independently audited crates are available.
 
-| Crate | Status | Notes |
-|-------|--------|-------|
-| `ml-kem` (RustCrypto) | `no_std` compatible, tested against NIST KAT vectors | No independent audit as of 2025. RustCrypto README explicitly states this. Do not integrate before audit. |
-| `ml-dsa` (RustCrypto) | `no_std` compatible, tested against NIST KAT vectors | No independent audit as of 2025. Same caveat. |
-| `slh-dsa` (RustCrypto) | `no_std` compatible, tested against NIST KAT vectors | No independent audit as of 2025. Same caveat. |
-| `libcrux-ml-kem` (Cryspen) | Formally verified using hax/F* framework; used in production by Mozilla | Most rigorous verification story currently available. Cryspen uncovered the KyberSlash timing bug in other implementations. Watch for formal audit availability. |
+| Crate | Notes |
+|-------|-------|
+| `ml-kem` (RustCrypto) | `no_std` compatible, tested against NIST KAT vectors. No independent audit as of 2025 — RustCrypto README explicitly states this. Do not integrate before audit. |
+| `ml-dsa` (RustCrypto) | `no_std` compatible, tested against NIST KAT vectors. No independent audit as of 2025. Same caveat. |
+| `slh-dsa` (RustCrypto) | `no_std` compatible, tested against NIST KAT vectors. No independent audit as of 2025. Same caveat. |
+| `libcrux-ml-kem` (Cryspen) | Formally verified using hax/F* framework; used in production by Mozilla. Most rigorous verification story currently available. Uncovered the KyberSlash timing bug in other implementations. Watch for formal audit availability. |
 
 Hybrid classical+PQC profiles (e.g. X25519 + ML-KEM-768) should be the first
-deployment target. The existing profile system accommodates this without
-architectural changes.
+deployment target. The existing cipher-agnostic profile system accommodates this
+without architectural changes.
 
-Integration is intentionally deferred until at least one crate covering
-ML-KEM and ML-DSA has completed an independent security audit.
+Integration is intentionally deferred until at least one crate covering ML-KEM
+and ML-DSA has completed an independent security audit.
 
 ---
 
@@ -163,8 +142,6 @@ ML-KEM and ML-DSA has completed an independent security audit.
 |-------|----------------------|
 | `aes-gcm`, `chacha20poly1305`, `ed25519-dalek`, `x25519-dalek`, `hkdf`, `pbkdf2`, `hmac`, `sha2`, `sha3`, `blake2`, `blake3`, `zeroize`, `subtle`, `p256`, `p384` | Yes (existing deps) |
 | `vsss-rs` | Yes (existing dep) |
-| `der`, `cms`, `x509-cert`, `pkcs8`, `spki` | No independent audit yet |
-| `ssh-key` | No independent audit yet |
-| `ml-kem`, `ml-dsa`, `slh-dsa` | No independent audit yet |
-| `postcard` | No independent audit yet |
-| `sigstore` | Experimental, pre-1.0 |
+| `der`, `cms`, `x509-cert`, `pkcs8`, `spki` | No |
+| `ml-kem`, `ml-dsa`, `slh-dsa` | No |
+| `postcard` | No |
