@@ -13,11 +13,18 @@ path = "src/main.rs"
 name = "gen-serpent-vectors"
 path = "src/bin/gen_serpent_vectors.rs"
 
+[[bin]]
+name = "galdralag-provision"
+path = "src/provision.rs"
+
 [dependencies]
 hex.workspace = true
 serde_json.workspace = true
 serpent.workspace = true
 sha2.workspace = true
+clap.workspace = true
+rpassword.workspace = true
+serialport.workspace = true
 
 [dev-dependencies]
 proptest = { workspace = true }

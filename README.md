@@ -66,7 +66,7 @@ This project is **registered with the [Open Invention Network (OIN)](https://ope
 - [Cryptographic dependency policy](#cryptographic-dependency-policy)
 - [Quick start](#quick-start)
 - [Known limitations / open work](#known-limitations--open-work)
-  - [CCID initial PIN: operator UX (pre-production blocker)](#ccid-initial-pin-operator-ux-pre-production-blocker)
+  - [CCID initial PIN: first-boot provisioning (USB CDC)](#ccid-initial-pin-first-boot-provisioning-usb-cdc)
 - [License](#license)
 
 ---
@@ -342,7 +342,7 @@ was only known to those who understood.
 | [docs/THREE_FACTOR_AUTH.md](docs/THREE_FACTOR_AUTH.md) | Token + PIN + optional biometric: what this repo implements vs placeholder; threat sketch |
 | [docs/THREAT_MODEL.md](docs/THREAT_MODEL.md) | Threat model: assets, threats T1–T14, what is and is not defended, unverified items pending Q2 hardware, audit status |
 | [docs/PERFORMANCE.md](docs/PERFORMANCE.md) | Performance notes |
-| [docs/HARDWARE_BRINGUP_TEST_PLAN.md](docs/HARDWARE_BRINGUP_TEST_PLAN.md) | Q2 first-hardware bring-up: CCID enumeration, `gpg --card-status`, PIN/`passwd`, crypto smoke tests; pre-production PIN UX called out in [future-todo.md](docs/future-todo.md) |
+| [docs/HARDWARE_BRINGUP_TEST_PLAN.md](docs/HARDWARE_BRINGUP_TEST_PLAN.md) | Q2 first-hardware bring-up: CCID enumeration, `gpg --card-status`, USB CDC `galdralag-provision` for first-boot PINs, then `gpg --card-edit` / crypto smoke tests |
 | [docs/HARDWARE_VERIFICATION.md](docs/HARDWARE_VERIFICATION.md) | Hardware zeroisation: simulation vs silicon verification |
 | [docs/HARDWARE_TEST.md](docs/HARDWARE_TEST.md) | Hardware-oriented testing notes |
 | [docs/NFC_PN532_INTEGRATION.md](docs/NFC_PN532_INTEGRATION.md) | PN532 / NFC: libnfc, Rust options, door passive vs USB panel, quorum with Shamir and PIN |
@@ -880,29 +880,27 @@ Never enable it in production firmware images — enforced by `check-fw`.
 
 ## Known limitations / open work
 
-### CCID initial PIN: operator UX (pre-production blocker)
+### CCID initial PIN: first-boot provisioning (USB CDC)
 
-On first boot, `usb-bao1x` generates a random 8-digit numeric User PIN and
-Admin PIN via TRNG and stores them in RRAM (provision slots `PNU1` / `PNA1`,
-cleared after `OpenPgpVaultBackend::new` succeeds).
+On first boot (OpenPGP PIN verifier digests still zero), firmware must not silently pick **unknown** PINs. Production **`usb-bao1x`** images (without `dev-provisioning` or `trng-pin-fallback`) return **`HalError::NeedsProvisioning`** until the operator stages PINs:
 
-These PINs are **not surfaced to the operator**. Before production shipment,
-a provisioning path is required — options include:
+1. The device enumerates a **USB CDC-ACM** provisioning interface ( **`ProvisioningClass`**, feature **`provisioning-personality`** on `usb-personality` ).
+2. The host runs **`galdralag-provision`** from this repo:  
+   `cargo run -p host-tools --bin galdralag-provision -- --port /dev/ttyACM0`  
+   Use **`--user-pin`** / **`--admin-pin`** or omit them for interactive prompts via **`rpassword`** (nothing is echoed; PINs are not stored in shell history).
+3. The tool sends `STATUS`, `SET_USER_PIN`, `SET_ADMIN_PIN`, `COMMIT`; the device writes **`PNU1` / `PNA1`** via **`write_provisioning_pins`** (`baochip-openpgp`), then continues **`OpenPgpVaultBackend::new`** and normal **CCID** enumeration.
 
-- Secure display on device at first boot
-- One-time USB provisioning personality (separate from CCID)
-- PDDB export or equivalent
+**Development / lab shortcuts:** feature **`dev-provisioning`** with **`CCID_USER_PIN`** / **`CCID_ADMIN_PIN`** in the process environment (see `baochip-openpgp`). Optional **`trng-pin-fallback`** generates **unrecoverable** random PINs unless captured out-of-band — it is **`compile_error!`-disallowed** together with **`board-dabao`**.
 
-**Sequencing constraint:** the provision slots are cleared after `new`
-completes. Any out-of-band provisioning that writes a PIN must do so
-*after* first boot via OpenPGP `CHANGE REFERENCE DATA` over USB, not
-by writing into the provision band directly.
+**After the vault exists**, changing PINs still uses **GnuPG** / **OpenPGP CHANGE REFERENCE DATA** over CCID (`gpg --card-edit` → `passwd`), not the CDC provision protocol.
 
-PIN cap: 32 bytes (firmware limit; OpenPGP spec allows 127). Raising
-the cap requires a layout change in `baochip-openpgp` and an update to
-`openpgp_vault_logical_span_end()`. See
+**Sequencing:** `PNU1` / `PNA1` are **cleared** after a successful first `new`. They exist to pass operator-chosen PINs **into** that constructor; routine PIN updates are card-application commands, not raw provision-slot writes.
+
+PIN cap: 32 bytes (firmware limit; OpenPGP spec allows 127). See
 `CCID_PIN_PROVISION_PAYLOAD_MAX_BYTES` in
 `crates/baochip-openpgp/src/xous_impl.rs`.
+
+**Integration:** Wiring lives in **xous-core** `services/usb-bao1x` (not built in this workspace). Apply the init flow there: on `NeedsProvisioning`, run the CDC provisioning poll loop, call `write_provisioning_pins`, reopen the backend, then attach `CcidClass`. See [docs/HARDWARE_BRINGUP_TEST_PLAN.md](docs/HARDWARE_BRINGUP_TEST_PLAN.md).
 
 ---
 

@@ -321,6 +321,56 @@ fn clear_ccid_pin_provision_slots(rram: &Rc<RefCell<Pin<Box<Reram>>>>, p_base: u
     Ok(())
 }
 
+fn pin_provision_record_valid(rram: &Rc<RefCell<Pin<Box<Reram>>>>, magic: &[u8; 4], logical_off: u64) -> bool {
+    let p_base = vault_phys_base();
+    let phys = p_base + logical_off as usize;
+    let mut buf = [0u8; CCID_PIN_PROVISION_SLOT_BYTES];
+    let r = rram.borrow();
+    if rram_read_bytes(&*r, phys, &mut buf).is_err() {
+        return false;
+    }
+    if buf[..4] != *magic {
+        return false;
+    }
+    let n = buf[4] as usize;
+    !(n == 0 || n > CCID_PIN_PROVISION_PAYLOAD_MAX_BYTES)
+}
+
+/// `true` when both `PNU1` and `PNA1` hold well-formed provision records (magic, length, payload).
+pub fn provision_slots_have_valid_pins(rram: &Rc<RefCell<Pin<Box<Reram>>>>) -> bool {
+    pin_provision_record_valid(rram, CCID_PINPROV_USER_MAGIC, pin_provision_user_logical_off())
+        && pin_provision_record_valid(rram, CCID_PINPROV_ADMIN_MAGIC, pin_provision_admin_logical_off())
+}
+
+/// Write operator-chosen pins into `PNU1` / `PNA1` before [`open_or_provision_backend`] consumes them.
+pub fn write_provisioning_pins(
+    rram: &Rc<RefCell<Pin<Box<Reram>>>>,
+    user_pin: &[u8],
+    admin_pin: &[u8],
+) -> Result<(), HalError> {
+    if user_pin.is_empty() || user_pin.len() > CCID_PIN_PROVISION_PAYLOAD_MAX_BYTES {
+        return Err(HalError::Denied);
+    }
+    if admin_pin.is_empty() || admin_pin.len() > CCID_PIN_PROVISION_PAYLOAD_MAX_BYTES {
+        return Err(HalError::Denied);
+    }
+    let p_base = vault_phys_base();
+    let u = p_base + pin_provision_user_logical_off() as usize;
+    let a = p_base + pin_provision_admin_logical_off() as usize;
+    let mut rec_u = [0u8; CCID_PIN_PROVISION_SLOT_BYTES];
+    rec_u[..4].copy_from_slice(CCID_PINPROV_USER_MAGIC.as_slice());
+    rec_u[4] = user_pin.len() as u8;
+    rec_u[5..5 + user_pin.len()].copy_from_slice(user_pin);
+    let mut rec_a = [0u8; CCID_PIN_PROVISION_SLOT_BYTES];
+    rec_a[..4].copy_from_slice(CCID_PINPROV_ADMIN_MAGIC.as_slice());
+    rec_a[4] = admin_pin.len() as u8;
+    rec_a[5..5 + admin_pin.len()].copy_from_slice(admin_pin);
+    let mut w = rram.borrow_mut();
+    w.write_slice(u, &rec_u).map_err(|_| HalError::Bus)?;
+    w.write_slice(a, &rec_a).map_err(|_| HalError::Bus)?;
+    Ok(())
+}
+
 fn load_or_provision_ccid_pin(
     rram: &Rc<RefCell<Pin<Box<Reram>>>>,
     magic: &[u8; 4],
@@ -341,17 +391,26 @@ fn load_or_provision_ccid_pin(
         }
         return Ok(buf[5..5 + n].to_vec());
     }
-    let mut pin = vec![0u8; CCID_DEFAULT_PIN_DIGITS];
-    for p in pin.iter_mut() {
-        *p = b'0' + (trng.next_u32() % 10) as u8;
+    #[cfg(feature = "trng-pin-fallback")]
+    {
+        // NOT FOR PRODUCTION — PIN is unrecoverable unless captured out-of-band.
+        let mut pin = vec![0u8; CCID_DEFAULT_PIN_DIGITS];
+        for p in pin.iter_mut() {
+            *p = b'0' + (trng.next_u32() % 10) as u8;
+        }
+        let mut rec = [0u8; CCID_PIN_PROVISION_SLOT_BYTES];
+        rec[..4].copy_from_slice(magic.as_slice());
+        rec[4] = pin.len() as u8;
+        rec[5..5 + pin.len()].copy_from_slice(&pin);
+        let mut w = rram.borrow_mut();
+        w.write_slice(phys, &rec).map_err(|_| HalError::Bus)?;
+        Ok(pin)
     }
-    let mut rec = [0u8; CCID_PIN_PROVISION_SLOT_BYTES];
-    rec[..4].copy_from_slice(magic.as_slice());
-    rec[4] = pin.len() as u8;
-    rec[5..5 + pin.len()].copy_from_slice(&pin);
-    let mut w = rram.borrow_mut();
-    w.write_slice(phys, &rec).map_err(|_| HalError::Bus)?;
-    Ok(pin)
+    #[cfg(not(feature = "trng-pin-fallback"))]
+    {
+        let _ = trng;
+        Err(HalError::NeedsProvisioning)
+    }
 }
 
 /// `true` if either OpenPGP PIN verifier cell is still all zero (needs [`OpenPgpVaultBackend::new`]).
@@ -363,7 +422,8 @@ pub fn ccid_pin_hashes_unprovisioned(rram: &Rc<RefCell<Pin<Box<Reram>>>>) -> boo
     pin_digest_unprovisioned(&*r, pin_u) || pin_digest_unprovisioned(&*r, pin_a)
 }
 
-/// Load persisted initial user PIN from RRAM, or create an **8-digit numeric** default and store it (first boot only).
+/// Load initial user PIN from `PNU1`, or TRNG-provision it when `trng-pin-fallback` is enabled,
+/// or return [`HalError::NeedsProvisioning`] when the slot is empty (production: use USB CDC provisioning first).
 pub fn load_or_provision_ccid_user_pin_bytes(
     rram: &Rc<RefCell<Pin<Box<Reram>>>>,
     trng: &mut Trng,
@@ -371,7 +431,8 @@ pub fn load_or_provision_ccid_user_pin_bytes(
     load_or_provision_ccid_pin(rram, CCID_PINPROV_USER_MAGIC, pin_provision_user_logical_off(), trng)
 }
 
-/// Load persisted initial admin PIN from RRAM, or create an **8-digit numeric** default and store it (first boot only).
+/// Load initial admin PIN from `PNA1`, or TRNG-provision when `trng-pin-fallback` is enabled,
+/// or return [`HalError::NeedsProvisioning`] when the slot is empty.
 pub fn load_or_provision_ccid_admin_pin_bytes(
     rram: &Rc<RefCell<Pin<Box<Reram>>>>,
     trng: &mut Trng,
@@ -446,6 +507,15 @@ pub fn open_or_provision_backend(
     };
 
     if user_unprov || admin_unprov {
+        #[cfg(not(feature = "dev-provisioning"))]
+        {
+            #[cfg(not(feature = "trng-pin-fallback"))]
+            {
+                if !provision_slots_have_valid_pins(&rram) {
+                    return Err(HalError::NeedsProvisioning);
+                }
+            }
+        }
         if user_pin.len() > CCID_PIN_PROVISION_PAYLOAD_MAX_BYTES || admin_pin.len() > CCID_PIN_PROVISION_PAYLOAD_MAX_BYTES
         {
             return Err(HalError::Denied);

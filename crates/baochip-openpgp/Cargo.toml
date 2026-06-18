@@ -9,7 +9,7 @@ description = "Xous Baochip RRAM + TRNG wiring for OpenPgpVaultBackend / CCID (G
 galdr-core = { path = "../galdr-core" }
 galdr-vault = { path = "../vault" }
 pin-policy = { path = "../pin-policy" }
-usb-personality = { path = "../usb-personality" }
+usb-personality = { path = "../usb-personality", features = ["provisioning-personality"] }
 rand_core = { version = "0.6", default-features = false }
 
 [target.'cfg(target_os = "xous")'.dependencies]
@@ -23,6 +23,8 @@ trng = { path = "../../xous-core/services/trng" }
 [features]
 default = []
 dev-provisioning = []
+trng-pin-fallback = []
+board-dabao = []
 
 [lints.rust]
 unsafe_code = "allow"

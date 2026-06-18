@@ -9,6 +9,7 @@ description = "USB mass-storage vs authenticated-unlock personalities; OpenPGP C
 default = []
 profile-hardened = []
 pq-signatures = []
+provisioning-personality = []
 
 [dependencies]
 galdr-core.workspace = true

@@ -87,26 +87,21 @@ Hardware bring-up sequence (Q2)
 Run in this order on first hardware:
 
 - gpg --card-status — confirms CCID enumeration, AID, and key slots
-- gpg --card-edit → passwd — exercises PIN change; this is also the operator's only current path to replace the TRNG-generated first-boot PIN (see section 0)
+- On first boot only (PIN verifier digests unprovisioned), run **`galdralag-provision`** from [host-tools](../crates/host-tools/) — `cargo run -p host-tools --bin galdralag-provision -- --port /dev/ttyACM0` (PINs via `--user-pin` / `--admin-pin` or interactive **`rpassword`** prompts). The device must expose the **USB CDC-ACM provisioning personality** until PINs are staged and committed (see `usb-personality` / `provisioning-personality`).
+- gpg --card-edit → passwd — exercises PIN change **after** you know the User and Admin PIN from provisioning (or dev-only env paths).
 - RRAM map sign-off — manual review of the authoritative Baochip-1x memory map against the layout in docs/RRAM_LAYOUT.md; gate for production
 
 ---
 
-### 0. First-boot operator PIN UX (pre-production blocker)
+### 0. First-boot operator PIN UX (resolved — USB CDC provisioning)
 
-On first boot, usb-bao1x generates a random 8-digit numeric User PIN and Admin PIN via TRNG and stores them in RRAM (provision slots PNU1 / PNA1). These slots are cleared after OpenPgpVaultBackend::new succeeds.
+**Status:** Addressed in-tree via a **CDC-ACM provisioning personality** (`crates/usb-personality`, feature `provisioning-personality`) and **host tool** `galdralag-provision` (`crates/host-tools/src/provision.rs`). On production paths without `dev-provisioning` or `trng-pin-fallback`, the Xous **`usb-bao1x`** server should expose this personality when `HalError::NeedsProvisioning` is returned from `open_or_provision_backend` / pin load helpers, accept `SET_USER_PIN` / `SET_ADMIN_PIN` / `COMMIT`, call `write_provisioning_pins`, then re-run backend open and switch USB to **CCID**.
 
-The PINs are not surfaced to the operator. The only current path to change them is gpg --card-edit → passwd over USB after the device enumerates — but this requires the operator to already know the current PIN.
+**Initial PIN delivery:** Operator-chosen PINs (1–32 bytes each) are written to RRAM `PNU1` / `PNA1` through the line protocol and consumed on the first successful `OpenPgpVaultBackend::new` (provision band cleared afterward). This is **not** the same as everyday PIN changes: after the vault exists, PIN updates still go through **OpenPGP CHANGE REFERENCE DATA** over CCID, not raw provision-slot writes.
 
-This is a pre-production blocker. Options for resolution:
+**PIN cap:** 32 bytes (firmware limit; OpenPGP spec allows 127). See `CCID_PIN_PROVISION_PAYLOAD_MAX_BYTES` in `crates/baochip-openpgp/src/xous_impl.rs`.
 
-- Secure display on device at first boot
-- One-time USB provisioning personality (separate from CCID)
-- PDDB export or equivalent
-
-Sequencing constraint: any provisioning path that writes a new PIN must do so via OpenPGP CHANGE REFERENCE DATA after first boot — not by writing directly into the provision band, which is cleared during new.
-
-PIN cap: 32 bytes (firmware limit; OpenPGP spec allows 127). See CCID_PIN_PROVISION_PAYLOAD_MAX_BYTES in crates/baochip-openpgp/src/xous_impl.rs. Raising the cap requires a layout change and update to openpgp_vault_logical_span_end().
+**Lab / CI fallbacks (not for production tokens):** Feature **`dev-provisioning`** (`CCID_USER_PIN` / `CCID_ADMIN_PIN` env); optional **`trng-pin-fallback`** (silent TRNG PIN — unrecoverable without out-of-band capture; **forbidden** with **`board-dabao`** via `compile_error!` in `baochip-openpgp`).
 
 ---
 

@@ -26,4 +26,7 @@ pub enum HalError {
     Timeout,
     /// Driver or secure element denied the request.
     Denied,
+    /// PIN provision records are missing: operator must run USB CDC provisioning (or a documented
+    /// development-only path such as `dev-provisioning` / `trng-pin-fallback`).
+    NeedsProvisioning,
 }

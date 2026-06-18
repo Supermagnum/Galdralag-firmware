@@ -89,6 +89,7 @@ sequoia-openpgp = { version = "1.21.0", default-features = false, features = ["c
 sequoia-net = { version = "0.28.0", default-features = false }
 rusb = "0.9.4"
 rpassword = "7.3.1"
+serialport = { version = "4.6.0", default-features = false }
 serde = { version = "1.0.217", features = ["derive"] }
 toml = "0.8.19"
 uuid = { version = "1.11.0", features = ["v4"] }

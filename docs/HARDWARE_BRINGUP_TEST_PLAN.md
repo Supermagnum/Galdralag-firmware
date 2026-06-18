@@ -72,14 +72,26 @@ against `crates/usb-personality/src/ccid/mod.rs` constants.
 
 ## 3. PIN verification
 
-The device was provisioned with a TRNG-generated 8-digit numeric PIN on first boot.
-The current path to discover it is `gpg --card-edit` → `passwd` after changing it
-via Admin PIN.
+Set **known** User and Admin PINs **before** CCID exercises using the **USB CDC provisioning** path (first boot only, when the device enumerates as a serial interface instead of the CCID token).
 
-> **Note:** This is the pre-production blocker documented in `docs/future-todo.md`
-> section 0 and `README.md` Known limitations. For bring-up, use the default
-> Admin PIN `12345678` if the TRNG path was not active, or the TRNG-generated PIN
-> stored in RRAM provision slot `PNA1`.
+From the Galdralag firmware repository:
+
+```bash
+cargo run -p host-tools --bin galdralag-provision -- \
+  --port /dev/ttyACM0 \
+  --user-pin 'your-user-pin' \
+  --admin-pin 'your-admin-pin'
+```
+
+Omit `--user-pin` / `--admin-pin` to be prompted securely (no echo; `rpassword` — PINs are not placed in shell history). PINs may be up to **32 bytes** each.
+
+When provisioning completes, the device should re-enumerate and present **CCID** / OpenPGP as in step 2. Confirm with:
+
+```bash
+gpg --card-status
+```
+
+Then change PINs if desired (you now know the current values):
 
 ```bash
 gpg --card-edit
@@ -87,12 +99,13 @@ gpg --card-edit
 # At the gpg/card> prompt:
 admin
 passwd
-# Follow prompts to change User PIN (default or TRNG-generated → new known value)
-# Follow prompts to change Admin PIN
+# Follow prompts to change User PIN and Admin PIN
 quit
 ```
 
-Record the new PINs securely. All subsequent steps require the User PIN.
+Record any new PINs securely. All subsequent steps require the User PIN.
+
+> **Development shortcut:** Firmware built with **`dev-provisioning`** can instead use **`CCID_USER_PIN`** and **`CCID_ADMIN_PIN`** in the environment before first boot (lab only). Do not use this for production tokens.
 
 ---
 

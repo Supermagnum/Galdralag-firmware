@@ -7,6 +7,8 @@
 
 pub mod ccid;
 pub mod openpgp;
+#[cfg(feature = "provisioning-personality")]
+pub mod provisioning;
 
 /// Active high-level USB presentation.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
