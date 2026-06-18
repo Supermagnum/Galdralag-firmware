@@ -32,6 +32,7 @@ It is ready for testing by humans. **You** decide whether to build or run any of
 - [Standards vs. firmware-specific features](#standards-vs-firmware-specific-features)
 - [Shamir secret sharing and drive encryption](#shamir-secret-sharing-and-drive-encryption)
 - [Standards process: Shamir and ephemeral key exchange](#standards-process-shamir-and-ephemeral-key-exchange)
+  - [CESS (related open standard)](#cess-related-open-standard)
 - [Sequoia PGP (if this repository is unresponsive)](#sequoia-pgp-if-this-repository-is-unresponsive)
 - [Build, install, and uninstall](#build-install-and-uninstall)
   - [Compile firmware](#compile-firmware)
@@ -201,6 +202,7 @@ Shippable firmware for **Baochip-1x** is **signed** with **Ed25519**. You sign t
 | [docs/XOUS_CCID_INTEGRATION.md](docs/XOUS_CCID_INTEGRATION.md) | Wiring CCID/OpenPGP USB into Xous on Baochip |
 | [docs/CIPHER_PROFILES.md](docs/CIPHER_PROFILES.md) | Cipher profile system and configuration |
 | [docs/EPHEMERAL_SESSION.md](docs/EPHEMERAL_SESSION.md) | Authenticated ephemeral ECDH session protocol |
+| [Supermagnum/CESS](https://github.com/Supermagnum/CESS) | **CESS** (*Cryptologically Enchanted Shamir's Secret*) — open specification (normative text and test vectors) for threshold secret sharing with authenticated encryption, password-based share wrapping, and optional post-quantum hybrid key exchange; separate from this firmware but in the same design space as Shamir and cipher profiles here |
 | [docs/PQ_SIGNATURES.md](docs/PQ_SIGNATURES.md) | Post-quantum stateful signatures (XMSS, LMS/HSS), feature gating |
 | [docs/Psram.md](docs/Psram.md) | Optional PSRAM decoy volume and related behaviour |
 | [docs/TEST_RESULTS.md](docs/TEST_RESULTS.md#last-full-run) | Opens at **Last full run**; vectors, dudect, cargo-fuzz ([Section 10](docs/TEST_RESULTS.md#10-cargo-fuzz-libfuzzer-summary)), key lifecycle |
@@ -355,6 +357,10 @@ One concrete pattern is a **drive or volume** encrypted using **Brainpool** curv
 ## Standards process: Shamir and ephemeral key exchange
 
 When and if the hardware reaches a **consumer-ready** state, people who want **Shamir’s Secret Sharing** and **authenticated ephemeral key exchange** to become part of interoperable **OpenPGP / GnuPG** behaviour (instead of only firmware-specific features) would need to drive **standards and implementation** change elsewhere. This repository does not speak for the IETF or GnuPG; the venues below are where such amendments are normally pursued.
+
+### CESS (related open standard)
+
+**[CESS](https://github.com/Supermagnum/CESS)** — *Cryptologically Enchanted Shamir's Secret* — is an open cryptographic standard for **threshold secret sharing** together with **cipher-agnostic authenticated encryption**, **password-based share wrapping**, and optional **post-quantum hybrid key exchange**. The [CESS repository](https://github.com/Supermagnum/CESS) holds the normative specification, algorithm registry, test vectors, and conformance runner. CESS is **not** this firmware; it defines interoperable share envelopes and policy rules that sit alongside the same **Shamir**, **Brainpool**, and **cipher-profile** themes described elsewhere in this README.
 
 ### IETF (primary venue)
 
