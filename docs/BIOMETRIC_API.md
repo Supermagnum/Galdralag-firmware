@@ -161,6 +161,23 @@ frequent writes (PIN counter, audit log) should use wear-aware storage strategie
 
 ## Liveness and anti-spoof requirements
 
+**PAD (presentation attack detection)** evaluation must follow **ISO/IEC 30107-3**
+methodology before any claim that the biometric path is suitable for deployment.
+Informal or ad-hoc spoof trials are not sufficient for a security or product
+positioning statement.
+
+**Matching accuracy** for the chosen matcher and modality must be benchmarked
+using the **datasets published alongside the sweet platform (CandyFV)** and the
+**datasets associated with the ESP32-CAM device paper**, so reported performance
+is comparable to the published baselines for those platforms.
+
+**Rust integration tests** for firmware and host wiring **follow** the same
+**`test-hal` / `dudect` / `cargo-fuzz`** pattern already established in this
+workspace: **`test-hal`** feature-gated fakes for hardware contracts, **`dudect`**
+in `security-tests` for timing-sensitive paths, and **`cargo-fuzz`** targets under
+`fuzz/` for parsers and byte-oriented API surfaces (see also [Psram.md](Psram.md)
+for how those pieces fit together).
+
 ---
 
 ## Provisioning

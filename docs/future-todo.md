@@ -142,6 +142,24 @@ and ML-DSA has completed an independent security audit.
 
 ---
 
+### 4. Biometric pre-gate (design)
+
+See [BIOMETRIC_API.md](BIOMETRIC_API.md) for the on-token template storage and
+`galdrad` relay model. Before any **deployment** claim for that path:
+
+- **PAD testing** must follow **ISO/IEC 30107-3** methodology; informal spoof
+  tests are not enough for product or security positioning.
+- **Matching accuracy** must be benchmarked against the **datasets published
+  alongside the sweet platform (CandyFV)** and the **datasets associated with the
+  ESP32-CAM device paper**, so numbers stay aligned with those public baselines.
+
+**Rust integration tests** follow the existing **`test-hal` / `dudect` /
+`cargo-fuzz`** pattern already in the workspace (same as other crates: **`test-hal`**
+fakes, **`dudect`** for timing-critical paths, **`cargo-fuzz`** under `fuzz/`;
+see [Psram.md](Psram.md) for the consolidated description).
+
+---
+
 ## Crates Explicitly Excluded
 
 | Crate | Reason |
