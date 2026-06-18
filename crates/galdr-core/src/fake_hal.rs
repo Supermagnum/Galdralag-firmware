@@ -4,7 +4,7 @@
 
 extern crate alloc;
 
-use crate::hal::{MonotonicCounter, VaultStorage, ZeroiseController};
+use crate::hal::{MonotonicCounter, RebootController, VaultStorage, ZeroiseController};
 use crate::HalError;
 use rand_core::{CryptoRng, RngCore};
 
@@ -110,6 +110,34 @@ impl Default for FakeZeroiseController {
 impl ZeroiseController for FakeZeroiseController {
     fn zeroise_region(&mut self, region_id: u32) -> Result<(), HalError> {
         self.regions.push(region_id);
+        Ok(())
+    }
+}
+
+/// Records a call to `enter_update_mode` without performing any hardware action.
+///
+/// Useful for testing code paths that request a firmware update without having
+/// a physical Dabao board attached. The `requested` flag can be inspected after
+/// the call to confirm the correct code path was reached.
+pub struct FakeRebootController {
+    pub requested: bool,
+}
+
+impl FakeRebootController {
+    pub fn new() -> Self {
+        Self { requested: false }
+    }
+}
+
+impl Default for FakeRebootController {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl RebootController for FakeRebootController {
+    fn enter_update_mode(&mut self) -> Result<(), HalError> {
+        self.requested = true;
         Ok(())
     }
 }

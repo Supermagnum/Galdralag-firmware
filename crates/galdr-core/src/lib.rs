@@ -26,4 +26,4 @@ mod property_tests;
 mod scaffold_todos;
 
 pub use error::{GaldrError, HalError};
-pub use hal::{HardwareTrng, MonotonicCounter, VaultStorage, ZeroiseController};
+pub use hal::{HardwareTrng, MonotonicCounter, RebootController, VaultStorage, ZeroiseController};

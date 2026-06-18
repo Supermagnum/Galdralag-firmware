@@ -50,3 +50,33 @@ pub trait VaultStorage {
     fn read(&self, offset: u64, out: &mut [u8]) -> Result<(), HalError>;
     fn write(&mut self, offset: u64, data: &[u8]) -> Result<(), HalError>;
 }
+
+/// Programmatic entry into boot1 USB firmware-update mode.
+///
+/// On Baochip-1x the boot1 stage checks a one-way RRAM counter (`BootWaitCoding`) before
+/// calling `try_boot`. When that counter reads `Enable` (odd raw value), boot1 skips the
+/// normal boot path and enters the USB mass-storage / serial REPL loop, accepting a `.uf2`
+/// firmware image without requiring the operator to press the physical PROG or RESET buttons.
+///
+/// The sequence is:
+/// 1. Advance `BootWaitCoding` to `Enable` by incrementing the counter at ACRAM offset 80
+///    until its raw value is odd.
+/// 2. Write the magic value `0x55AA` to `SFR_RCURST0` in the sysctrl block to trigger a
+///    soft reset. The device reboots; boot1 observes `Enable` and stays in update mode.
+///
+/// This is the Galdralag firmware's exposure of that mechanism. Calling `enter_update_mode`
+/// must be a deliberate, audited operation — it reboots the device and ends the current
+/// session. Any in-flight cryptographic operations must be completed or explicitly aborted
+/// before this call.
+///
+/// Implementations on test platforms (see `FakeRebootController`) record the call without
+/// rebooting; the hardware implementation in `services/galdralag` performs the real MMIO
+/// sequence.
+pub trait RebootController {
+    /// Signal boot1 to enter firmware-update mode, then trigger a soft reset.
+    ///
+    /// Returns `Ok(())` on platforms where the call is a no-op stub (tests).
+    /// On real hardware this call does not return — the soft reset fires before the
+    /// function would ordinarily unwind.
+    fn enter_update_mode(&mut self) -> Result<(), HalError>;
+}

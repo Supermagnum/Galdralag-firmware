@@ -19,3 +19,13 @@ xous-bsp = []
 galdr-core = { path = "../../crates/galdr-core" }
 usb-personality = { path = "../../crates/usb-personality" }
 vault = { path = "../../crates/vault" }
+
+[dev-dependencies]
+galdr-core = { path = "../../crates/galdr-core", features = ["test-hal"] }
+
+# The reboot module performs direct MMIO writes (volatile pointer dereferences) to
+# the Baochip-1x ACRAM one-way counter and sysctrl soft-reset register. This is the
+# only place in this crate that requires unsafe; the workspace default (forbid) is
+# intentionally overridden here for that narrow reason.
+[lints.rust]
+unsafe_code = "allow"
