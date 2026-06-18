@@ -20,8 +20,8 @@ MAINTENANCE CONTRACT FOR THIS FILE
 
 | Field | Value |
 |---|---|
-| Date (UTC) | 2026-05-04T21:00:00Z |
-| Commit | `2a0f7f24d5db17f68d1017ea6d2597f4c90c773f` |
+| Date (UTC) | 2026-05-06T01:20:00Z |
+| Commit | `0cbbbc3` |
 | xtask version | 0.1.0 |
 | Flags | `--no-fuzz` (fuzz matrix run separately; see Section 6) |
 | Host | x86_64-unknown-linux-gnu |
@@ -35,7 +35,7 @@ MAINTENANCE CONTRACT FOR THIS FILE
 |------|---------|--------|
 | Firmware check (default) | `cargo run -p xtask -- check-fw` | PASS |
 | Firmware check (pq-signatures) | `cargo run -p xtask -- check-fw --features pq-signatures` | PASS |
-| Unit tests (workspace) | `cargo test --workspace --exclude xtask` | PASS (636 passed, 0 failed, 18 ignored) |
+| Unit tests (workspace) | `cargo test --workspace --exclude xtask --exclude galdrad` | PASS (667 passed, 0 failed, 20 ignored) |
 | Wycheproof vectors | `cargo test -p vault wycheproof` | PASS |
 | RFC vectors | `cargo test -p vault rfc_vectors` | PASS |
 | BSI Brainpool vectors | `cargo test -p vault bsi_brainpool` | PASS — ECDH + ECDSA, all three curves |
@@ -53,16 +53,25 @@ MAINTENANCE CONTRACT FOR THIS FILE
 
 ## 1. Unit tests
 
-**Command:** `cargo test --workspace --exclude xtask`  
-**Result:** 636 passed, 0 failed, 18 ignored
+**Command:** `cargo test --workspace --exclude xtask --exclude galdrad`  
+**Result:** 667 passed, 0 failed, 20 ignored
+
+`galdrad` is excluded because its `utoipa-swagger-ui` build step downloads assets
+at compile time and fails in offline environments; this is a pre-existing issue
+unrelated to the test logic.
 
 Round-trip tests (encrypt/decrypt, seal/open, sign/verify,
-split/recover) are included in the 626 total and are not reported
-separately.
+split/recover) are included in the total and are not reported separately.
 
-Three additional tests relative to the previous run: BSI Brainpool ECDSA KATs for
-P256r1, P384r1, and P512r1 (`bsi_brainpool.rs`). One additional ignored test:
-`bsi_ecdsa_sig_hex_dump` (helper for refreshing DER vectors; run with `--ignored`).
+**Changes relative to previous run (+31 passing, +2 ignored):**
+- `galdra-core-host`: +25 new passing tests for `ephemeral_offers` (unit tests
+  inside the module: store/get, mark_consumed, revoke, expiry checks, audit logging,
+  migration, JSON serialisation).
+- `galdra-core-host/tests/ephemeral_offers.rs`: +13 new passing integration tests
+  (public API surface: store, get, expiry, consumed, revoke, list, audit, not-found).
+- `galdra/tests/cli_epk.rs`: +4 new passing CLI tests (`epk status` with empty DB,
+  JSON mode, `epk expire` without/with `--confirm`); +2 ignored (`epk generate` and
+  `epk import` require `gpg` in PATH with a test keyring).
 
 ---
 
@@ -158,7 +167,7 @@ ECDSA reject row: valid DER with last byte toggled (`^ 0x55`); runner asserts `E
 ## 3. Timing tests (dudect)
 
 **Tool:** `dudect_galdr` — **threshold |t| ≤ 4.5**  
-**Result:** 32/32 harnesses PASS  
+**Result:** 33/33 harnesses PASS  
 **Cache:** `crates/security-tests/dudect_results.json`
 
 | Command | Purpose |
