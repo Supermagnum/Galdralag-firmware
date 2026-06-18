@@ -21,6 +21,8 @@ It is ready for testing by humans; using a **virtual machine** for that is sugge
 - [Documentation](#documentation)
 - [OpenPGP and GnuPG compatibility](#openpgp-and-gnupg-compatibility)
 - [Standards vs. firmware-specific features](#standards-vs-firmware-specific-features)
+- [Shamir secret sharing and drive encryption](#shamir-secret-sharing-and-drive-encryption)
+- [Standards process: Shamir and ephemeral key exchange](#standards-process-shamir-and-ephemeral-key-exchange)
 - [Build, install, and uninstall](#build-install-and-uninstall)
   - [Compile firmware](#compile-firmware)
   - [Flashing](#flashing)
@@ -135,13 +137,145 @@ Different parts of this project align with different standards. **GnuPG interope
 | **OpenPGP card application** — APDUs, PINs, SIG/DEC/AUT slots, generate/sign/decipher on card | OpenPGP card specification (see [docs/OPENPGP_CARD.md](docs/OPENPGP_CARD.md)) | **Yes** — same host stack as other OpenPGP smart cards (`gpg`, `scdaemon`, CCID) |
 | **USB CCID** — talking to the device as a smart card reader | USB CCID device class | **Yes** — class drivers |
 | **OpenPGP message format** — encrypted files, mail, key packets | RFC 4880 (and updates) | **Yes on the host** — GnuPG uses this; the card does not parse mail |
-| **Shamir K-of-N** — split / recover long-term key material in the vault | Not in OpenPGP card spec; not in GnuPG | **No** — firmware and provisioning tools only; not a `gpg --card-edit` operation |
+| **Shamir K-of-N** — split / recover long-term key material in the vault | Not in OpenPGP card spec; not in GnuPG | **No** — firmware and provisioning tools only; not a `gpg --card-edit` operation (see [Shamir and full-disk encryption](#shamir-secret-sharing-and-drive-encryption)) |
 | **Authenticated ephemeral ECDH** — forward-secret session protocol on the token | Not in OpenPGP card spec | **No** — token-specific; not a GnuPG card command |
 | **Cipher profile system** — named cipher cascades and related policy | Not in OpenPGP card spec | **No** — firmware / host token tools |
 | **PSRAM decoy / mass-storage personas** — uninformed-host USB behaviour | Not in OpenPGP card spec | **No** — separate USB personality code paths |
 | **WebAuthn / FIDO2** | CTAP / WebAuthn | **Not implemented** — different standard from OpenPGP card |
 
 For day-to-day **card** behaviour, rely on [docs/OPENPGP_CARD.md](docs/OPENPGP_CARD.md). For **vault-only** or **token-unique** features, use this repository’s firmware and [Galdra tool](docs/GALDRA-TOOL.md) documentation.
+
+---
+
+## Shamir secret sharing and drive encryption
+
+The **OpenPGP card** and **GnuPG** stacks do **not** define Shamir’s Secret Sharing (SSS) for keys or for disk unlock. SSS is still useful **alongside** normal encryption: it almost never replaces the symmetric cipher on the disk — it **protects the small secret** (master key or passphrase) that unlocks that encryption.
+
+**Pattern (always the same idea):**
+
+| Layer | Role |
+|-------|------|
+| Drive | Encrypted with a **master key** (e.g. AES-256 via LUKS, VeraCrypt, or a raw block layer) |
+| Master key | Split with SSS into **N** shares, threshold **K-of-N** |
+| Shares | Held by people, devices, or offline storage; **K** shares together reconstruct the master key |
+| Unlock | Reconstruct key, then pass it to `cryptsetup`, `veracrypt`, or your stack |
+
+### Common real-world approaches
+
+**1. LUKS (Linux) and external SSS**
+
+[LUKS](https://gitlab.com/cryptsetup/cryptsetup) encrypts the volume with a master key. You can extract that key (or a key-slot secret, depending on your procedure), split it with an SSS tool, and store shares separately. At unlock time, combine **K** shares, reconstruct the key material, and supply it to `cryptsetup` (see your distribution’s documentation; mishandling keys can brick access).
+
+Example shape using the `ssss` (“Shamir’s Secret Sharing Scheme”) utilities (names and packaging vary by OS):
+
+```bash
+# Example: 3-of-5 split of a file containing key material (illustrative only)
+ssss-split -t 3 -n 5 < luks_master.key
+
+# Later: combine shares, then unlock (adapt device path and cryptsetup flow)
+ssss-combine -t 3 | cryptsetup luksOpen /dev/sdX vault
+```
+
+**2. HashiCorp Vault**
+
+[Vault](https://www.hashicorp.com/products/vault) uses Shamir for **unseal**: the storage encryption key is split at init (e.g. 3-of-5 operators each hold a share). After restart, **K** shares must be entered to unseal. Same **K-of-N on a master secret** pattern as LUKS, applied to a secrets engine rather than a block device.
+
+**3. Galdralag firmware (`vsss-rs`)**
+
+This repository uses [`vsss-rs`](https://crates.io/crates/vsss-rs) (RustCrypto ecosystem) for on-device Shamir. The same **layering** applies if you align it with bulk encryption:
+
+- Generate a random 256-bit (or appropriate) master key.
+- Encrypt the drive or bulk store with **AES-GCM** or **ChaCha20-Poly1305** using that key (this matches the workspace’s audited symmetric crates).
+- Use `vsss-rs` to split the master key into **N** shares with threshold **K**.
+- Store shares in vault slots, other devices, or with key holders.
+- On boot or recovery, collect **K** shares, reconstruct, then use **HKDF** (or your policy) for domain-separated subkeys if needed.
+
+**4. VeraCrypt**
+
+VeraCrypt does not implement SSS internally. The same **external** pattern applies: split the **passphrase or keyfile material** with an SSS tool; do not try to Shamir-split the volume’s ciphertext.
+
+### Hybrid pattern (large data)
+
+SSS is for **small secrets** (key size). You **do not** apply Shamir to multi-gigabyte ciphertext. The usual layering:
+
+```text
+[Drive data]
+    encrypted by
+[Symmetric master key, e.g. 32-byte AES-256]
+    split by SSS into
+[Share 1] [Share 2] ... [Share N]
+    (each share may be wrapped with a recipient’s PGP key, HSM, or offline media)
+```
+
+That lines up with what this project already stacks: **aes-gcm** / **chacha20poly1305** for data at rest, **vsss-rs** for splitting the master secret, **hkdf** for derivation after reconstruction.
+
+### Key practical decisions
+
+| Decision | Typical options |
+|----------|-------------------|
+| **Threshold** | 2-of-3 (small team, some redundancy); 3-of-5 (common in organisations) |
+| **Share storage** | Hardware tokens, separate machines, paper, geographically split sites |
+| **Share protection** | Encrypt each share for a specific recipient (e.g. with their OpenPGP key) before distribution |
+| **Where to reconstruct** | Air-gapped machine, HSM policy, or controlled environment — not on untrusted shared hosts |
+
+Operational key handling for LUKS and full-disk encryption is security-sensitive; follow vendor and distribution guidance and threat models for your environment.
+
+### Shamir plus Brainpool: example and institutional fit
+
+One concrete pattern is a **drive or volume** encrypted using **Brainpool** curves where your stack requires them (for example ECDH/ECDSA around a **master secret**), combined with **Shamir’s Secret Sharing** on the **key material** that unlocks that encryption (the same [small-secret layering](#hybrid-pattern-large-data) as above: SSS protects the key, not multi-gigabyte ciphertext). If and when **firmware and host software** implementing that workflow have been **independently audited**, such a combination can be valuable to organisations that must meet **quorum** policies and **national crypto** profiles at the same time.
+
+**Why Brainpool curves (e.g. BrainpoolP256r1, BrainpoolP384r1, BrainpoolP512r1) are often discussed in that context:**
+
+- **BSI** (Germany’s federal cybersecurity authority) mandates Brainpool in many deployment profiles; requirements appear in **EU government** and **NATO** procurement and policy settings.
+- Parameters are **fully specified and verifiable** in [RFC 5639](https://datatracker.ietf.org/doc/html/rfc5639), which reduces “nothing up my sleeve” concerns compared with older debates around some NIST curve generation methods.
+- **IETF precedent:** RFC 5639 is already on the standards track for these curves.
+
+**Scenarios where combining SSS with Brainpool-class cryptography addresses institutional needs** (illustrative; not legal or compliance advice):
+
+| Scenario | Why SSS plus strong, policy-aligned curves matter |
+|----------|---------------------------------------------------|
+| Employee leaves or dies | Recovery remains possible **without** that person’s exclusive secret |
+| Lawful access under due process | A **quorum** can be required — no single party holds the full unlocking secret |
+| Corporate key escrow | **Auditable** split; no single administrator has complete access |
+| Hardware seizure | Media may be captured without capturing **K** of **N** shares |
+| Regulatory alignment (EU / BSI) | Brainpool satisfies many **German and EU** government cryptography requirements |
+
+---
+
+## Standards process: Shamir and ephemeral key exchange
+
+When and if the hardware reaches a **consumer-ready** state, people who want **Shamir’s Secret Sharing** and **authenticated ephemeral key exchange** to become part of interoperable **OpenPGP / GnuPG** behaviour (instead of only firmware-specific features) would need to drive **standards and implementation** change elsewhere. This repository does not speak for the IETF or GnuPG; the venues below are where such amendments are normally pursued.
+
+### IETF (primary venue)
+
+The OpenPGP protocol standard is developed at the **IETF**. The relevant working group:
+
+| Resource | Link or address |
+|----------|-----------------|
+| Working group (charter, chairs) | [OpenPGP WG — datatracker](https://datatracker.ietf.org/wg/openpgp/about/) |
+| Public mailing list | `openpgp@ietf.org` |
+| List archive and subscription | [mailarchive.ietf.org — openpgp](https://mailarchive.ietf.org/arch/browse/openpgp/) |
+
+**Internet-Drafts** are the usual way to propose new functionality: publish a draft, then post to the list with the problem statement and a link to the draft. Working group chairs and participants decide whether a document becomes a **working group item** and eventually an RFC. An email that explains the need and points at a draft is the typical opening step.
+
+### GnuPG
+
+[GnuPG](https://gnupg.org/) maintainers and developers have strong influence on what operators deploy and what gets discussed in the OpenPGP WG.
+
+| Resource | Link or address |
+|----------|-----------------|
+| Developer list | `gnupg-devel@gnupg.org` |
+| Issue tracker / proposals | [dev.gnupg.org](https://dev.gnupg.org) |
+| Project lead | Werner Koch remains the primary author; contact addresses are listed on [gnupg.org](https://gnupg.org/) (e.g. `wk@gnupg.org`). |
+
+### Other OpenPGP implementations
+
+Engaging **multiple** implementations at the same time **strengthens a proposal considerably**: the OpenPGP ecosystem is not only GnuPG, and implementors often share IETF and de facto interoperability work.
+
+| Implementation | Notes |
+|----------------|--------|
+| [OpenPGP.js](https://github.com/openpgpjs/openpgpjs) | Widely deployed in browsers and application stacks |
+| [Sequoia PGP](https://sequoia-pgp.org) | Modern Rust implementation; often sympathetic to Rust-heavy stacks and cross-implementation work |
 
 ---
 
