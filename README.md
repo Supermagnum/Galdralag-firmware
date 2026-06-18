@@ -14,6 +14,52 @@
 
 It is ready for testing by humans. **You** decide whether to build or run any of this software; there may be bugs that **unit tests, fuzzing, and other checks** have not found. Using an **optional virtual machine** for experimentation **reduces risk** to your host system but does not eliminate it. Detailed results are in **[Test results](#test-results)** ([`docs/TEST_RESULTS.md#last-full-run`](docs/TEST_RESULTS.md#last-full-run)).
 
+## Table of contents
+
+- [Why Rust?](#why-rust)
+  - [Memory Safety](#memory-safety)
+  - [System-level robustness (with limits)](#system-level-robustness-with-limits)
+  - [Key material protection (project patterns)](#key-material-protection-project-patterns)
+  - [Auditable by design](#auditable-by-design)
+  - [What Rust does not prevent](#what-rust-does-not-prevent)
+  - [Setting up a virtual machine for evaluation](#setting-up-a-virtual-machine-for-evaluation)
+  - [Risk assessment and deployment](#risk-assessment-and-deployment)
+- [About the name](#about-the-name)
+- [What this is](#what-this-is)
+  - [Signed firmware (Ed25519, boot0)](#signed-firmware-ed25519-boot0)
+- [Documentation](#documentation)
+- [OpenPGP and GnuPG compatibility](#openpgp-and-gnupg-compatibility)
+- [Standards vs. firmware-specific features](#standards-vs-firmware-specific-features)
+- [Shamir secret sharing and drive encryption](#shamir-secret-sharing-and-drive-encryption)
+- [Standards process: Shamir and ephemeral key exchange](#standards-process-shamir-and-ephemeral-key-exchange)
+- [Sequoia PGP (if this repository is unresponsive)](#sequoia-pgp-if-this-repository-is-unresponsive)
+- [Build, install, and uninstall](#build-install-and-uninstall)
+  - [Compile firmware](#compile-firmware)
+  - [Flashing](#flashing)
+  - [Compile and install host tools (`galdra`, `galdrad`, `galdra-gtk`)](#compile-and-install-host-tools-galdra-galdrad-galdra-gtk)
+  - [Uninstall host tools](#uninstall-host-tools)
+- [Key capabilities](#key-capabilities)
+  - [What makes this token unusual](#what-makes-this-token-unusual)
+  - [Cryptographic capabilities](#cryptographic-capabilities)
+    - [Asymmetric / key agreement](#asymmetric--key-agreement)
+    - [Symmetric / AEAD](#symmetric--aead)
+    - [Key derivation / MAC / digest](#key-derivation--mac--digest)
+    - [Key management](#key-management)
+  - [Security properties](#security-properties)
+  - [PIN policy](#pin-policy)
+- [Post-quantum status](#post-quantum-status)
+  - [Implemented — unaudited crate (feature-gated)](#implemented--unaudited-crate-feature-gated)
+  - [Pending independent audit — not yet implemented](#pending-independent-audit--not-yet-implemented)
+  - [Will not be implemented](#will-not-be-implemented)
+- [Zeroisation — hardware caveat](#zeroisation--hardware-caveat)
+- [Test results](#test-results)
+- [Workspace layout](#workspace-layout)
+- [Cryptographic dependency policy](#cryptographic-dependency-policy)
+- [Quick start](#quick-start)
+- [License](#license)
+
+---
+
 ## Why Rust?
 
 This firmware is written in Rust, a systems programming language designed
@@ -85,50 +131,6 @@ risk assessment, the sensitivity of what you are protecting, and
 whether you choose to wait for an independent third-party audit
 before deployment. This project aims to give you all the
 information needed to make that decision for yourself.
-
-## Table of contents
-
-- [Why Rust?](#why-rust)
-  - [Memory Safety](#memory-safety)
-  - [System-level robustness (with limits)](#system-level-robustness-with-limits)
-  - [Key material protection (project patterns)](#key-material-protection-project-patterns)
-  - [Auditable by design](#auditable-by-design)
-  - [What Rust does not prevent](#what-rust-does-not-prevent)
-  - [Setting up a virtual machine for evaluation](#setting-up-a-virtual-machine-for-evaluation)
-  - [Risk assessment and deployment](#risk-assessment-and-deployment)
-- [About the name](#about-the-name)
-- [What this is](#what-this-is)
-  - [Signed firmware (Ed25519, boot0)](#signed-firmware-ed25519-boot0)
-- [Documentation](#documentation)
-- [OpenPGP and GnuPG compatibility](#openpgp-and-gnupg-compatibility)
-- [Standards vs. firmware-specific features](#standards-vs-firmware-specific-features)
-- [Shamir secret sharing and drive encryption](#shamir-secret-sharing-and-drive-encryption)
-- [Standards process: Shamir and ephemeral key exchange](#standards-process-shamir-and-ephemeral-key-exchange)
-- [Sequoia PGP (if this repository is unresponsive)](#sequoia-pgp-if-this-repository-is-unresponsive)
-- [Build, install, and uninstall](#build-install-and-uninstall)
-  - [Compile firmware](#compile-firmware)
-  - [Flashing](#flashing)
-  - [Compile and install host tools (`galdra`, `galdrad`, `galdra-gtk`)](#compile-and-install-host-tools-galdra-galdrad-galdra-gtk)
-  - [Uninstall host tools](#uninstall-host-tools)
-- [Key capabilities](#key-capabilities)
-  - [What makes this token unusual](#what-makes-this-token-unusual)
-  - [Cryptographic capabilities](#cryptographic-capabilities)
-    - [Asymmetric / key agreement](#asymmetric--key-agreement)
-    - [Symmetric / AEAD](#symmetric--aead)
-    - [Key derivation / MAC / digest](#key-derivation--mac--digest)
-    - [Key management](#key-management)
-  - [Security properties](#security-properties)
-  - [PIN policy](#pin-policy)
-- [Post-quantum status](#post-quantum-status)
-  - [Implemented — unaudited crate (feature-gated)](#implemented--unaudited-crate-feature-gated)
-  - [Pending independent audit — not yet implemented](#pending-independent-audit--not-yet-implemented)
-  - [Will not be implemented](#will-not-be-implemented)
-- [Zeroisation — hardware caveat](#zeroisation--hardware-caveat)
-- [Test results](#test-results)
-- [Workspace layout](#workspace-layout)
-- [Cryptographic dependency policy](#cryptographic-dependency-policy)
-- [Quick start](#quick-start)
-- [License](#license)
 
 ---
 
