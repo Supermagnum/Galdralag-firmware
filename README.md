@@ -216,11 +216,12 @@ Shippable firmware for **Baochip-1x** is **signed** with **Ed25519**. You sign t
 
 **Browse all files:** [github.com/Supermagnum/Galdralag-firmware — `docs/`](https://github.com/Supermagnum/Galdralag-firmware/tree/main/docs)
 
-**Hardware (USB dongle and related):** [Hardware/kicad-sd-card/](Hardware/kicad-sd-card/) — KiCad project (`dabao_v3c_sdcard`, USB-A token with micro-SD holder), gerbers, BOM, production outputs, and [pinout docs](Hardware/kicad-sd-card/docs/pinout/README.md). The USB-A dongle PCB layout (minimal token vs Pico-format eval) is described in [docs/USB_DONGLE_PCB.md](docs/USB_DONGLE_PCB.md).
+**Hardware (USB dongle and related):** Two KiCad trees: [Hardware/kicad-files-usb/](Hardware/kicad-files-usb/) — `dabao_v3c` (USB-A token **without** micro-SD); and [Hardware/kicad-sd-card/](Hardware/kicad-sd-card/) — `dabao_v3c_sdcard` (same base layout **with** micro-SD holder), gerbers, BOM, production outputs, and [pinout docs](Hardware/kicad-sd-card/docs/pinout/README.md). The USB-A dongle PCB layout (minimal token vs Pico-format eval) is described in [docs/USB_DONGLE_PCB.md](docs/USB_DONGLE_PCB.md).
 
 | Document | Description |
 |----------|-------------|
-| [Hardware/kicad-sd-card/](Hardware/kicad-sd-card/) | **USB dongle** design files and related outputs: KiCad, gerbers, BOM, pinout; complements [USB_DONGLE_PCB.md](docs/USB_DONGLE_PCB.md) |
+| [Hardware/kicad-files-usb/](Hardware/kicad-files-usb/) | **USB dongle** KiCad project `dabao_v3c` (no micro-SD); gerbers, BOM, production outputs; complements [USB_DONGLE_PCB.md](docs/USB_DONGLE_PCB.md) |
+| [Hardware/kicad-sd-card/](Hardware/kicad-sd-card/) | **USB dongle** KiCad project `dabao_v3c_sdcard` (micro-SD holder); gerbers, BOM, pinout under [docs/pinout](Hardware/kicad-sd-card/docs/pinout/README.md); complements [USB_DONGLE_PCB.md](docs/USB_DONGLE_PCB.md) |
 | [docs/API_REFERENCE.md](docs/API_REFERENCE.md) | Code map + **annex** for IETF/I-D/GnuPG/Sequoia: Shamir GF(256) construction, GALDRA SHARE armour, ephemeral ECDH wire format, HKDF labels, preimages; `galdrad` routes; rustdoc hints |
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | High-level firmware architecture and major subsystems |
 | [docs/GALDRA-TOOL.md](docs/GALDRA-TOOL.md) | Host tools (`galdra`, `galdrad`, `galdra-gtk`): workflows, provisioning, PIN policy, operational behaviour |
