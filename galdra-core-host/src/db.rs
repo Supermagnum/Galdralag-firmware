@@ -20,6 +20,10 @@ const MIGRATIONS: &[(u32, &str)] = &[
         6,
         include_str!("../migrations/006_identity_address_fields.sql"),
     ),
+    (
+        7,
+        include_str!("../migrations/007_identity_social_ids.sql"),
+    ),
 ];
 
 /// OpenPGP contacts, groups, audit, and config store.

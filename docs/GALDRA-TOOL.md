@@ -60,12 +60,12 @@ galdra device lock
 
 ### Contacts
 
-Add a contact **without** importing a key (metadata only). The first argument is a free-text identifier string; use `--callsign`, `--email`, and other fields as needed:
+Add a contact **without** importing a key (metadata only). **`--email` is required**; optional **`--name`** (display name), **`--fluxer-id`**, **`--discord-id`**, **`--irc-id`**, **`--callsign`**, and other flags follow the same rules as in the [identity model](#identity-model).
 
 ```bash
-galdra contact add W1ABC --name "Example station" --callsign W1ABC --email ops@example.org \
+galdra contact add --email ops@example.org --name "Example station" --callsign W1ABC \
   --street "Karl Johans gate 1" --postal-code 0154 --region Oslo --country NO --dmr-id 2412345 \
-  --radio-affiliation NRRL
+  --radio-affiliation NRRL --fluxer-id my-handle --discord-id "123456789012345678" --irc-id "nick"
 ```
 
 Optional **postal hints** (`--street`, `--country`, `--postal-code`, `--region`) are stored in the local SQLite contact row only (not authenticated; omit them if you prefer least data). Amateur-radio fields **`--dmr-id`** (1–16777215) and **`--radio-affiliation`** (max 128 characters) behave the same way.
@@ -96,7 +96,7 @@ galdra contact list
 
 ### Groups and multi-recipient encryption (OpenPGP)
 
-Create a group and add members by identifier (contact id, callsign, or email as stored in the database):
+Create a group and add members by identifier (contact **id**, **callsign**, **e-mail**, **Fluxer id**, **Discord id**, or **IRC id** as stored in the database):
 
 ```bash
 galdra group create net_control --description "Net control operators"
@@ -128,7 +128,7 @@ Abort if any recipient key is missing or expired:
 galdra encrypt --input message.txt --output message.txt.gpg --group net_control --strict
 ```
 
-Decrypt OpenPGP ciphertext. You must pass **`--recipient`** with a contact identifier (id, callsign, or email) so the tool can load the right public certificate material for parsing. Full private-key decryption on the host is not implemented; production use expects a connected token where firmware support exists:
+Decrypt OpenPGP ciphertext. You must pass **`--recipient`** with a contact identifier (**id**, **callsign**, **e-mail**, **Fluxer id**, **Discord id**, or **IRC id**) so the tool can load the right public certificate material for parsing. Full private-key decryption on the host is not implemented; production use expects a connected token where firmware support exists:
 
 ```bash
 galdra decrypt --input message.txt.gpg --output message.txt --recipient W1ABC
@@ -287,7 +287,7 @@ This removes the row from the local SQLite database and drops group memberships 
 galdra contact delete <identifier> --confirm
 ```
 
-`<identifier>` is a contact id, callsign, or email as stored. To stop encrypting to someone without removing their contact row, remove them from groups with `galdra group remove <group> <identifier>` instead.
+`<identifier>` is a contact **id**, **callsign**, **e-mail**, **Fluxer id**, **Discord id**, or **IRC id** as stored (same resolution as `galdra contact show`). To stop encrypting to someone without removing their contact row, remove them from groups with `galdra group remove <group> <identifier>` instead.
 
 **2. Delete a private key from one token slot (destroy that slot on the device)**  
 Irreversible: the private key material for that slot is erased on the token. Other slots are unchanged.
@@ -519,8 +519,8 @@ RESTful JSON API. Endpoints mirror the CLI command surface. Example:
 
 ```
 GET    /contacts                  → list all contacts (JSON mirrors `Identity` fields)
-POST   /contacts                  → create contact (optional keys: amateur-radio + postal metadata)
-GET    /contacts/{id}             → get a contact by id, callsign, or email (resolver matches CLI)
+POST   /contacts                  → create contact (**`email` required** in JSON; optional amateur-radio + postal + social ids)
+GET    /contacts/{id}             → get a contact by id, callsign, email, Fluxer id, Discord id, or IRC id (resolver matches CLI)
 PATCH  /contacts/{id}             → partial metadata update (same optional fields as POST body)
 DELETE /contacts/{id}             → delete a contact
 
@@ -583,9 +583,12 @@ key. Identities are not limited to humans.
 | Field | Type | Description |
 |-------|------|-------------|
 | `id` | UUID | Stable primary key; never changes even if other fields do |
-| `display_name` | text | Human-readable name: "Dr. Jane Smith", "W1ABC", "Unit 47" |
+| `display_name` | text | Human-readable label; may be empty when only **e-mail** is used for display |
 | `callsign` | text, unique | Amateur radio callsign; NULL if not applicable |
-| `email` | text | Primary email address |
+| `email` | text | Primary e-mail; **required** when adding a contact via CLI (`contact add`) or `POST /contacts`; otherwise taken from the OpenPGP User ID on fetch/import |
+| `fluxer_id` | text | Optional Fluxer handle or id (**max 128** characters when set) |
+| `discord_id` | text | Optional Discord user id (**max 32** characters when set) |
+| `irc_id` | text | Optional IRC nick or `nick@server` style id (**max 128** characters when set) |
 | `badge_number` | text | Hospital or security badge/employee ID |
 | `organisation` | text | Employer, club, agency |
 | `department` | text | Ward, division, team |
@@ -607,7 +610,7 @@ key. Identities are not limited to humans.
 
 **HKP / WKD fetch:** the upstream keyserver matches your query against **OpenPGP User ID** name, email, and comment fields (implementation-dependent).
 
-**Local contact search (`galdra contact` search path and the `contact_search` helper in `galdra-core-host`):** textual `LIKE` search covers `display_name`, `callsign`, `email`, `badge_number`, `organisation`, `department`, `role`, `note`, `radio_affiliation`, **`dmr_id` as text**, `street`, `country`, `postal_code`, and `region`. That lets a dispatcher find "Oslo", a postal prefix, organisation name, **and** amateur-radio affiliation or numeric DMR substring in one place on the workstation.
+**Local contact search (`galdra contact` search path and the `contact_search` helper in `galdra-core-host`):** textual `LIKE` search covers `display_name`, `callsign`, `email`, `badge_number`, `organisation`, `department`, `role`, `note`, `radio_affiliation`, **`dmr_id` as text**, `street`, `country`, `postal_code`, `region`, **`fluxer_id`**, **`discord_id`**, and **`irc_id`**. That lets a dispatcher find "Oslo", a postal prefix, organisation name, **and** amateur-radio affiliation or numeric DMR substring in one place on the workstation.
 
 ---
 
@@ -745,7 +748,7 @@ Fetch a key by email address from the key owner's domain. No central
 server required. Preferred for organisations that control their own domain.
 
 ```
-galdra contact fetch --wkd dr.smith@hospital.example.org
+galdra contact fetch "dr.smith@hospital.example.org" --source wkd
 ```
 
 ### LDAP / Active Directory
@@ -795,11 +798,13 @@ galdra contact fetch --peer   # fetches from the second connected token
 
 ### Manual entry
 
-For keys received out-of-band (read over radio, phone, in person):
+For keys received out-of-band (read over radio, phone, in person), import the armoured certificate from a file. The certificate **must** include an e-mail address in an OpenPGP User ID (that address is stored on the contact row):
 
+```bash
+galdra contact import --file received.asc
 ```
-galdra contact add W1ABC --pubkey-paste   # reads armoured key from stdin
-```
+
+To record someone’s directory metadata **without** a key yet, use **`galdra contact add --email ...`** (e-mail required; other fields optional) as in [Contacts](#contacts).
 
 ---
 
@@ -1040,7 +1045,7 @@ The host stores **OpenPGP public certificates** for people you communicate with.
 | **Import** from another token on the same USB bus | `galdra contact fetch <query> --source peer` (requires a connected peer token; see implementation notes). |
 | **Refresh** keys from their recorded source | `galdra contact refresh <identifier>` or `galdra contact refresh --all` |
 | **Remove** a contact and its public key from the local database | `galdra contact delete <identifier> --confirm` — removes the row and group memberships; does not revoke the key on the internet. |
-| **Optional metadata** (not cryptographically verified) | Set on add/edit: `--dmr-id`, `--radio-affiliation`, `--street`, `--country`, `--postal-code`, `--region` (CLI); same keys in **`galdrad`** JSON bodies (`radio_affiliation`, `postal_code`, …); see **[Identity model](#identity-model)** and [README](../README.md#compile-and-install-host-tools-galdra-galdrad-galdra-gtk). |
+| **Optional metadata** (not cryptographically verified) | Set on add/edit: `--dmr-id`, `--radio-affiliation`, `--street`, `--country`, `--postal-code`, `--region`, `--fluxer-id`, `--discord-id`, `--irc-id` (CLI); same keys in **`galdrad`** JSON bodies; see **[Identity model](#identity-model)** and [README](../README.md#compile-and-install-host-tools-galdra-galdrad-galdra-gtk). |
 | **List / show** | `galdra contact list`, `galdra contact show <id>` |
 
 **Delete public key material locally** means **delete the contact** (`contact delete`). That only affects your machine.
@@ -1129,18 +1134,20 @@ galdra key delete --slot <n> [--confirm]
 ### Contact management
 
 ```
-galdra contact add <identifier> [--name <name>] [--email <addr>]
-    [--callsign <call>] [--badge <id>] [--org <org>] [--role <role>]
+galdra contact add --email <addr> [--name <name>] [--callsign <call>] [--badge <id>] [--org <org>] [--role <role>]
     [--note <text>] [--dmr-id <id>] [--radio-affiliation <text>]
     [--street <line>] [--country <text>] [--postal-code <code>] [--region <text>]
-    Add a contact manually without a key.
+    [--fluxer-id <id>] [--discord-id <id>] [--irc-id <id>]
+    Add a contact manually without a key. --email is required.
 
 galdra contact fetch <query> [--source keyserver|wkd|ldap|peer|file]
     [--server <url>]
     Fetch a public key for a contact. When searching the local database, text
     matches span display name, callsign, email, badge, organisation, department,
-    role, notes, radio affiliation, DMR id, and optional postal fields.
-    If contact does not exist locally, creates it.
+    role, notes, radio affiliation, DMR id, optional postal fields, and
+    Fluxer / Discord / IRC ids.
+    If contact does not exist locally, creates it (the certificate must carry an
+    e-mail User ID).
     If contact exists, updates the key.
 
 galdra contact import --file <pubkey.asc|cert.pem>
@@ -1154,6 +1161,7 @@ galdra contact import --peer
 
 galdra contact show <identifier>
     Display full contact details including key fingerprint and expiry.
+    <identifier> is a stored contact id, callsign, e-mail, Fluxer id, Discord id, or IRC id.
 
 galdra contact list [--expired] [--org <org>] [--role <role>]
     List contacts, optionally filtered.
@@ -1162,10 +1170,12 @@ galdra contact edit <identifier> [--name <name>] [--email <addr>] [--callsign <c
     [--badge <id>] [--org <org>] [--role <role>] [--note <text>]
     [--dmr-id <id>] [--radio-affiliation <text>]
     [--street <line>] [--country <text>] [--postal-code <code>] [--region <text>]
+    [--fluxer-id <id>] [--discord-id <id>] [--irc-id <id>]
     Update contact metadata. Does not change the key.
 
 galdra contact delete <identifier> [--confirm]
     Delete a contact and remove from all groups.
+    <identifier> as for show.
 
 galdra contact refresh [--all] [<identifier>]
     Re-fetch key(s) from the original source.
@@ -1181,6 +1191,7 @@ galdra group create <name> [--description <text>] [--hidden-recipients]
 galdra group add <group> <identifier> [<identifier>...]
     [--expires <ISO8601>]
     Add one or more contacts to a group.
+    Each <identifier> resolves like `galdra contact show` (id, callsign, e-mail, Fluxer, Discord, IRC).
     --expires sets automatic membership expiry (for on-call / shift use).
 
 galdra group add <group> --from-group <other-group>
@@ -1220,7 +1231,9 @@ galdra encrypt --group <name> --input <file> --output <file>
 
 galdra encrypt --to <identifier> [--to <identifier>...]
     --input <file> --output <file> [--sign] [--format pgp|age]
-    Encrypt to one or more named contacts.
+    Encrypt to one or more named contacts. Each <identifier> is resolved
+    the same way as for `galdra contact show` (id, callsign, e-mail, Fluxer,
+    Discord, or IRC id as stored).
 
 galdra decrypt --input <file> --output <file>
     Decrypt a file. Token must be connected and unlocked.
@@ -1232,7 +1245,7 @@ galdra sign --input <file> --output <file> [--detach]
 
 galdra verify --input <file> [--sig <file>] [--signer <identifier>]
     Verify a signature. If --signer is given, verifies against that
-    specific contact's key. Otherwise checks all known contacts.
+    specific contact's key (<identifier> as for `contact show`). Otherwise checks all known contacts.
 ```
 
 ### Synchronisation and audit

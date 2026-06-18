@@ -9,8 +9,8 @@ fn add_from_group_copies_members() {
         &mut db,
         NewContact {
             display_name: "A".to_string(),
+            email: "a@groups.test".to_string(),
             callsign: None,
-            email: None,
             badge_number: None,
             organisation: None,
             department: None,
@@ -22,6 +22,9 @@ fn add_from_group_copies_members() {
             country: None,
             postal_code: None,
             region: None,
+            fluxer_id: None,
+            discord_id: None,
+            irc_id: None,
         },
     )
     .expect("a");
@@ -29,8 +32,8 @@ fn add_from_group_copies_members() {
         &mut db,
         NewContact {
             display_name: "B".to_string(),
+            email: "b@groups.test".to_string(),
             callsign: None,
-            email: None,
             badge_number: None,
             organisation: None,
             department: None,
@@ -42,6 +45,9 @@ fn add_from_group_copies_members() {
             country: None,
             postal_code: None,
             region: None,
+            fluxer_id: None,
+            discord_id: None,
+            irc_id: None,
         },
     )
     .expect("b");

@@ -92,7 +92,11 @@ pub fn print_expiry_warnings(db: &Db, config: &Config, quiet: bool) -> Result<()
     for c in near {
         eprintln!(
             "  {} ({}) expires {}",
-            c.display_name,
+            if c.display_name.is_empty() {
+                c.email.as_deref().unwrap_or(&c.id)
+            } else {
+                c.display_name.as_str()
+            },
             c.id,
             c.expires_at.map(|t| t.to_rfc3339()).unwrap_or_default()
         );
@@ -100,7 +104,7 @@ pub fn print_expiry_warnings(db: &Db, config: &Config, quiet: bool) -> Result<()
     Ok(())
 }
 
-/// Resolve a contact identifier (UUID, callsign, or email) to a row.
+/// Resolve a contact identifier (UUID, callsign, e-mail, Fluxer id, Discord id, or IRC id) to a row.
 pub fn resolve_identity(db: &Db, id: &str) -> Result<Identity, GaldraError> {
     if let Ok(c) = contacts::contact_get_by_id(db, id) {
         return Ok(c);
@@ -108,7 +112,16 @@ pub fn resolve_identity(db: &Db, id: &str) -> Result<Identity, GaldraError> {
     if let Ok(c) = contacts::contact_get_by_callsign(db, id) {
         return Ok(c);
     }
-    contacts::contact_get_by_email(db, id)
+    if let Ok(c) = contacts::contact_get_by_email(db, id) {
+        return Ok(c);
+    }
+    if let Ok(c) = contacts::contact_get_by_fluxer_id(db, id) {
+        return Ok(c);
+    }
+    if let Ok(c) = contacts::contact_get_by_discord_id(db, id) {
+        return Ok(c);
+    }
+    contacts::contact_get_by_irc_id(db, id)
 }
 
 /// Exit status mapping for CLI errors.

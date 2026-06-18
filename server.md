@@ -8,7 +8,7 @@
 
 ## 1. Purpose and scope
 
-This document specifies a **Galdralag Web of Trust key registry server**: a standalone Rust HTTP service that **would** store OpenPGP public keys contributed by maintainers and users of Galdralag hardware, plus **sidecar metadata** (name, optional amateur-radio fields, optional **national society / club affiliation**, and optional **postal-location hints**) not defined by the OpenPGP User ID packet itself. In the intended design, the server **would** anchor **claimed identity** to a fingerprint and validated email; it **would** **not** assign OpenPGP ownertrust, **would** **not** replace a general-purpose federated keyserver, and **would** perform **no** secret-key or signing operations beyond verifying what submitters supply (certificate structure, algorithms, revocation signatures). Users extend trust through in-person verification and certificate signatures as described in the [Web of Trust and Key Signing Parties](README.md#web-of-trust-and-key-signing-parties) section of this repository’s README.
+This document specifies a **Galdralag Web of Trust key registry server**: a standalone Rust HTTP service that **would** store OpenPGP public keys contributed by maintainers and users of Galdralag hardware, plus **sidecar metadata** (optional **name**, optional **Fluxer / Discord / IRC** identifiers, optional amateur-radio fields, optional **national society / club affiliation**, and optional **postal-location hints**) not defined by the OpenPGP User ID packet itself. In the intended design, the server **would** anchor **claimed identity** to a fingerprint and validated email; it **would** **not** assign OpenPGP ownertrust, **would** **not** replace a general-purpose federated keyserver, and **would** perform **no** secret-key or signing operations beyond verifying what submitters supply (certificate structure, algorithms, revocation signatures). Users extend trust through in-person verification and certificate signatures as described in the [Web of Trust and Key Signing Parties](README.md#web-of-trust-and-key-signing-parties) section of this repository’s README.
 
 The first registry identity is intended to be the **hardware maintainer**, registered after Baochip-1x hardware is available for on-device key generation.
 
@@ -32,7 +32,7 @@ This Galdralag server is specified to **reuse Hagrid’s OpenPGP and mail-valida
 | Key storage | Files on disk; often fronted by nginx | **SQLx + SQLite** (single file): armored key + sidecar columns |
 | Templates | Tera | **MiniJinja** (Jinja2 syntax; templates can be ported mechanically) |
 | Outbound mail | Custom integration | **`lettre`** (async + rustls) |
-| Metadata | Certificate-only | Extra table fields: callsign, DMR ID, optional **radio society / amateur group** text, optional **postal-location hints** (street, country, postal code, region) |
+| Metadata | Certificate-only | Extra table fields: callsign, DMR ID, optional **radio society / amateur group** text, optional **postal-location hints** (street, country, postal code, region), optional **Fluxer / Discord / IRC** identifiers |
 
 **Licence.** Hagrid is **AGPL-3.0**. Before vendoring or copying Hagrid sources into this workspace, review licence compatibility with this project’s **GPL-3.0** distribution. If combining AGPL and GPL-3.0 code in one binary is not acceptable for a given deployment, restrict reuse to **LGPL-2.0+ Sequoia crates** and re-implement only the thin coordination layer (upload parsing, confirmation state machine, HTTP handlers) without Hagrid verbatim.
 
@@ -40,13 +40,16 @@ This Galdralag server is specified to **reuse Hagrid’s OpenPGP and mail-valida
 
 ## 3. Identity fields
 
-Every submission **would be** tied to one OpenPGP certificate (public key material only) and a **metadata record** keyed by primary **fingerprint**. The following fields **would** apply. **Amateur radio callsign**, **DMR ID**, **radio affiliation**, and **postal hint** columns are **optional**; identity name and email **would** behave as stated below (**email** **would** tie to validated mailbox consent).
+Every submission **would be** tied to one OpenPGP certificate (public key material only) and a **metadata record** keyed by primary **fingerprint**. The following fields **would** apply. **Amateur radio callsign**, **DMR ID**, **radio affiliation**, **postal hint**, **Fluxer ID**, **Discord ID**, **IRC ID**, and **identity name** (first / last) are **optional**; **email address** is the **only** mandatory sidecar field and **would** tie to validated mailbox consent.
 
 | Field | Required | Validation |
 |-------|----------|------------|
-| First name | Yes | Non-empty string, maximum 64 Unicode scalars (store as UTF-8; validate length after normalisation policy is fixed in code) |
-| Last name | Yes | Non-empty string, same length bound as first name |
 | Email address | Yes | RFC-like check via `validator`; must match at least one User ID email in the submitted certificate (case-insensitive comparison) |
+| First name | No | When present: non-empty string, maximum 64 Unicode scalars (store as UTF-8; validate length after normalisation policy is fixed in code) |
+| Last name | No | When present: non-empty string, same length bound as first name |
+| Fluxer ID | No | UTF-8, maximum **128** Unicode scalars — submitter-declared handle or opaque id on Fluxer (not verified against a remote service in v1) |
+| Discord ID | No | UTF-8, maximum **32** Unicode scalars — typically numeric snowflake; no remote verification in v1 |
+| IRC ID | No | UTF-8, maximum **128** Unicode scalars — e.g. nickname or `nick@server` style; submitter-declared, not verified in v1 |
 | Amateur radio callsign | No | ICAO-style token (e.g. `LA1BC`); stored as submitted; no online registry query in v1 |
 | DMR ID number | No | Unsigned 32-bit integer (when set, meaningful range **1–16777215** to align with amateur **DMR** practice). Meaningful mainly when a callsign is also present. |
 | Radio amateur affiliation | No | Free text, maximum **128** Unicode scalars. Examples: **`NRRL`** (Norwegian Radio Relay League — *Norsk Radio Relæ Liga*); other national society abbreviations (**ARRL**, **RSGB**, **DARC**, **REF**, …); or **local amateur radio club / contest group** names. Not verified against registries in v1 — submitter-declared metadata only. |
@@ -98,7 +101,8 @@ galdralag-keyserver/
 │   ├── 001_keys.sql
 │   ├── 002_pending.sql
 │   ├── 003_radio_affiliation.sql       -- ALTER only: DBs deployed before affiliation column existed
-│   └── 004_postal_sidecar.sql         -- ALTER only: postal hint columns when absent from 001 revisions
+│   ├── 004_postal_sidecar.sql         -- ALTER only: postal hint columns when absent from 001 revisions
+│   └── 005_optional_name_fluxer_discord_irc.sql   -- nullable name; Fluxer / Discord / IRC columns
 ├── templates/
 │   ├── base.html
 │   ├── index.html
@@ -136,9 +140,12 @@ CREATE TABLE IF NOT EXISTS keys (
     id              INTEGER PRIMARY KEY AUTOINCREMENT,
     fingerprint     TEXT    NOT NULL UNIQUE,           -- 40-char uppercase hex
     armored_key     TEXT    NOT NULL,                  -- ASCII-armored public key block
-    first_name      TEXT    NOT NULL,
-    last_name       TEXT    NOT NULL,
+    first_name      TEXT,                              -- NULL if not provided
+    last_name       TEXT,                              -- NULL if not provided
     email           TEXT    NOT NULL,
+    fluxer_id       TEXT,
+    discord_id      TEXT,
+    irc_id          TEXT,
     callsign        TEXT,                              -- NULL if not provided
     dmr_id          INTEGER,                           -- NULL if not provided
     radio_affiliation TEXT,                          -- NULL; NRRL / club / national society etc.
@@ -156,6 +163,9 @@ CREATE INDEX IF NOT EXISTS idx_keys_email       ON keys(email);
 CREATE INDEX IF NOT EXISTS idx_keys_fingerprint ON keys(fingerprint);
 CREATE INDEX IF NOT EXISTS idx_keys_callsign    ON keys(callsign);
 CREATE INDEX IF NOT EXISTS idx_keys_dmr_id      ON keys(dmr_id);
+CREATE INDEX IF NOT EXISTS idx_keys_fluxer_id   ON keys(fluxer_id);
+CREATE INDEX IF NOT EXISTS idx_keys_discord_id  ON keys(discord_id);
+CREATE INDEX IF NOT EXISTS idx_keys_irc_id      ON keys(irc_id);
 ```
 
 **`migrations/002_pending.sql`**
@@ -165,8 +175,11 @@ CREATE TABLE IF NOT EXISTS pending_submissions (
     token           TEXT    PRIMARY KEY,               -- 256-bit random hex, used in confirm/reject URLs
     new_fingerprint TEXT    NOT NULL,
     email           TEXT    NOT NULL,                  -- identifies the existing identity
-    first_name      TEXT    NOT NULL,
-    last_name       TEXT    NOT NULL,
+    first_name      TEXT,
+    last_name       TEXT,
+    fluxer_id       TEXT,
+    discord_id      TEXT,
+    irc_id          TEXT,
     callsign        TEXT,
     dmr_id          INTEGER,
     radio_affiliation TEXT,
@@ -200,15 +213,37 @@ ALTER TABLE pending_submissions ADD COLUMN postal_code TEXT;
 ALTER TABLE pending_submissions ADD COLUMN region TEXT;
 ```
 
+**`migrations/005_optional_name_fluxer_discord_irc.sql`** (run once on SQLite files whose earlier revisions have **NOT NULL** `first_name` / `last_name` or omit **Fluxer / Discord / IRC** columns. On SQLite **3.35.0+**, drop **NOT NULL** on names; on older SQLite, recreate the tables or rely on a fresh `001` / `002` that already allow **NULL** names and include the new columns.)
+
+```sql
+ALTER TABLE keys ALTER COLUMN first_name DROP NOT NULL;
+ALTER TABLE keys ALTER COLUMN last_name DROP NOT NULL;
+ALTER TABLE keys ADD COLUMN fluxer_id TEXT;
+ALTER TABLE keys ADD COLUMN discord_id TEXT;
+ALTER TABLE keys ADD COLUMN irc_id TEXT;
+
+ALTER TABLE pending_submissions ALTER COLUMN first_name DROP NOT NULL;
+ALTER TABLE pending_submissions ALTER COLUMN last_name DROP NOT NULL;
+ALTER TABLE pending_submissions ADD COLUMN fluxer_id TEXT;
+ALTER TABLE pending_submissions ADD COLUMN discord_id TEXT;
+ALTER TABLE pending_submissions ADD COLUMN irc_id TEXT;
+
+CREATE INDEX IF NOT EXISTS idx_keys_fluxer_id   ON keys(fluxer_id);
+CREATE INDEX IF NOT EXISTS idx_keys_discord_id  ON keys(discord_id);
+CREATE INDEX IF NOT EXISTS idx_keys_irc_id      ON keys(irc_id);
+```
+
+Fresh installs **would** use **`001`** / **`002`** snippets above (nullable names and social-id columns) and **may** omit **`005`** entirely.
+
 ---
 
 ## 7. Submission methods
 
 ### 7a. Web form (`POST /submit`)
 
-The site **would** serve **`GET /submit`** with an HTML form. Fields: mandatory name and email, optional **callsign**, **DMR ID**, **radio affiliation**, optional **street / country / postal code / region** (leave blank when unused), plus a `<textarea>` for the ASCII-armored public key block. **`POST /submit`** **would**:
+The site **would** serve **`GET /submit`** with an HTML form. Fields: mandatory **email** only; optional **first name**, **last name**, optional **Fluxer ID**, **Discord ID**, **IRC ID**, optional **callsign**, **DMR ID**, **radio affiliation**, optional **street / country / postal code / region** (leave blank when unused), plus a `<textarea>` for the ASCII-armored public key block. **`POST /submit`** **would**:
 
-1. Run `validator`-based checks on typed fields (lengths, optional **DMR id** numeric range aligned with §3, optional **affiliation** and **postal** column bounds, email format).
+1. Run `validator`-based checks on typed fields (lengths, optional **fluxer/discord/irc** and **name** bounds when present, optional **DMR id** numeric range aligned with §3, optional **affiliation** and **postal** column bounds, email format).
 2. Parse armored data in `openpgp.rs` with Sequoia; **would** reject malformed packets or cryptographic validation failures surfaced by the library.
 3. **Would** require that the submitted email matches **at least one** `UserID::email()` in the certificate (case-insensitive normalisation).
 4. **Would** enforce the algorithm allowlist (section 9).
@@ -229,6 +264,9 @@ Request body:
   "first_name": "Ola",
   "last_name":  "Nordmann",
   "email":      "ola@example.com",
+  "fluxer_id":  "example-handle",
+  "discord_id": "123456789012345678",
+  "irc_id":     "nick",
   "callsign":   "LA1BC",
   "dmr_id":     2345678,
   "radio_affiliation": "NRRL",
@@ -240,7 +278,7 @@ Request body:
 }
 ```
 
-Optional sidecar columns **`callsign`**, **`dmr_id`**, **`radio_affiliation`**, **`street`**, **`country`**, **`postal_code`**, and **`region`** may be omitted or JSON `null`.
+**`email`** is required. Optional sidecar columns **`first_name`**, **`last_name`**, **`fluxer_id`**, **`discord_id`**, **`irc_id`**, **`callsign`**, **`dmr_id`**, **`radio_affiliation`**, **`street`**, **`country`**, **`postal_code`**, and **`region`** may be omitted or JSON `null`.
 
 Intended responses (semantics fixed at implementation time):
 
@@ -289,7 +327,7 @@ The **`email`** field **would** tie the submission to operational logging and ab
 When **`email`** matches an existing **`active`** key but **`fingerprint`** differs, the server **would**:
 
 1. Generate a cryptographically secure **256-bit** random value; encode as **64 hex digits**; use as **`token`** in **`pending_submissions`** with **`expires_at = now + 72 hours`** (ISO8601).
-2. Email the **currently registered address** (`lettre`): show old fingerprint, new fingerprint, submitted **radio affiliation** and **postal hints** when present (if any), and links `{KEYSERVER_BASE_URL}/confirm/{token}` and `{KEYSERVER_BASE_URL}/reject/{token}`.
+2. Email the **currently registered address** (`lettre`): show old fingerprint, new fingerprint, submitted **radio affiliation**, **Fluxer / Discord / IRC** ids, and **postal hints** when present (if any), and links `{KEYSERVER_BASE_URL}/confirm/{token}` and `{KEYSERVER_BASE_URL}/reject/{token}`.
 3. Respond to API clients with **`pending_confirmation`** (HTTP 202).
 
 Confirmation:
@@ -326,8 +364,8 @@ If the registrant **no longer controls** the mailbox, replacement under the same
 | Method | Path | Description |
 |--------|------|-------------|
 | `GET` | `/` | Landing: project scope, README cross-links, WoT expectation |
-| `GET` | `/keys` | Paginated list: name, optional callsign / DMR / **radio affiliation** / **postal hints**, fingerprint, submitted date, status |
-| `GET` | `/keys/{fingerprint}` | Detail page: metadata including optional **radio affiliation** and **postal** columns, armour block, revocation info when applicable |
+| `GET` | `/keys` | Paginated list: optional name, optional **Fluxer / Discord / IRC** ids, optional callsign / DMR / **radio affiliation** / **postal hints**, fingerprint, submitted date, status |
+| `GET` | `/keys/{fingerprint}` | Detail page: metadata including optional **Fluxer / Discord / IRC** ids, optional **radio affiliation** and **postal** columns, armour block, revocation info when applicable |
 | `GET` | `/submit` | Submission form |
 | `POST` | `/submit` | Process form POST |
 | `GET` | `/revoke` | Revocation paste form |
@@ -349,7 +387,7 @@ Once implemented, **`galdra keyserver push`** **would**:
 
 1. Resolve the registry **`url`** from, in order: environment **`GALDRA_KEYSERVER_URL`**, then **`[keyserver].url`** in the same **`config.toml`** file **`galdra` already loads** (`--config PATH` overrides; otherwise **`galdra_core_host::config::default_config_path()`**: **Linux / generic Unix** → **`~/.config/galdra/config.toml`**; **macOS** → **`~/Library/Application Support/galdra/config.toml`**; **Windows** → **`%APPDATA%\galdra\config.toml`**).
 2. Export the **public** OpenPGP certificate from the connected token using the documented card export paths in [docs/GALDRA-TOOL.md](docs/GALDRA-TOOL.md).
-3. Collect **first name**, **last name**, optional **callsign**, optional **DMR ID**, optional **radio affiliation**, optional **`street` / `country` / `postal_code` / `region`** (TTY prompts or CLI flags—exact UX matches whatever **`galdra`** uses elsewhere). Derive **email** **only** from **`User ID`** packets on the exported cert (**reject** if missing or if multiple mails make the choice ambiguous without an explicit flag).
+3. Collect optional **first name**, optional **last name**, optional **Fluxer ID**, optional **Discord ID**, optional **IRC ID**, optional **callsign**, optional **DMR ID**, optional **radio affiliation**, optional **`street` / `country` / `postal_code` / `region`** (TTY prompts or CLI flags—exact UX matches whatever **`galdra`** uses elsewhere). Derive **email** **only** from **`User ID`** packets on the exported cert (**reject** if missing or if multiple mails make the choice ambiguous without an explicit flag).
 4. **`POST`** to **`{base_url}/api/v1/keys`** with JSON as in §7b (`Content-Type: application/json`).
 5. Print server JSON (**stdout**) for scripting; non-zero exit on **`4xx`** / **`5xx`**.
 

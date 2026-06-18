@@ -79,7 +79,16 @@ fn resolve_identity(db: &Db, id: &str) -> Result<Identity, GaldraError> {
     if let Ok(c) = contacts::contact_get_by_callsign(db, id) {
         return Ok(c);
     }
-    contacts::contact_get_by_email(db, id)
+    if let Ok(c) = contacts::contact_get_by_email(db, id) {
+        return Ok(c);
+    }
+    if let Ok(c) = contacts::contact_get_by_fluxer_id(db, id) {
+        return Ok(c);
+    }
+    if let Ok(c) = contacts::contact_get_by_discord_id(db, id) {
+        return Ok(c);
+    }
+    contacts::contact_get_by_irc_id(db, id)
 }
 
 #[utoipa::path(get, path = "/health", responses((status = 200, description = "Liveness")))]
@@ -134,9 +143,8 @@ async fn get_contact(
 
 #[derive(Debug, Deserialize, utoipa::ToSchema)]
 pub struct CreateContactBody {
-    pub identifier: String,
+    pub email: String,
     pub name: Option<String>,
-    pub email: Option<String>,
     pub callsign: Option<String>,
     pub badge: Option<String>,
     pub org: Option<String>,
@@ -148,6 +156,9 @@ pub struct CreateContactBody {
     pub country: Option<String>,
     pub postal_code: Option<String>,
     pub region: Option<String>,
+    pub fluxer_id: Option<String>,
+    pub discord_id: Option<String>,
+    pub irc_id: Option<String>,
 }
 
 #[utoipa::path(
@@ -160,10 +171,14 @@ async fn create_contact(
     State(state): State<AppState>,
     Json(body): Json<CreateContactBody>,
 ) -> Result<Json<Identity>, ApiError> {
+    let email = body.email.trim().to_string();
+    if email.is_empty() {
+        return Err(GaldraError::Config("email is required".into()).into());
+    }
     let nc = NewContact {
-        display_name: body.name.unwrap_or_else(|| body.identifier.clone()),
+        display_name: body.name.unwrap_or_default(),
+        email,
         callsign: body.callsign,
-        email: body.email,
         badge_number: body.badge,
         organisation: body.org,
         department: None,
@@ -175,6 +190,9 @@ async fn create_contact(
         country: body.country,
         postal_code: body.postal_code,
         region: body.region,
+        fluxer_id: body.fluxer_id,
+        discord_id: body.discord_id,
+        irc_id: body.irc_id,
     };
     let out = run_db(&state, move |db| contacts::contact_add(db, nc)).await?;
     Ok(Json(out))
@@ -195,6 +213,9 @@ pub struct UpdateContactBody {
     pub country: Option<String>,
     pub postal_code: Option<String>,
     pub region: Option<String>,
+    pub fluxer_id: Option<String>,
+    pub discord_id: Option<String>,
+    pub irc_id: Option<String>,
 }
 
 async fn update_contact(
@@ -218,6 +239,9 @@ async fn update_contact(
         country: body.country,
         postal_code: body.postal_code,
         region: body.region,
+        fluxer_id: body.fluxer_id,
+        discord_id: body.discord_id,
+        irc_id: body.irc_id,
     };
     let out = run_db(&state, move |db| {
         let c = resolve_identity(db, &id_s)?;

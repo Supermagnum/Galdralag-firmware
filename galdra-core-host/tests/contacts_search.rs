@@ -9,7 +9,7 @@ fn search_matches_multiple_fields() {
         NewContact {
             display_name: "Dr Net".to_string(),
             callsign: Some("K2NET".to_string()),
-            email: Some("net@example.org".to_string()),
+            email: "net@example.org".to_string(),
             badge_number: Some("B99".to_string()),
             organisation: None,
             department: None,
@@ -21,6 +21,9 @@ fn search_matches_multiple_fields() {
             country: Some("NO".to_string()),
             postal_code: Some("0154".to_string()),
             region: Some("Oslo".to_string()),
+            fluxer_id: Some("fx-user".to_string()),
+            discord_id: Some("987654321098765432".to_string()),
+            irc_id: Some("nick@libera".to_string()),
         },
     )
     .expect("add");
@@ -46,6 +49,17 @@ fn search_matches_multiple_fields() {
     );
     assert_eq!(contacts::contact_search(&db, "Oslo").expect("s").len(), 1);
     assert_eq!(contacts::contact_search(&db, "0154").expect("s").len(), 1);
+    assert_eq!(contacts::contact_search(&db, "fx-user").expect("s").len(), 1);
+    assert_eq!(
+        contacts::contact_search(&db, "987654321098765432")
+            .expect("s")
+            .len(),
+        1
+    );
+    assert_eq!(
+        contacts::contact_search(&db, "nick@libera").expect("s").len(),
+        1
+    );
 
     let list = contacts::contact_list(
         &db,

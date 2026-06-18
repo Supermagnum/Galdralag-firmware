@@ -150,7 +150,7 @@ Re-exports **`cipher_profile`**. Modules: `contacts`, `groups`, `db`, `encrypt`,
 | `GET`/`POST` | `/profiles`, `/profiles/:name` (GET/DELETE) |
 | `POST` | `/encrypt`, `/decrypt`, `/sign`, `/verify` |
 
-`POST /contacts` and `PATCH /contacts/:id` accept optional **`dmr_id`**, **`radio_affiliation`**, **`street`**, **`country`**, **`postal_code`**, and **`region`** in JSON (alongside `name`, `email`, …); see structs **`CreateContactBody`** / **`UpdateContactBody`** in `galdrad/src/api.rs`.
+`POST /contacts` requires **`email`**. `POST /contacts` and `PATCH /contacts/:id` accept optional **`dmr_id`**, **`radio_affiliation`**, **`street`**, **`country`**, **`postal_code`**, **`region`**, **`fluxer_id`**, **`discord_id`**, and **`irc_id`** in JSON (alongside **`name`**, …); see structs **`CreateContactBody`** / **`UpdateContactBody`** in `galdrad/src/api.rs`.
 
 ### Firmware crates (pointers)
 

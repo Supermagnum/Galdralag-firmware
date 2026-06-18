@@ -9,8 +9,8 @@ fn group_create_add_remove_delete() {
         &mut db,
         NewContact {
             display_name: "A".to_string(),
+            email: "a@groups-crud.test".to_string(),
             callsign: None,
-            email: None,
             badge_number: None,
             organisation: None,
             department: None,
@@ -22,6 +22,9 @@ fn group_create_add_remove_delete() {
             country: None,
             postal_code: None,
             region: None,
+            fluxer_id: None,
+            discord_id: None,
+            irc_id: None,
         },
     )
     .expect("a");

@@ -174,7 +174,7 @@ A **host-computed** identifier for the token’s **OpenPGP SIG** long-term **pub
 See also: [KEY_LIFECYCLE.md — Galdralag fingerprint](KEY_LIFECYCLE.md#galdralag-fingerprint-host), [README — Web of Trust and Key Signing Parties](../README.md#web-of-trust-and-key-signing-parties).
 
 **galdrad**  
-A small **local server** on the PC that lets a GUI or scripts use **Galdra** features over HTTP.
+A small **local server** on the PC that lets a GUI or scripts use **Galdra** features over HTTP. **`POST /contacts`** requires a JSON **`email`** field when creating a contact; see [GALDRA-TOOL.md](GALDRA-TOOL.md).
 
 **galdra-core-host**  
 Shared library behind the CLI and daemon: database, OpenPGP on the host, config. Private keys on the token are not stored inside this library.

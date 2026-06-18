@@ -88,3 +88,10 @@ pub async fn wkd_fetch(email: &str, timeout: Duration) -> Result<Cert, GaldraErr
         .next()
         .ok_or_else(|| GaldraError::KeyFetch("WKD returned no certificates".to_string()))
 }
+
+/// First normalized e-mail address from certificate User IDs, if any.
+pub fn cert_first_email(cert: &Cert) -> Option<String> {
+    cert.userids()
+        .filter_map(|uids| uids.email_normalized().ok().flatten())
+        .next()
+}

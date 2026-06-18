@@ -207,8 +207,8 @@ fn db_with_alice_group(db_path: &std::path::Path) {
         .expect("serialize secret key transferrable");
     let nc = NewContact {
         display_name: "Alice".to_string(),
+        email: "alice@example.org".to_string(),
         callsign: Some("ALICE".to_string()),
-        email: Some("alice@example.org".to_string()),
         badge_number: None,
         organisation: None,
         department: None,
@@ -220,6 +220,9 @@ fn db_with_alice_group(db_path: &std::path::Path) {
         country: None,
         postal_code: None,
         region: None,
+        fluxer_id: None,
+        discord_id: None,
+        irc_id: None,
     };
     let id = contacts::contact_add(&mut db, nc).expect("add");
     contacts::contact_upsert_key(

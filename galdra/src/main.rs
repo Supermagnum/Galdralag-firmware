@@ -230,13 +230,12 @@ enum KeyCmd {
 
 #[derive(Subcommand)]
 enum ContactCmd {
-    /// Add a contact without a key.
+    /// Add a contact without a key (`--email` is required).
     Add {
-        identifier: String,
+        #[arg(long, required = true)]
+        email: String,
         #[arg(long)]
         name: Option<String>,
-        #[arg(long)]
-        email: Option<String>,
         #[arg(long)]
         callsign: Option<String>,
         #[arg(long)]
@@ -259,6 +258,12 @@ enum ContactCmd {
         postal_code: Option<String>,
         #[arg(long)]
         region: Option<String>,
+        #[arg(long)]
+        fluxer_id: Option<String>,
+        #[arg(long)]
+        discord_id: Option<String>,
+        #[arg(long)]
+        irc_id: Option<String>,
     },
     /// Fetch a key from a remote source.
     Fetch {
@@ -317,6 +322,12 @@ enum ContactCmd {
         postal_code: Option<String>,
         #[arg(long)]
         region: Option<String>,
+        #[arg(long)]
+        fluxer_id: Option<String>,
+        #[arg(long)]
+        discord_id: Option<String>,
+        #[arg(long)]
+        irc_id: Option<String>,
     },
     Delete {
         identifier: String,
@@ -970,9 +981,8 @@ fn run_contact(
 ) -> Result<(), GaldraError> {
     match cmd {
         ContactCmd::Add {
-            identifier,
-            name,
             email,
+            name,
             callsign,
             badge,
             org,
@@ -984,11 +994,14 @@ fn run_contact(
             country,
             postal_code,
             region,
+            fluxer_id,
+            discord_id,
+            irc_id,
         } => {
             let nc = NewContact {
-                display_name: name.unwrap_or_else(|| identifier.clone()),
-                callsign,
+                display_name: name.unwrap_or_default(),
                 email,
+                callsign,
                 badge_number: badge,
                 organisation: org,
                 department: None,
@@ -1000,6 +1013,9 @@ fn run_contact(
                 country,
                 postal_code,
                 region,
+                fluxer_id,
+                discord_id,
+                irc_id,
             };
             let id = contacts::contact_add(db, nc)?;
             audit::audit_append(
@@ -1073,10 +1089,23 @@ fn run_contact(
             let mut buf = Vec::new();
             cert.serialize(&mut buf)
                 .map_err(|e| GaldraError::OpenPgp(e.to_string()))?;
+            let email = keyserver::cert_first_email(cert).ok_or_else(|| {
+                GaldraError::Config(
+                    "certificate has no e-mail in User ID; add the contact with `galdra contact add`"
+                        .to_string(),
+                )
+            })?;
+            let display_name = if query.trim().eq_ignore_ascii_case(&email)
+                || query.contains('@')
+            {
+                String::new()
+            } else {
+                query.clone()
+            };
             let nc = NewContact {
-                display_name: query.clone(),
+                display_name,
+                email,
                 callsign: None,
-                email: None,
                 badge_number: None,
                 organisation: None,
                 department: None,
@@ -1088,6 +1117,9 @@ fn run_contact(
                 country: None,
                 postal_code: None,
                 region: None,
+                fluxer_id: None,
+                discord_id: None,
+                irc_id: None,
             };
             let id = contacts::contact_add(db, nc)?;
             contacts::contact_upsert_key(db, &id.id, &buf, &fp, parse_key_source(src)?, None)?;
@@ -1144,10 +1176,16 @@ fn run_contact(
             let cert = sequoia_openpgp::Cert::from_bytes(&bytes)
                 .map_err(|e| GaldraError::OpenPgp(e.to_string()))?;
             let fp = cert.fingerprint().to_string();
+            let email = keyserver::cert_first_email(&cert).ok_or_else(|| {
+                GaldraError::Config(
+                    "certificate has no e-mail in User ID; use `galdra contact add` first"
+                        .to_string(),
+                )
+            })?;
             let nc = NewContact {
                 display_name,
+                email,
                 callsign: None,
-                email: None,
                 badge_number: None,
                 organisation: None,
                 department: None,
@@ -1159,6 +1197,9 @@ fn run_contact(
                 country: None,
                 postal_code: None,
                 region: None,
+                fluxer_id: None,
+                discord_id: None,
+                irc_id: None,
             };
             let id = contacts::contact_add(db, nc)?;
             let mut buf = Vec::new();
@@ -1207,6 +1248,9 @@ fn run_contact(
                 println!("country:       {}", c.country.as_deref().unwrap_or(""));
                 println!("postal_code:   {}", c.postal_code.as_deref().unwrap_or(""));
                 println!("region:        {}", c.region.as_deref().unwrap_or(""));
+                println!("fluxer_id:     {}", c.fluxer_id.as_deref().unwrap_or(""));
+                println!("discord_id:    {}", c.discord_id.as_deref().unwrap_or(""));
+                println!("irc_id:        {}", c.irc_id.as_deref().unwrap_or(""));
                 println!(
                     "fingerprint:   {}",
                     c.pgp_fingerprint.as_deref().unwrap_or("")
@@ -1228,12 +1272,12 @@ fn run_contact(
                 print_json(&list)?;
             } else {
                 for c in list {
-                    println!(
-                        "  {:36}  {:24}  {}",
-                        c.id,
-                        c.display_name,
+                    let label = if c.display_name.is_empty() {
                         c.email.as_deref().unwrap_or("")
-                    );
+                    } else {
+                        c.display_name.as_str()
+                    };
+                    println!("  {:36}  {:24}  {}", c.id, label, c.email.as_deref().unwrap_or(""));
                 }
             }
             Ok(())
@@ -1253,6 +1297,9 @@ fn run_contact(
             country,
             postal_code,
             region,
+            fluxer_id,
+            discord_id,
+            irc_id,
         } => {
             let c = resolve_identity(db, &identifier)?;
             let u = ContactUpdate {
@@ -1270,6 +1317,9 @@ fn run_contact(
                 country,
                 postal_code,
                 region,
+                fluxer_id,
+                discord_id,
+                irc_id,
             };
             let updated = contacts::contact_update(db, &c.id, u)?;
             if output_mode == OutputMode::Json {
@@ -1288,7 +1338,12 @@ fn run_contact(
                 return Err(GaldraError::Config("missing --confirm".to_string()));
             }
             let c = resolve_identity(db, &identifier)?;
-            confirm_delete(&format!("contact {}", c.display_name))?;
+            let del_label = if c.display_name.is_empty() {
+                c.email.clone().unwrap_or_else(|| c.id.clone())
+            } else {
+                c.display_name.clone()
+            };
+            confirm_delete(&format!("contact {}", del_label))?;
             contacts::contact_delete(db, &c.id)?;
             audit::audit_append(
                 db,

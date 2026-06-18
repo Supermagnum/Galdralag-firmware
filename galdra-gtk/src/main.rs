@@ -364,6 +364,14 @@ fn fill_contacts_list(list: &gtk::ListBox, rows: Vec<IdentityRow>) {
         return;
     }
     for r in rows {
+        let title = if !r.display_name.is_empty() {
+            r.display_name.clone()
+        } else {
+            r.email
+                .clone()
+                .filter(|s| !s.is_empty())
+                .unwrap_or_else(|| r.id.clone())
+        };
         let mut sub = format!("id: {}", r.id);
         if let Some(c) = &r.callsign {
             sub.push_str(&format!(" · {c}"));
@@ -389,7 +397,16 @@ fn fill_contacts_list(list: &gtk::ListBox, rows: Vec<IdentityRow>) {
         if let Some(rg) = &r.region {
             sub.push_str(&format!(" · {rg}"));
         }
-        list.append(&list_row_title_sub(&r.display_name, &sub));
+        if let Some(f) = &r.fluxer_id {
+            sub.push_str(&format!(" · Fluxer {f}"));
+        }
+        if let Some(d) = &r.discord_id {
+            sub.push_str(&format!(" · Discord {d}"));
+        }
+        if let Some(i) = &r.irc_id {
+            sub.push_str(&format!(" · IRC {i}"));
+        }
+        list.append(&list_row_title_sub(&title, &sub));
     }
 }
 

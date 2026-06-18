@@ -187,8 +187,8 @@ mod tests {
             &mut db,
             NewContact {
                 display_name: "A".to_string(),
+                email: "a@sync.test".to_string(),
                 callsign: None,
-                email: None,
                 badge_number: None,
                 organisation: None,
                 department: None,
@@ -200,6 +200,9 @@ mod tests {
                 country: None,
                 postal_code: None,
                 region: None,
+                fluxer_id: None,
+                discord_id: None,
+                irc_id: None,
             },
         )
         .unwrap();
@@ -227,8 +230,8 @@ mod tests {
             &mut db,
             NewContact {
                 display_name: "A".to_string(),
+                email: "a@sync.test".to_string(),
                 callsign: None,
-                email: None,
                 badge_number: None,
                 organisation: None,
                 department: None,
@@ -240,6 +243,9 @@ mod tests {
                 country: None,
                 postal_code: None,
                 region: None,
+                fluxer_id: None,
+                discord_id: None,
+                irc_id: None,
             },
         )
         .unwrap();
@@ -253,8 +259,8 @@ mod tests {
             &mut db,
             NewContact {
                 display_name: "B".to_string(),
+                email: "b@sync.test".to_string(),
                 callsign: None,
-                email: None,
                 badge_number: None,
                 organisation: None,
                 department: None,
@@ -266,6 +272,9 @@ mod tests {
                 country: None,
                 postal_code: None,
                 region: None,
+                fluxer_id: None,
+                discord_id: None,
+                irc_id: None,
             },
         )
         .unwrap();

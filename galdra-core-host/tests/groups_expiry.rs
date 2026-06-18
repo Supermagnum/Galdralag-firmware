@@ -11,8 +11,8 @@ fn active_members_excludes_expired() {
         &mut db,
         NewContact {
             display_name: "A".to_string(),
+            email: "a@groups-expiry.test".to_string(),
             callsign: None,
-            email: None,
             badge_number: None,
             organisation: None,
             department: None,
@@ -24,6 +24,9 @@ fn active_members_excludes_expired() {
             country: None,
             postal_code: None,
             region: None,
+            fluxer_id: None,
+            discord_id: None,
+            irc_id: None,
         },
     )
     .expect("a");

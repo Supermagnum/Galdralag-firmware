@@ -762,7 +762,7 @@ cargo install --locked --path galdra-gtk
 
 You can instead copy those three binaries to any directory on your `PATH`.
 
-**Contact directory (`galdra contact`, `galdrad` `/contacts`):** besides identity and OpenPGP material, contacts may hold **optional postal hints** (`street`, `country`, `postal_code`, `region` / state-county style text), amateur-radio **`dmr_id`** (integer when set), and **`radio_affiliation`**. These fields are stored only in local SQLite metadata (they are **not verified** endpoints). Commands and lengths are summarized in **[docs/GALDRA-TOOL.md](docs/GALDRA-TOOL.md)** under **Contacts**.
+**Contact directory (`galdra contact`, `galdrad` `/contacts`):** creating a contact **requires an e-mail** (CLI: `--email`; HTTP: JSON field `email`). Optional fields include **display name** (`--name` / `name`), **Fluxer**, **Discord**, and **IRC** ids, plus **postal hints** (`street`, `country`, `postal_code`, `region`), amateur-radio **`dmr_id`**, and **`radio_affiliation`**. These values are stored only in local SQLite metadata (they are **not verified** against external services). Commands and field limits are summarized in **[docs/GALDRA-TOOL.md](docs/GALDRA-TOOL.md)** under **Contacts** and **Identity model**.
 
 If you used `cargo install --path` as above:
 

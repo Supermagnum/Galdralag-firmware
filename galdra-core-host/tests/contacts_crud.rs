@@ -9,7 +9,7 @@ fn contact_crud_roundtrip() {
         NewContact {
             display_name: "Alice".to_string(),
             callsign: Some("W1ABC".to_string()),
-            email: Some("a@example.org".to_string()),
+            email: "a@example.org".to_string(),
             badge_number: None,
             organisation: None,
             department: None,
@@ -21,6 +21,9 @@ fn contact_crud_roundtrip() {
             country: None,
             postal_code: None,
             region: None,
+            fluxer_id: None,
+            discord_id: None,
+            irc_id: None,
         },
     )
     .expect("add");
@@ -58,4 +61,32 @@ fn contact_crud_roundtrip() {
 
     contacts::contact_delete(&mut db, &c.id).expect("del");
     assert!(contacts::contact_get_by_id(&db, &c.id).is_err());
+}
+
+#[test]
+fn contact_add_requires_non_empty_email() {
+    let mut db = Db::open_in_memory().expect("db");
+    let r = contacts::contact_add(
+        &mut db,
+        NewContact {
+            display_name: String::new(),
+            email: "   ".to_string(),
+            callsign: None,
+            badge_number: None,
+            organisation: None,
+            department: None,
+            role: None,
+            note: None,
+            dmr_id: None,
+            radio_affiliation: None,
+            street: None,
+            country: None,
+            postal_code: None,
+            region: None,
+            fluxer_id: None,
+            discord_id: None,
+            irc_id: None,
+        },
+    );
+    assert!(r.is_err());
 }
