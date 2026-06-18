@@ -130,8 +130,12 @@ mod tests {
     #[test]
     fn registry_constants_match_listed_table() {
         assert!(is_listed_suite_id(registry::CESS_CORE_DEFAULT_CHACHA));
-        assert!(is_listed_suite_id(registry::CASCADE_CHACHA_INNER_SERPENT_OUTER_P384));
-        assert!(is_listed_suite_id(registry::CASCADE_CHACHA_INNER_SERPENT_OUTER_P512));
+        assert!(is_listed_suite_id(
+            registry::CASCADE_CHACHA_INNER_SERPENT_OUTER_P384
+        ));
+        assert!(is_listed_suite_id(
+            registry::CASCADE_CHACHA_INNER_SERPENT_OUTER_P512
+        ));
     }
 
     #[test]

@@ -49,7 +49,11 @@ pub fn cess_inner_cascade_layer_nonce_info(suite_id: u16, layer_index: u8) -> Ve
 }
 
 /// Single HKDF-BLAKE3 expand to 64 octets for Serpent / Twofish EtM (cipher || MAC keys).
-pub fn cess_inner_cascade_etm64_info(suite_id: u16, layer_index: u8, cipher: CessInnerEtM64Cipher) -> Vec<u8> {
+pub fn cess_inner_cascade_etm64_info(
+    suite_id: u16,
+    layer_index: u8,
+    cipher: CessInnerEtM64Cipher,
+) -> Vec<u8> {
     let mut out = Vec::with_capacity(40);
     out.extend_from_slice(b"cess-inner-");
     push_hex_u16_be(&mut out, suite_id);

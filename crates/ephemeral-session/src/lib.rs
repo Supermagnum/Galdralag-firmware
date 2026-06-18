@@ -23,9 +23,12 @@ mod protocol;
 mod trust;
 
 pub use curve_select::SessionCurve;
-pub use hkdf_labels::domain;
 pub use error::EphemeralSessionError;
-pub use handshake::{InitMessage, ResponseMessage, INIT_PROTOCOL_VERSION, MAX_HANDSHAKE_BYTES, MAX_SIG_BYTES, RESP_PROTOCOL_VERSION};
+pub use handshake::{
+    InitMessage, ResponseMessage, INIT_PROTOCOL_VERSION, MAX_HANDSHAKE_BYTES, MAX_SIG_BYTES,
+    RESP_PROTOCOL_VERSION,
+};
+pub use hkdf_labels::domain;
 pub use keys::{EphemeralKeyPair, EphemeralSharedSecret, SessionKeys};
 pub use protocol::{InitiatorSession, ResponderSession, SessionRole};
 pub use trust::{InMemoryTrustStore, LongTermCert, TrustStore, MAX_SEC1};

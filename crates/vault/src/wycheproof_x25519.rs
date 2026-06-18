@@ -6,13 +6,7 @@ fn hex_decode_tc(tc_id: u64, label: &str, s: &str) -> Vec<u8> {
     hex::decode(s).unwrap_or_else(|e| panic!("tcId {tc_id} {label} hex: {e}"))
 }
 
-fn run_case(
-    tc_id: u64,
-    public_hex: &str,
-    private_hex: &str,
-    shared_hex: &str,
-    result: &str,
-) {
+fn run_case(tc_id: u64, public_hex: &str, private_hex: &str, shared_hex: &str, result: &str) {
     let pub_raw = hex_decode_tc(tc_id, "public", public_hex);
     let priv_raw = hex_decode_tc(tc_id, "private", private_hex);
     let shared_exp = hex_decode_tc(tc_id, "shared", shared_hex);

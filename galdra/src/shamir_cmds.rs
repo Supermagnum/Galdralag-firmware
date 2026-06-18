@@ -58,7 +58,8 @@ pub fn run_shamir(
             }
             if !confirm {
                 return Err(GaldraError::Config(
-                    "add --confirm to import a recovered key into this slot (may overwrite)".to_string(),
+                    "add --confirm to import a recovered key into this slot (may overwrite)"
+                        .to_string(),
                 ));
             }
             let mut exports = Vec::new();
@@ -116,7 +117,8 @@ pub fn run_shamir(
         }
         crate::ShamirCmd::ImportQr { input } => {
             let payload = qr::decode_qr_image(&input)?;
-            let text = String::from_utf8(payload).map_err(|e| GaldraError::Config(e.to_string()))?;
+            let text =
+                String::from_utf8(payload).map_err(|e| GaldraError::Config(e.to_string()))?;
             let ex = ShamirShareExport::from_armoured(&text)?;
             if output_mode == OutputMode::Json {
                 print_json(&serde_json::json!({

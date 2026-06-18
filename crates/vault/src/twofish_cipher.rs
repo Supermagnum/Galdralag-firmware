@@ -377,7 +377,10 @@ pub fn twofish_ctr_unauthenticated(
 
 /// Single-block ECB encrypt for KAT tests (not exposed for production protocols).
 #[cfg(test)]
-pub(crate) fn twofish_ecb_encrypt_block(key: &[u8], plaintext: &[u8; 16]) -> Result<[u8; 16], TwofishError> {
+pub(crate) fn twofish_ecb_encrypt_block(
+    key: &[u8],
+    plaintext: &[u8; 16],
+) -> Result<[u8; 16], TwofishError> {
     let tf = Twofish::new_from_slice(key).map_err(|_| TwofishError::CipherError)?;
     let block_in: Array<u8, U16> = (*plaintext).into();
     let mut block_out = Array::<u8, U16>::default();
@@ -397,8 +400,7 @@ mod tests {
     #[test]
     fn twofish_vectors_json_kat() -> Result<(), TwofishError> {
         let data = include_str!("../tests/twofish_vectors.json");
-        let parsed: Value =
-            serde_json::from_str(data).map_err(|_| TwofishError::CipherError)?;
+        let parsed: Value = serde_json::from_str(data).map_err(|_| TwofishError::CipherError)?;
         let arr = parsed
             .get("vectors")
             .and_then(|v| v.as_array())
@@ -550,7 +552,8 @@ mod tests {
         let key = [0u8; 16];
         let pt = [0u8; 16];
         let got = twofish_ecb_encrypt_block(&key, &pt)?;
-        let exp = hex::decode("9F589F5CF6122C32B6BFEC2F2AE8C35A").map_err(|_| TwofishError::CipherError)?;
+        let exp = hex::decode("9F589F5CF6122C32B6BFEC2F2AE8C35A")
+            .map_err(|_| TwofishError::CipherError)?;
         assert_eq!(got.as_slice(), exp.as_slice());
         Ok(())
     }
@@ -560,7 +563,8 @@ mod tests {
         let key = [0u8; 24];
         let pt = [0u8; 16];
         let got = twofish_ecb_encrypt_block(&key, &pt)?;
-        let exp = hex::decode("EFA71F788965BD4453F860178FC19101").map_err(|_| TwofishError::CipherError)?;
+        let exp = hex::decode("EFA71F788965BD4453F860178FC19101")
+            .map_err(|_| TwofishError::CipherError)?;
         assert_eq!(got.as_slice(), exp.as_slice());
         Ok(())
     }
@@ -570,7 +574,8 @@ mod tests {
         let key = [0u8; 32];
         let pt = [0u8; 16];
         let got = twofish_ecb_encrypt_block(&key, &pt)?;
-        let exp = hex::decode("57FF739D4DC92C1BD7FC01700CC8216F").map_err(|_| TwofishError::CipherError)?;
+        let exp = hex::decode("57FF739D4DC92C1BD7FC01700CC8216F")
+            .map_err(|_| TwofishError::CipherError)?;
         assert_eq!(got.as_slice(), exp.as_slice());
         Ok(())
     }

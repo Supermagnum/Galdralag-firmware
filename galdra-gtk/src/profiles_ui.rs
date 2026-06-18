@@ -4,8 +4,8 @@ use std::cell::RefCell;
 use std::rc::Rc;
 use std::sync::Arc;
 
-use gtk::gio::spawn_blocking;
 use gtk::gio;
+use gtk::gio::spawn_blocking;
 use gtk::glib;
 use gtk::prelude::*;
 
@@ -13,12 +13,7 @@ use crate::client::{CreateProfileBody, GaldradClient};
 use crate::profile_row::ProfileRow;
 
 const CURVES: &[&str] = &["bp256", "bp384", "bp512"];
-const LAYER_OPTS: &[&str] = &[
-    "aes256gcm",
-    "chacha20poly1305",
-    "twofish256",
-    "serpent256",
-];
+const LAYER_OPTS: &[&str] = &["aes256gcm", "chacha20poly1305", "twofish256", "serpent256"];
 
 pub fn build(
     client: Arc<GaldradClient>,
@@ -55,7 +50,9 @@ pub fn build(
     fn col_lock() -> gtk::ColumnViewColumn {
         let factory = gtk::SignalListItemFactory::new();
         factory.connect_setup(move |_, list_item| {
-            let img = gtk::Image::builder().icon_size(gtk::IconSize::Normal).build();
+            let img = gtk::Image::builder()
+                .icon_size(gtk::IconSize::Normal)
+                .build();
             list_item.set_child(Some(&img));
         });
         factory.connect_bind(move |_, list_item| {
@@ -221,7 +218,9 @@ pub fn build(
                 let refresh_c = refresh_c.clone();
                 let on_crypto_c = on_crypto_c.clone();
                 glib::spawn_future_local(async move {
-                    let res = spawn_blocking(move || c.delete_profile(&name)).await.unwrap();
+                    let res = spawn_blocking(move || c.delete_profile(&name))
+                        .await
+                        .unwrap();
                     if let Some(el) = err_w.upgrade() {
                         match res {
                             Ok(()) => {
@@ -297,27 +296,28 @@ fn open_profile_editor(
 
     let layer_dds: Rc<RefCell<Vec<gtk::DropDown>>> = Rc::new(RefCell::new(Vec::new()));
 
-    let push_layer = |layers_box: &gtk::Box, layer_dds: &Rc<RefCell<Vec<gtk::DropDown>>>, sel: Option<usize>| {
-        if layer_dds.borrow().len() >= 4 {
-            return;
-        }
-        let list = gtk::StringList::new(&[]);
-        for o in LAYER_OPTS {
-            list.append(o);
-        }
-        let dd = gtk::DropDown::new(Some(list), None::<gtk::Expression>);
-        if let Some(i) = sel {
-            if i < LAYER_OPTS.len() {
-                dd.set_selected(i as u32);
+    let push_layer =
+        |layers_box: &gtk::Box, layer_dds: &Rc<RefCell<Vec<gtk::DropDown>>>, sel: Option<usize>| {
+            if layer_dds.borrow().len() >= 4 {
+                return;
             }
-        } else {
-            dd.set_selected(0);
-        }
-        let row = gtk::Box::new(gtk::Orientation::Horizontal, 8);
-        row.append(&dd);
-        layers_box.append(&row);
-        layer_dds.borrow_mut().push(dd);
-    };
+            let list = gtk::StringList::new(&[]);
+            for o in LAYER_OPTS {
+                list.append(o);
+            }
+            let dd = gtk::DropDown::new(Some(list), None::<gtk::Expression>);
+            if let Some(i) = sel {
+                if i < LAYER_OPTS.len() {
+                    dd.set_selected(i as u32);
+                }
+            } else {
+                dd.set_selected(0);
+            }
+            let row = gtk::Box::new(gtk::Orientation::Horizontal, 8);
+            row.append(&dd);
+            layers_box.append(&row);
+            layer_dds.borrow_mut().push(dd);
+        };
 
     match &mode {
         EditorMode::New => {
@@ -428,10 +428,7 @@ fn open_profile_editor(
                 return;
             }
             let curve_i = curve_dd.selected();
-            let curve = CURVES
-                .get(curve_i as usize)
-                .unwrap_or(&"bp256")
-                .to_string();
+            let curve = CURVES.get(curve_i as usize).unwrap_or(&"bp256").to_string();
             let rows = layer_dds.borrow();
             let mut layers: Vec<String> = Vec::new();
             for dd in rows.iter() {

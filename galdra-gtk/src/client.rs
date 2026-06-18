@@ -279,6 +279,12 @@ pub struct IdentityRow {
     pub display_name: String,
     pub callsign: Option<String>,
     pub email: Option<String>,
+    pub dmr_id: Option<i64>,
+    pub radio_affiliation: Option<String>,
+    pub street: Option<String>,
+    pub country: Option<String>,
+    pub postal_code: Option<String>,
+    pub region: Option<String>,
 }
 
 #[derive(Debug, Clone, Deserialize)]

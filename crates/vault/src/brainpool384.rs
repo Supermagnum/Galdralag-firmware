@@ -9,11 +9,11 @@
 //! ECDSA digests: **SHA-384** (not SHA-256), matching the field size and Wycheproof vectors.
 
 use crate::brainpool_common::BrainpoolError;
-use bp384::BrainpoolP384r1;
 use bp384::elliptic_curve::ecdh::diffie_hellman;
 use bp384::elliptic_curve::pkcs8::DecodePublicKey;
 use bp384::elliptic_curve::sec1::{FromSec1Point, Sec1Point, ToSec1Point};
 use bp384::elliptic_curve::{PublicKey, SecretKey};
+use bp384::BrainpoolP384r1;
 use ecdsa::der;
 use ecdsa::signature::hazmat::{PrehashSigner, PrehashVerifier};
 use ecdsa::signature::{Signer, Verifier};
@@ -96,8 +96,7 @@ impl BrainpoolP384Scalar {
     pub fn generate<T: HardwareTrng>(trng: &mut T) -> Result<Self, BrainpoolError> {
         for _ in 0..SCALAR_SAMPLE_TRIES {
             let mut raw = [0u8; 48];
-            trng
-                .try_fill_bytes(&mut raw)
+            trng.try_fill_bytes(&mut raw)
                 .map_err(|_| BrainpoolError::TrngFailure)?;
             if let Ok(sk) = SecretKey::<BrainpoolP384r1>::from_slice(&raw) {
                 raw.zeroize();
@@ -201,8 +200,7 @@ impl BrainpoolP384SigningKey {
     pub fn generate<T: HardwareTrng>(trng: &mut T) -> Result<Self, BrainpoolError> {
         for _ in 0..SCALAR_SAMPLE_TRIES {
             let mut raw = [0u8; 48];
-            trng
-                .try_fill_bytes(&mut raw)
+            trng.try_fill_bytes(&mut raw)
                 .map_err(|_| BrainpoolError::TrngFailure)?;
             if let Ok(sk) = SigningKey::<BrainpoolP384r1>::from_slice(&raw) {
                 raw.zeroize();
@@ -266,7 +264,8 @@ impl BrainpoolP384SigningKey {
 
     #[doc(hidden)]
     pub fn from_scalar_bytes_for_test(bytes: &[u8; 48]) -> Result<Self, BrainpoolError> {
-        let sk = SigningKey::from_slice(bytes.as_slice()).map_err(|_| BrainpoolError::InvalidScalar)?;
+        let sk =
+            SigningKey::from_slice(bytes.as_slice()).map_err(|_| BrainpoolError::InvalidScalar)?;
         Ok(Self(sk))
     }
 }
@@ -340,15 +339,13 @@ mod tests {
 
     /// RFC 5639 generator for brainpoolP384r1, uncompressed SEC1 (`0x04` || Gx || Gy).
     const G_SEC1: [u8; 97] = [
-        0x04,
-        0x1d, 0x1c, 0x64, 0xf0, 0x68, 0xcf, 0x45, 0xff, 0xa2, 0xa6, 0x3a, 0x81, 0xb7, 0xc1,
-        0x3f, 0x6b, 0x88, 0x47, 0xa3, 0xe7, 0x7e, 0xf1, 0x4f, 0xe3, 0xdb, 0x7f, 0xca, 0xfe,
-        0x0c, 0xbd, 0x10, 0xe8, 0xe8, 0x26, 0xe0, 0x34, 0x36, 0xd6, 0x46, 0xaa, 0xef, 0x87,
-        0xb2, 0xe2, 0x47, 0xd4, 0xaf, 0x1e,
-        0x8a, 0xbe, 0x1d, 0x75, 0x20, 0xf9, 0xc2, 0xa4, 0x5c, 0xb1, 0xeb, 0x8e, 0x95, 0xcf,
-        0xd5, 0x52, 0x62, 0xb7, 0x0b, 0x29, 0xfe, 0xec, 0x58, 0x64, 0xe1, 0x9c, 0x05, 0x4f,
-        0xf9, 0x91, 0x29, 0x28, 0x0e, 0x46, 0x46, 0x21, 0x77, 0x91, 0x81, 0x11, 0x42, 0x82,
-        0x03, 0x41, 0x26, 0x3c, 0x53, 0x15,
+        0x04, 0x1d, 0x1c, 0x64, 0xf0, 0x68, 0xcf, 0x45, 0xff, 0xa2, 0xa6, 0x3a, 0x81, 0xb7, 0xc1,
+        0x3f, 0x6b, 0x88, 0x47, 0xa3, 0xe7, 0x7e, 0xf1, 0x4f, 0xe3, 0xdb, 0x7f, 0xca, 0xfe, 0x0c,
+        0xbd, 0x10, 0xe8, 0xe8, 0x26, 0xe0, 0x34, 0x36, 0xd6, 0x46, 0xaa, 0xef, 0x87, 0xb2, 0xe2,
+        0x47, 0xd4, 0xaf, 0x1e, 0x8a, 0xbe, 0x1d, 0x75, 0x20, 0xf9, 0xc2, 0xa4, 0x5c, 0xb1, 0xeb,
+        0x8e, 0x95, 0xcf, 0xd5, 0x52, 0x62, 0xb7, 0x0b, 0x29, 0xfe, 0xec, 0x58, 0x64, 0xe1, 0x9c,
+        0x05, 0x4f, 0xf9, 0x91, 0x29, 0x28, 0x0e, 0x46, 0x46, 0x21, 0x77, 0x91, 0x81, 0x11, 0x42,
+        0x82, 0x03, 0x41, 0x26, 0x3c, 0x53, 0x15,
     ];
 
     #[test]
@@ -450,10 +447,7 @@ mod tests {
         let mut msg = b"original".to_vec();
         let sig = sk.sign(&msg, &mut trng).expect("sign");
         msg[0] ^= 0x01;
-        assert_eq!(
-            vk.verify(&msg, &sig),
-            Err(BrainpoolError::InvalidSignature)
-        );
+        assert_eq!(vk.verify(&msg, &sig), Err(BrainpoolError::InvalidSignature));
     }
 
     #[test]
@@ -464,10 +458,7 @@ mod tests {
         let msg = b"fixed message";
         let mut sig = sk.sign(msg, &mut trng).expect("sign");
         sig.xor_first_byte_for_test();
-        assert_eq!(
-            vk.verify(msg, &sig),
-            Err(BrainpoolError::InvalidSignature)
-        );
+        assert_eq!(vk.verify(msg, &sig), Err(BrainpoolError::InvalidSignature));
     }
 
     #[test]

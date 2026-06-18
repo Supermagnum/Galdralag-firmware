@@ -1,6 +1,6 @@
+use chrono::Utc;
 use galdra_core_host::audit::{self, AuditAction, AuditEntry, AuditVerifyResult};
 use galdra_core_host::db::Db;
-use chrono::Utc;
 
 #[test]
 fn delete_middle_row_breaks_chain() {

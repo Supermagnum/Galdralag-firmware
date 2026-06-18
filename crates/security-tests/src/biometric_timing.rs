@@ -17,7 +17,7 @@ use hmac::digest::generic_array::GenericArray;
 use subtle::ConstantTimeEq;
 
 use crate::dudect_sample_counts::samples_for_harness;
-use crate::dudect_stats::{Class, CtRunner, CtSummary, update_ct_stats};
+use crate::dudect_stats::{update_ct_stats, Class, CtRunner, CtSummary};
 
 pub fn bench_dudect_session_token_verify_constant_time() -> CtSummary {
     let hk = [0x5Au8; 32];
@@ -39,15 +39,7 @@ pub fn bench_dudect_session_token_verify_constant_time() -> CtSummary {
     let mut runner = CtRunner::default();
     for (c, token) in work {
         runner.run_one(c, move || {
-            let r = verify_session_token(
-                &hk,
-                &nonce,
-                &dev,
-                ts,
-                &token,
-                86_400,
-                ts + 1,
-            );
+            let r = verify_session_token(&hk, &nonce, &dev, ts, &token, 86_400, ts + 1);
             let _ = black_box(r);
         });
     }
@@ -66,11 +58,7 @@ pub fn bench_dudect_template_decrypt_constant_time() -> CtSummary {
     let mut work = Vec::with_capacity(n);
     for _ in 0..n {
         let left = rng.gen_bool(0.5);
-        work.push(if left {
-            Class::Left
-        } else {
-            Class::Right
-        });
+        work.push(if left { Class::Left } else { Class::Right });
     }
     let good_blob = good.clone();
     let mut runner = CtRunner::default();

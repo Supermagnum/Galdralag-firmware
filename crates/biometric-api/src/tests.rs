@@ -97,13 +97,8 @@ fn test_liveness_false_rejected_by_galdrad() {
     let mut p = sample_payload();
     p.liveness = false;
     let sm = sign_match_result(p, &sk).unwrap();
-    let e = galdrad_validate_match_result(
-        &sm,
-        &vk,
-        &sm.payload.nonce,
-        sm.payload.timestamp + 1,
-        300,
-    );
+    let e =
+        galdrad_validate_match_result(&sm, &vk, &sm.payload.nonce, sm.payload.timestamp + 1, 300);
     assert_eq!(e, Err(BiometricError::LivenessCheckFailed));
 }
 
@@ -114,13 +109,8 @@ fn test_score_below_threshold_rejected() {
     p.score = 0.5;
     p.threshold = 0.7;
     let sm = sign_match_result(p, &sk).unwrap();
-    let e = galdrad_validate_match_result(
-        &sm,
-        &vk,
-        &sm.payload.nonce,
-        sm.payload.timestamp + 1,
-        300,
-    );
+    let e =
+        galdrad_validate_match_result(&sm, &vk, &sm.payload.nonce, sm.payload.timestamp + 1, 300);
     assert_eq!(e, Err(BiometricError::MatchFailed));
 }
 

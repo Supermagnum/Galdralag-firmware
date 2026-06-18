@@ -5,8 +5,8 @@ extern crate alloc;
 use alloc::vec::Vec;
 
 use aes_gcm::aead::{Aead, Payload};
-use aes_gcm::{Aes256Gcm, Key, Nonce};
 use aes_gcm::KeyInit as _;
+use aes_gcm::{Aes256Gcm, Key, Nonce};
 use biometric_api::Modality;
 use hkdf::Hkdf;
 use hmac::{Hmac, Mac};
@@ -120,13 +120,7 @@ pub fn decrypt_template(
     let cipher = Aes256Gcm::new(Key::<Aes256Gcm>::from_slice(key.as_slice()));
     let ga_nonce = Nonce::from_slice(nonce_b);
     let pt = cipher
-        .decrypt(
-            ga_nonce,
-            Payload {
-                msg: ct,
-                aad: b"",
-            },
-        )
+        .decrypt(ga_nonce, Payload { msg: ct, aad: b"" })
         .map_err(|_| VaultError::DecryptFailed)?;
     let expected = nonce_for_plaintext(master_key, user_id, modality, pt.as_slice());
     if expected.as_slice().ct_ne(nonce_b).into() {

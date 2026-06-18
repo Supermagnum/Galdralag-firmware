@@ -3,7 +3,7 @@
 use super::BrainpoolP512r1;
 use crate::{FieldElement, Scalar};
 use elliptic_curve::{CurveArithmetic, PrimeCurveArithmetic};
-use primeorder::{PrimeCurveParams, point_arithmetic};
+use primeorder::{point_arithmetic, PrimeCurveParams};
 
 /// Affine point.
 pub type AffinePoint = primeorder::AffinePoint<BrainpoolP512r1>;

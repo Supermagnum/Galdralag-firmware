@@ -4,8 +4,8 @@ use crate::brainpool384::{
     BrainpoolP384PublicKey, BrainpoolP384Scalar, BrainpoolP384Signature, BrainpoolP384VerifyingKey,
 };
 use crate::brainpool_common::BrainpoolError;
-use bp384::BrainpoolP384r1;
 use bp384::elliptic_curve::SecretKey;
+use bp384::BrainpoolP384r1;
 
 fn hex_decode_tc(tc_id: u64, label: &str, s: &str) -> Vec<u8> {
     hex::decode(s).unwrap_or_else(|e| panic!("tcId {tc_id} {label} hex: {e}"))
@@ -127,7 +127,8 @@ fn run_ecdsa_case(
     vk: &BrainpoolP384VerifyingKey,
     msg: &[u8],
     sig_raw: &[u8],
-    result: &str) {
+    result: &str,
+) {
     let sig = match BrainpoolP384Signature::from_der_bytes_for_test(sig_raw) {
         Ok(s) => s,
         Err(_) => {

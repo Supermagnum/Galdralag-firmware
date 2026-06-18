@@ -5,8 +5,13 @@
 //! Set **`DUDECT_HARNESSES`** to a comma-separated list of harness names (e.g. `timing_signature_verify`)
 //! to run **only** those harnesses and skip the rest (for new or targeted timing work).
 
-use crate::timing_blake2::{bench_timing_blake2b, bench_timing_blake2s};
 use crate::dudect_sample_counts::samples_for_harness;
+use crate::dudect_stats::{
+    update_ct_stats, Class, CtRunner, CtSummary, DUDECT_SAMPLES, DUDECT_SAMPLES_BRAINPOOL_REDUCED,
+    DUDECT_SAMPLES_BRAINPOOL_SLOW, DUDECT_SAMPLES_EPHEMERAL_ECDH, DUDECT_SAMPLES_SIGNATURE_VERIFY,
+    DUDECT_THRESHOLD,
+};
+use crate::timing_blake2::{bench_timing_blake2b, bench_timing_blake2s};
 use crate::timing_blake3::bench_timing_blake3;
 use crate::timing_cascade::{
     bench_timing_cascade_auth_failure, bench_timing_cascade_inner_vs_outer_failure,
@@ -14,11 +19,6 @@ use crate::timing_cascade::{
 use crate::timing_pbkdf2::bench_timing_pbkdf2;
 use crate::timing_sha2::{bench_timing_sha256, bench_timing_sha512};
 use crate::timing_sha3::{bench_timing_sha3_256, bench_timing_sha3_512};
-use crate::dudect_stats::{
-    update_ct_stats, Class, CtRunner, CtSummary, DUDECT_SAMPLES, DUDECT_SAMPLES_BRAINPOOL_REDUCED,
-    DUDECT_SAMPLES_BRAINPOOL_SLOW, DUDECT_SAMPLES_EPHEMERAL_ECDH, DUDECT_SAMPLES_SIGNATURE_VERIFY,
-    DUDECT_THRESHOLD,
-};
 use hmac::digest::generic_array::typenum::U32;
 use hmac::digest::generic_array::GenericArray;
 use rand::prelude::*;
@@ -459,8 +459,8 @@ fn bench_timing_signature_verify() -> CtSummary {
 fn bench_timing_fingerprint_lookup() -> CtSummary {
     use ephemeral_session::{InMemoryTrustStore, LongTermCert, SessionCurve, TrustStore, MAX_SEC1};
     use galdr_core::fake_hal::FakeTrng;
-    use heapless::Vec as HVec;
     use galdr_vault::ecdsa_brainpool::BrainpoolSigningKey;
+    use heapless::Vec as HVec;
     // Same absent fingerprint for both classes: full scan, no hit, identical work (Welch null).
     let mut trng = FakeTrng::from_seed(0x545255);
     let sk = BrainpoolSigningKey::generate(&mut trng).expect("sk");
@@ -528,8 +528,8 @@ fn bench_brainpool_ecdh_p512() -> CtSummary {
 
 fn bench_timing_shamir_recover() -> CtSummary {
     use galdr_core::fake_hal::FakeTrng;
-    use rand::RngCore;
     use galdr_vault::shamir::{shamir_recover, shamir_split, ShamirShare};
+    use rand::RngCore;
 
     // Both classes must use the same share indices (here 1 and 2). Comparing
     // recovery with indices (1,2) vs (1,3) measures different Lagrange terms and
@@ -639,7 +639,9 @@ fn bench_timing_serpent_tag_check() -> CtSummary {
 }
 
 fn bench_timing_camellia_tag_check() -> CtSummary {
-    use galdr_vault::camellia_cipher::{camellia_encrypt, CamelliaKey, CamelliaNonce, CAMELLIA_TAG_LEN};
+    use galdr_vault::camellia_cipher::{
+        camellia_encrypt, CamelliaKey, CamelliaNonce, CAMELLIA_TAG_LEN,
+    };
     let key = CamelliaKey::from_raw_cipher_mac_for_test([0x2Du8; 32], [0x3Cu8; 32]);
     let nonce = CamelliaNonce::from_counter(0);
     let aad = b"camellia aad";
@@ -676,11 +678,9 @@ fn bench_timing_camellia_tag_check() -> CtSummary {
 }
 
 fn bench_timing_twofish_tag_check() -> CtSummary {
+    use galdr_vault::twofish_cipher::{twofish_encrypt, TwofishKey, TwofishNonce, TWOFISH_TAG_LEN};
     use hmac::digest::generic_array::typenum::U32;
     use hmac::digest::generic_array::GenericArray;
-    use galdr_vault::twofish_cipher::{
-        twofish_encrypt, TwofishKey, TwofishNonce, TWOFISH_TAG_LEN,
-    };
     let key = TwofishKey::from_raw_cipher_mac_for_test([0x2Fu8; 32], [0x3Eu8; 32]);
     let nonce = TwofishNonce::from_counter(0);
     let aad = b"twofish aad";
@@ -754,7 +754,11 @@ fn bench_timing_rsa_oaep_decrypt() -> CtSummary {
         .encrypt_oaep(pt, b"", &mut trng)
         .expect("encrypt oaep");
     let good = ct_good.as_slice().to_vec();
-    assert_eq!(good.len() % 32, 0, "RSA modulus-sized ct for subtle_ct_eq_bytes_32");
+    assert_eq!(
+        good.len() % 32,
+        0,
+        "RSA modulus-sized ct for subtle_ct_eq_bytes_32"
+    );
     let mut bad = good.clone();
     // Same flip position as `bench_timing_rsa_pss_verify` (first byte).
     bad[0] ^= 0x01;
@@ -788,7 +792,11 @@ fn bench_timing_rsa_pss_verify() -> CtSummary {
     let msg = b"rsa pss dudect";
     let sig_good = key.sign_pss_sha256(msg, &mut trng).expect("sign");
     let good = sig_good.as_slice().to_vec();
-    assert_eq!(good.len() % 32, 0, "RSA modulus-sized sig for subtle_ct_eq_bytes_32");
+    assert_eq!(
+        good.len() % 32,
+        0,
+        "RSA modulus-sized sig for subtle_ct_eq_bytes_32"
+    );
     let mut bad = good.clone();
     bad[0] ^= 0x01;
     let n = samples_for_harness("timing_rsa_pss_verify");
@@ -857,7 +865,10 @@ pub fn run_all() -> i32 {
         ("timing_camellia_tag_check", bench_timing_camellia_tag_check),
         ("timing_serpent_tag_check", bench_timing_serpent_tag_check),
         ("timing_twofish_tag_check", bench_timing_twofish_tag_check),
-        ("timing_cascade_auth_failure", bench_timing_cascade_auth_failure),
+        (
+            "timing_cascade_auth_failure",
+            bench_timing_cascade_auth_failure,
+        ),
         (
             "timing_cascade_inner_vs_outer_failure",
             bench_timing_cascade_inner_vs_outer_failure,
@@ -934,9 +945,7 @@ pub fn run_all() -> i32 {
         "[DUDECT] Summary: {passed}/{total} executed harnesses passed threshold (|t| <= {DUDECT_THRESHOLD}). Elapsed: {elapsed:.1}s."
     );
     if failed > 0 {
-        println!(
-            "dudect: {failed} harness(es) exceeded |t| > {DUDECT_THRESHOLD} — exit code 1"
-        );
+        println!("dudect: {failed} harness(es) exceeded |t| > {DUDECT_THRESHOLD} — exit code 1");
         let _ = std::io::stdout().flush();
         return 1;
     }

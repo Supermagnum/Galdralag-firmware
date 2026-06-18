@@ -33,7 +33,7 @@ pub use elliptic_curve::pkcs8;
 pub(crate) use crate::arithmetic::field::FieldElement;
 
 use elliptic_curve::{
-    array::{Array, typenum::U64},
+    array::{typenum::U64, Array},
     bigint::Odd,
 };
 

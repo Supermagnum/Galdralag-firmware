@@ -1,8 +1,8 @@
 use biometric_api::Modality;
 use biometric_vault::{
-    decrypt_template, encrypt_template, generate_session_token, verify_session_token,
-    VaultError, BIOMETRIC_REGION_OFFSET, BIOMETRIC_REGION_SIZE, MAX_ENROLLED_PERSONS,
-    MAX_TEMPLATE_SIZE_BYTES, RRAM_TOTAL_BYTES,
+    decrypt_template, encrypt_template, generate_session_token, verify_session_token, VaultError,
+    BIOMETRIC_REGION_OFFSET, BIOMETRIC_REGION_SIZE, MAX_ENROLLED_PERSONS, MAX_TEMPLATE_SIZE_BYTES,
+    RRAM_TOTAL_BYTES,
 };
 
 #[test]

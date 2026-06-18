@@ -1,12 +1,12 @@
 //! HKP keyserver and WKD fetch helpers.
 
 use crate::GaldraError;
-use sequoia_net::KeyServer;
 use sequoia_net::reqwest::Client;
 use sequoia_net::wkd;
-use sequoia_openpgp::Cert;
+use sequoia_net::KeyServer;
 use sequoia_openpgp::packet::UserID;
 use sequoia_openpgp::parse::Parse;
+use sequoia_openpgp::Cert;
 use std::time::Duration;
 
 fn reject_plain_http(url: &str) -> Result<(), GaldraError> {
@@ -27,7 +27,9 @@ fn userid_from_query(query: &str) -> Result<UserID, GaldraError> {
     }
 }
 
-fn flatten_certs<E: std::fmt::Display>(results: Vec<Result<Cert, E>>) -> Result<Vec<Cert>, GaldraError> {
+fn flatten_certs<E: std::fmt::Display>(
+    results: Vec<Result<Cert, E>>,
+) -> Result<Vec<Cert>, GaldraError> {
     let mut out = Vec::new();
     for r in results {
         let cert = r.map_err(|e| GaldraError::KeyFetch(e.to_string()))?;
@@ -43,7 +45,9 @@ pub async fn keyserver_fetch(
     timeout: Duration,
 ) -> Result<Vec<Cert>, GaldraError> {
     if servers.is_empty() {
-        return Err(GaldraError::KeyFetch("no keyservers configured".to_string()));
+        return Err(GaldraError::KeyFetch(
+            "no keyservers configured".to_string(),
+        ));
     }
     let mut last_err = String::from("no successful keyserver response");
     let uid = userid_from_query(query)?;

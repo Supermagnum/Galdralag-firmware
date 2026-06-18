@@ -30,7 +30,10 @@ impl SweetPlatform {
     }
 
     pub fn connect(&mut self, socket_path: &str) -> Result<(), BiometricError> {
-        let mut g = self.socket_path.lock().map_err(|_| BiometricError::HardwareError(1))?;
+        let mut g = self
+            .socket_path
+            .lock()
+            .map_err(|_| BiometricError::HardwareError(1))?;
         *g = Some(socket_path.to_string());
         Ok(())
     }

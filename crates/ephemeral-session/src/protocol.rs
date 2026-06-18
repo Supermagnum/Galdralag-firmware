@@ -14,11 +14,11 @@ use crate::handshake::{
 use crate::keys::{EphemeralKeyPair, SessionKeys};
 use crate::trust::LongTermCert;
 use galdr_core::hal::{HardwareTrng, VaultStorage};
-use subtle::ConstantTimeEq;
 use galdr_vault::rsa_vault::KeySlot;
 use galdr_vault::session_long_term_signing::{
     vault_load_session_long_term_signing_key, SessionLongTermSigningKey,
 };
+use subtle::ConstantTimeEq;
 
 /// The role of this node in the session handshake.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -64,13 +64,16 @@ impl InitiatorSession {
         storage: &mut S,
     ) -> Result<InitMessage, EphemeralSessionError> {
         match &self.state {
-            InitiatorState::Completed => return Err(EphemeralSessionError::SessionAlreadyCompleted),
+            InitiatorState::Completed => {
+                return Err(EphemeralSessionError::SessionAlreadyCompleted)
+            }
             InitiatorState::Initialised { .. } => {
                 return Err(EphemeralSessionError::SessionAlreadyInitialised);
             }
             InitiatorState::New => {}
         }
-        let lt = vault_load_session_long_term_signing_key(storage, long_term_slot, curve.wire_id())?;
+        let lt =
+            vault_load_session_long_term_signing_key(storage, long_term_slot, curve.wire_id())?;
         let epk = EphemeralKeyPair::generate(curve, trng)?;
         let preimage = init_sign_preimage(INIT_PROTOCOL_VERSION, curve, epk.public_key_bytes());
         let sig = sign_with_long_term(&lt, preimage.as_slice(), trng)?;
@@ -169,17 +172,18 @@ impl InitiatorSession {
             };
             return Err(EphemeralSessionError::InvalidPeerSignature);
         }
-        let wire_fp = match InitMessage::decode_fingerprint_hex(response.long_term_fingerprint.as_slice()) {
-            Ok(x) => x,
-            Err(e) => {
-                self.state = InitiatorState::Initialised {
-                    curve,
-                    ephemeral_keypair: epk,
-                    init_message,
-                };
-                return Err(e);
-            }
-        };
+        let wire_fp =
+            match InitMessage::decode_fingerprint_hex(response.long_term_fingerprint.as_slice()) {
+                Ok(x) => x,
+                Err(e) => {
+                    self.state = InitiatorState::Initialised {
+                        curve,
+                        ephemeral_keypair: epk,
+                        init_message,
+                    };
+                    return Err(e);
+                }
+            };
         if bool::from(!peer_long_term_cert.fingerprint.as_slice().ct_eq(&wire_fp)) {
             self.state = InitiatorState::Initialised {
                 curve,
@@ -246,8 +250,9 @@ impl ResponderSession {
             return Err(EphemeralSessionError::MalformedHandshake);
         }
         let curve = init_message.curve;
-        let wire_fp = InitMessage::decode_fingerprint_hex(init_message.long_term_fingerprint.as_slice())
-            .map_err(|_| EphemeralSessionError::MalformedHandshake)?;
+        let wire_fp =
+            InitMessage::decode_fingerprint_hex(init_message.long_term_fingerprint.as_slice())
+                .map_err(|_| EphemeralSessionError::MalformedHandshake)?;
         if bool::from(!peer_long_term_cert.fingerprint.as_slice().ct_eq(&wire_fp)) {
             return Err(EphemeralSessionError::FingerprintMismatch);
         }
@@ -261,7 +266,8 @@ impl ResponderSession {
             init_pre.as_slice(),
             init_message.signature.as_slice(),
         )?;
-        let lt = vault_load_session_long_term_signing_key(storage, long_term_slot, curve.wire_id())?;
+        let lt =
+            vault_load_session_long_term_signing_key(storage, long_term_slot, curve.wire_id())?;
         let epk = EphemeralKeyPair::generate(curve, trng)?;
         let resp_pre = response_sign_preimage(
             RESP_PROTOCOL_VERSION,
@@ -366,27 +372,32 @@ fn sign_with_long_term<T: HardwareTrng>(
     }
 }
 
-fn verifying_sec1(key: &SessionLongTermSigningKey) -> Result<heapless::Vec<u8, 129>, EphemeralSessionError> {
+fn verifying_sec1(
+    key: &SessionLongTermSigningKey,
+) -> Result<heapless::Vec<u8, 129>, EphemeralSessionError> {
     match key {
         SessionLongTermSigningKey::P256(sk) => {
             let vk = sk.verifying_key();
             let b = vk.to_sec1_uncompressed();
             let mut v = heapless::Vec::new();
-            v.extend_from_slice(&b).map_err(|_| EphemeralSessionError::MalformedHandshake)?;
+            v.extend_from_slice(&b)
+                .map_err(|_| EphemeralSessionError::MalformedHandshake)?;
             Ok(v)
         }
         SessionLongTermSigningKey::P384(sk) => {
             let vk = sk.verifying_key();
             let b = vk.to_sec1_uncompressed();
             let mut v = heapless::Vec::new();
-            v.extend_from_slice(&b).map_err(|_| EphemeralSessionError::MalformedHandshake)?;
+            v.extend_from_slice(&b)
+                .map_err(|_| EphemeralSessionError::MalformedHandshake)?;
             Ok(v)
         }
         SessionLongTermSigningKey::P512(sk) => {
             let vk = sk.verifying_key();
             let b = vk.to_sec1_uncompressed();
             let mut v = heapless::Vec::new();
-            v.extend_from_slice(&b).map_err(|_| EphemeralSessionError::MalformedHandshake)?;
+            v.extend_from_slice(&b)
+                .map_err(|_| EphemeralSessionError::MalformedHandshake)?;
             Ok(v)
         }
     }

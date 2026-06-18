@@ -9,14 +9,11 @@ use sha2::{Digest, Sha256};
 /// Supported curves and OIDs as used in OpenPGP card algorithm attributes (§4.4.3.9).
 pub mod curve_oids {
     /// BrainpoolP256r1.
-    pub const BRAINPOOL_P256R1: &[u8] =
-        &[0x2B, 0x24, 0x03, 0x03, 0x02, 0x08, 0x01, 0x01, 0x07];
+    pub const BRAINPOOL_P256R1: &[u8] = &[0x2B, 0x24, 0x03, 0x03, 0x02, 0x08, 0x01, 0x01, 0x07];
     /// BrainpoolP384r1.
-    pub const BRAINPOOL_P384R1: &[u8] =
-        &[0x2B, 0x24, 0x03, 0x03, 0x02, 0x08, 0x01, 0x01, 0x0B];
+    pub const BRAINPOOL_P384R1: &[u8] = &[0x2B, 0x24, 0x03, 0x03, 0x02, 0x08, 0x01, 0x01, 0x0B];
     /// BrainpoolP512r1.
-    pub const BRAINPOOL_P512R1: &[u8] =
-        &[0x2B, 0x24, 0x03, 0x03, 0x02, 0x08, 0x01, 0x01, 0x0D];
+    pub const BRAINPOOL_P512R1: &[u8] = &[0x2B, 0x24, 0x03, 0x03, 0x02, 0x08, 0x01, 0x01, 0x0D];
     /// NIST P-256 (prime256v1).
     pub const NIST_P256: &[u8] = &[0x2A, 0x86, 0x48, 0xCE, 0x3D, 0x03, 0x01, 0x07];
     /// NIST P-384.
@@ -45,13 +42,9 @@ pub enum AlgorithmAttributes {
         curve_oid: Vec<u8, 16>,
     },
     /// ECDSA signature.
-    Ecdsa {
-        curve_oid: Vec<u8, 16>,
-    },
+    Ecdsa { curve_oid: Vec<u8, 16> },
     /// EdDSA (Ed25519).
-    EdDsa {
-        curve_oid: Vec<u8, 16>,
-    },
+    EdDsa { curve_oid: Vec<u8, 16> },
 }
 
 impl AlgorithmAttributes {
@@ -136,15 +129,8 @@ impl AlgorithmAttributes {
 pub fn extended_capabilities_default() -> [u8; 10] {
     [
         0xB0, // byte0: bit7 GET CHALLENGE; other bits as before (key import, PW status, ...)
-        0x00,
-        0x00,
-        0x40, // bytes 2-3: max GET CHALLENGE length (64)
-        0x00,
-        0x00,
-        0x00,
-        0x00,
-        0x00,
-        0x00,
+        0x00, 0x00, 0x40, // bytes 2-3: max GET CHALLENGE length (64)
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
     ]
 }
 

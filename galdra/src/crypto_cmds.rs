@@ -20,9 +20,10 @@ use std::path::PathBuf;
 use crate::common::{print_json, resolve_identity, OutputMode};
 
 fn identity_to_cert(id: &Identity) -> Result<sequoia_openpgp::Cert, GaldraError> {
-    let bytes = id.pgp_pubkey.as_ref().ok_or_else(|| {
-        GaldraError::OpenPgp(format!("contact {} has no OpenPGP key", id.id))
-    })?;
+    let bytes = id
+        .pgp_pubkey
+        .as_ref()
+        .ok_or_else(|| GaldraError::OpenPgp(format!("contact {} has no OpenPGP key", id.id)))?;
     sequoia_openpgp::Cert::from_bytes(bytes).map_err(|e| GaldraError::OpenPgp(e.to_string()))
 }
 
@@ -82,14 +83,7 @@ pub fn run_encrypt(
 ) -> Result<(), GaldraError> {
     let fmt = format.as_deref().unwrap_or("openpgp");
     if fmt == "age" {
-        return run_encrypt_age(
-            db,
-            output_mode,
-            quiet,
-            &age_recipient,
-            input,
-            output,
-        );
+        return run_encrypt_age(db, output_mode, quiet, &age_recipient, input, output);
     }
     if fmt != "openpgp" {
         return Err(GaldraError::Config(format!(
@@ -122,10 +116,7 @@ pub fn run_encrypt(
         .map(|s| s.to_string());
 
     let store = ProfileStore::load(db)?;
-    let profile_name = profile
-        .as_deref()
-        .unwrap_or("standard")
-        .to_string();
+    let profile_name = profile.as_deref().unwrap_or("standard").to_string();
     let cipher_profile = store
         .get_owned(&profile_name)
         .ok_or_else(|| GaldraError::ProfileNotFound(profile_name.clone()))?;
@@ -147,34 +138,20 @@ pub fn run_encrypt(
 
     let ciphertext = if sign {
         return Err(GaldraError::Config(
-            "cleartext signing during encrypt requires a connected token (not yet integrated)".to_string(),
+            "cleartext signing during encrypt requires a connected token (not yet integrated)"
+                .to_string(),
         ));
     } else {
-        let mut sealed = seal_plaintext_with_profile(
-            &cipher_profile,
-            &plaintext,
-            PLACEHOLDER_SENDER_FP,
-        )?;
+        let mut sealed =
+            seal_plaintext_with_profile(&cipher_profile, &plaintext, PLACEHOLDER_SENDER_FP)?;
         if let Some(ref k_outer) = cess_k_outer {
             let nonce = parse_hex_fixed::<12>(
                 "--cess-nonce-hex",
                 cess_nonce_hex.as_ref().expect("paired with k_outer"),
             )?;
-            sealed = wrap_inner_with_cess_mode_a(
-                &sealed,
-                cipher_profile.name(),
-                k_outer,
-                &nonce,
-            )?;
+            sealed = wrap_inner_with_cess_mode_a(&sealed, cipher_profile.name(), k_outer, &nonce)?;
         }
-        encrypt::encrypt_openpgp(
-            &policy,
-            &sealed,
-            fname.as_deref(),
-            &certs,
-            hidden,
-            strict,
-        )?
+        encrypt::encrypt_openpgp(&policy, &sealed, fname.as_deref(), &certs, hidden, strict)?
     };
 
     std::fs::write(&output, &ciphertext).map_err(GaldraError::Io)?;
@@ -299,14 +276,7 @@ pub fn run_decrypt(
 ) -> Result<(), GaldraError> {
     let fmt = format.as_deref().unwrap_or("openpgp");
     if fmt == "age" {
-        return run_decrypt_age(
-            db,
-            output_mode,
-            quiet,
-            age_identity,
-            input,
-            output,
-        );
+        return run_decrypt_age(db, output_mode, quiet, age_identity, input, output);
     }
     if fmt != "openpgp" {
         return Err(GaldraError::Config(format!(
@@ -326,10 +296,11 @@ pub fn run_decrypt(
     let cert = identity_to_cert(&id)?;
     let ciphertext = std::fs::read(&input).map_err(GaldraError::Io)?;
 
-    let try_decrypt = |pkesk: &sequoia_openpgp::packet::PKESK,
-                       sym: Option<sequoia_openpgp::types::SymmetricAlgorithm>| {
-        try_decrypt_session_key_from_cert(&policy, &cert, pkesk, sym)
-    };
+    let try_decrypt =
+        |pkesk: &sequoia_openpgp::packet::PKESK,
+         sym: Option<sequoia_openpgp::types::SymmetricAlgorithm>| {
+            try_decrypt_session_key_from_cert(&policy, &cert, pkesk, sym)
+        };
 
     let inner = encrypt::decrypt_openpgp(&policy, &ciphertext, &cert, try_decrypt, &[])
         .map_err(|e| {
@@ -441,7 +412,8 @@ fn run_decrypt_age(
             ));
         }
     };
-    let idf = age::IdentityFile::from_file(id_path.display().to_string()).map_err(GaldraError::Io)?;
+    let idf =
+        age::IdentityFile::from_file(id_path.display().to_string()).map_err(GaldraError::Io)?;
     let identities: Vec<age::x25519::Identity> = idf
         .into_identities()
         .into_iter()
@@ -497,7 +469,8 @@ pub fn run_sign(
     _detach: bool,
 ) -> Result<(), GaldraError> {
     Err(GaldraError::Config(
-        "signing requires a connected token with signing key material (not yet integrated)".to_string(),
+        "signing requires a connected token with signing key material (not yet integrated)"
+            .to_string(),
     ))
 }
 

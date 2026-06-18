@@ -135,7 +135,11 @@ impl Device {
     }
 
     /// Export the public key for a slot.
-    pub fn key_export_public(&self, _slot: u32, _format: KeyFormat) -> Result<Vec<u8>, GaldraError> {
+    pub fn key_export_public(
+        &self,
+        _slot: u32,
+        _format: KeyFormat,
+    ) -> Result<Vec<u8>, GaldraError> {
         Err(GaldraError::DeviceNotConnected)
     }
 

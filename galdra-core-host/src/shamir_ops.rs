@@ -5,8 +5,8 @@ use crate::GaldraError;
 use chrono::Utc;
 use cipher_profile::CipherProfile;
 use galdr_core::fake_hal::FakeTrng;
-use std::fmt::Write as _;
 use galdr_vault::shamir::{shamir_recover, shamir_split, ShamirError, ShamirShare};
+use std::fmt::Write as _;
 use zeroize::Zeroize;
 
 fn map_shamir_err(e: ShamirError) -> GaldraError {

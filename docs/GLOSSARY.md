@@ -86,6 +86,9 @@ A hardware block on **Baochip** that can speed up hashing. If firmware uses it, 
 **Coercion**  
 An attacker forces a legitimate user (physically or under threat) to authenticate — for example to enter a **PIN** or present a **biometric**. Cryptography does not remove this risk; see [THREAT_MODEL.md](THREAT_MODEL.md) (**T13**).
 
+**Contact (host directory)**  
+In **Galdra**, someone’s **stored public key row** plus optional plain-text labels — callsign, notes, postal hints (**street**, **country**, **postal code**, **region**), amateur-radio **DMR ID** and **radio affiliation**. That extra text is **not verified** cryptographically unless you correlate it out of band.
+
 **Constant-time (in cryptography)**  
 Coding discipline so that secret values do not change how long an operation takes in ways an outsider could measure. This project also runs **timing** statistical tests on the host; those tests help catch regressions but are not a complete proof on the device.
 

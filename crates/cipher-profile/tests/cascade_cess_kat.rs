@@ -81,7 +81,9 @@ fn cascade_cess_kat_intermediate_matches_fixture() {
         };
         let profile = tr(reg.get(name).ok_or("missing profile"));
         let expect_inter = hex_decode(hex_s);
-        let got_inter = tr(cascade_blob_before_outermost_encrypt(profile, &ikm, &aad, &pt));
+        let got_inter = tr(cascade_blob_before_outermost_encrypt(
+            profile, &ikm, &aad, &pt,
+        ));
         assert_eq!(
             got_inter.as_slice(),
             expect_inter.as_slice(),

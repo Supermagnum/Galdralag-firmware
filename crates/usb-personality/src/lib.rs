@@ -35,7 +35,10 @@ pub fn usb_exposed_secret_slice(p: Personality) -> Option<&'static [u8]> {
 }
 
 /// Stub: set personality after policy allows (Xous IPC to `usbd`).
-pub fn set_personality_stub(_p: Personality, _cap: Option<UnlockCapability>) -> Result<(), galdr_core::GaldrError> {
+pub fn set_personality_stub(
+    _p: Personality,
+    _cap: Option<UnlockCapability>,
+) -> Result<(), galdr_core::GaldrError> {
     Err(galdr_core::GaldrError::NotImplemented)
 }
 

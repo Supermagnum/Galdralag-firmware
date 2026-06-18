@@ -2,12 +2,12 @@
 
 #![deny(unsafe_code)]
 
-use heapless::Vec;
 use galdr_vault::KeyPurpose;
+use heapless::Vec;
 
 use crate::ccid::{
     atr_openpgp_profile, rdr_to_pc_data_block, rdr_to_pc_parameters, rdr_to_pc_slot_status,
-    CcidStatus, CCID_WIRE_BUF_SIZE, PcToRdr,
+    CcidStatus, PcToRdr, CCID_WIRE_BUF_SIZE,
 };
 
 use super::aid::aid_matches_openpgp;
@@ -70,11 +70,7 @@ fn handle_change_reference<B: OpenPgpBackend>(
         _ => return ResponseApdu::error(StatusWord::WrongParametersP1P2),
     };
     let pw = backend.pw_status_bytes();
-    let pin_len = if pw3 {
-        pw[1] as usize
-    } else {
-        pw[0] as usize
-    };
+    let pin_len = if pw3 { pw[1] as usize } else { pw[0] as usize };
     if pin_len == 0 || pin_len > 127 {
         return ResponseApdu::error(StatusWord::IncorrectParameters);
     }
@@ -165,10 +161,7 @@ pub fn handle_apdu<B: OpenPgpBackend>(
     }
 }
 
-fn handle_get_challenge<B: OpenPgpBackend>(
-    cmd: &CommandApdu,
-    backend: &mut B,
-) -> ResponseApdu {
+fn handle_get_challenge<B: OpenPgpBackend>(cmd: &CommandApdu, backend: &mut B) -> ResponseApdu {
     if cmd.p1 != 0x00 || cmd.p2 != 0x00 {
         return ResponseApdu::error(StatusWord::WrongParametersP1P2);
     }
@@ -301,18 +294,22 @@ fn do_tag<B: OpenPgpBackend>(
             let aid = backend.aid_bytes();
             let mut out = Vec::new();
             for b in aid {
-                out.push(*b).map_err(|_| OpenPgpBackendError::Status(StatusWord::ExecutionError))?;
+                out.push(*b)
+                    .map_err(|_| OpenPgpBackendError::Status(StatusWord::ExecutionError))?;
             }
             Ok(out)
         }
         0x6E => {
             let mut buf = Vec::new();
             let aid = backend.aid_bytes();
-            encode_tlv(0x4F, aid, &mut buf).map_err(|_| OpenPgpBackendError::Status(StatusWord::ExecutionError))?;
+            encode_tlv(0x4F, aid, &mut buf)
+                .map_err(|_| OpenPgpBackendError::Status(StatusWord::ExecutionError))?;
             let ext = extended_capabilities_default();
-            encode_tlv(0xC0, &ext, &mut buf).map_err(|_| OpenPgpBackendError::Status(StatusWord::ExecutionError))?;
+            encode_tlv(0xC0, &ext, &mut buf)
+                .map_err(|_| OpenPgpBackendError::Status(StatusWord::ExecutionError))?;
             let atr = atr_openpgp_profile();
-            encode_tlv(0x5F52, atr, &mut buf).map_err(|_| OpenPgpBackendError::Status(StatusWord::ExecutionError))?;
+            encode_tlv(0x5F52, atr, &mut buf)
+                .map_err(|_| OpenPgpBackendError::Status(StatusWord::ExecutionError))?;
             Ok(buf)
         }
         0x65 => {
@@ -320,19 +317,25 @@ fn do_tag<B: OpenPgpBackend>(
             let name = backend.get_do(0x5B)?;
             let lang = backend.get_do(0x5F2D)?;
             let sex = backend.get_do(0x5F35)?;
-            encode_tlv(0x5B, name.as_slice(), &mut buf).map_err(|_| OpenPgpBackendError::Status(StatusWord::ExecutionError))?;
-            encode_tlv(0x5F2D, lang.as_slice(), &mut buf).map_err(|_| OpenPgpBackendError::Status(StatusWord::ExecutionError))?;
-            encode_tlv(0x5F35, sex.as_slice(), &mut buf).map_err(|_| OpenPgpBackendError::Status(StatusWord::ExecutionError))?;
+            encode_tlv(0x5B, name.as_slice(), &mut buf)
+                .map_err(|_| OpenPgpBackendError::Status(StatusWord::ExecutionError))?;
+            encode_tlv(0x5F2D, lang.as_slice(), &mut buf)
+                .map_err(|_| OpenPgpBackendError::Status(StatusWord::ExecutionError))?;
+            encode_tlv(0x5F35, sex.as_slice(), &mut buf)
+                .map_err(|_| OpenPgpBackendError::Status(StatusWord::ExecutionError))?;
             let mut outer = Vec::new();
-            encode_tlv(0x65, buf.as_slice(), &mut outer).map_err(|_| OpenPgpBackendError::Status(StatusWord::ExecutionError))?;
+            encode_tlv(0x65, buf.as_slice(), &mut outer)
+                .map_err(|_| OpenPgpBackendError::Status(StatusWord::ExecutionError))?;
             Ok(outer)
         }
         0x7A => {
             let mut buf = Vec::new();
             let ctr = backend.get_do(0x93)?;
-            encode_tlv(0x93, ctr.as_slice(), &mut buf).map_err(|_| OpenPgpBackendError::Status(StatusWord::ExecutionError))?;
+            encode_tlv(0x93, ctr.as_slice(), &mut buf)
+                .map_err(|_| OpenPgpBackendError::Status(StatusWord::ExecutionError))?;
             let mut outer = Vec::new();
-            encode_tlv(0x7A, buf.as_slice(), &mut outer).map_err(|_| OpenPgpBackendError::Status(StatusWord::ExecutionError))?;
+            encode_tlv(0x7A, buf.as_slice(), &mut outer)
+                .map_err(|_| OpenPgpBackendError::Status(StatusWord::ExecutionError))?;
             Ok(outer)
         }
         _ => backend.get_do(tag),
@@ -562,11 +565,7 @@ fn handle_get_response<B: OpenPgpBackend>(
     }
 }
 
-fn chunk_response(
-    cmd: &CommandApdu,
-    state: &mut CardState,
-    data: Vec<u8, 512>,
-) -> ResponseApdu {
+fn chunk_response(cmd: &CommandApdu, state: &mut CardState, data: Vec<u8, 512>) -> ResponseApdu {
     let lim = le_limit(cmd);
     if data.len() <= lim {
         return ResponseApdu::ok(data);

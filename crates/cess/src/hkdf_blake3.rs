@@ -78,7 +78,8 @@ mod tests {
     /// Vectors from CESS `vectors/hkdf_blake3.toml` (must match `generate_vectors.py`).
     #[test]
     fn cess_vector_classical_only_32() {
-        let ikm = hex::decode("3df646a590007b20e599678926543bad804f03c4cd15d8122813d97b08b657d9").unwrap();
+        let ikm = hex::decode("3df646a590007b20e599678926543bad804f03c4cd15d8122813d97b08b657d9")
+            .unwrap();
         let okm = hkdf_blake3(&ikm, b"", b"cess-kem-v1", 32);
         assert_eq!(
             hex::encode(&okm),
@@ -88,7 +89,8 @@ mod tests {
 
     #[test]
     fn cess_vector_explicit_salt_32_zero() {
-        let ikm = hex::decode("3df646a590007b20e599678926543bad804f03c4cd15d8122813d97b08b657d9").unwrap();
+        let ikm = hex::decode("3df646a590007b20e599678926543bad804f03c4cd15d8122813d97b08b657d9")
+            .unwrap();
         let salt = [0u8; 32];
         let okm = hkdf_blake3(&ikm, &salt, b"cess-kem-v1", 32);
         assert_eq!(
@@ -99,7 +101,8 @@ mod tests {
 
     #[test]
     fn cess_vector_pin_wrap() {
-        let ikm = hex::decode("face1bf3a3261bb9ac71ce64c1f9719a70f208496b4acd98ad5955c45fdd6dfc").unwrap();
+        let ikm = hex::decode("face1bf3a3261bb9ac71ce64c1f9719a70f208496b4acd98ad5955c45fdd6dfc")
+            .unwrap();
         let okm = hkdf_blake3(&ikm, b"", b"cess-pin-v1", 32);
         assert_eq!(
             hex::encode(&okm),
@@ -109,7 +112,8 @@ mod tests {
 
     #[test]
     fn cess_vector_64_byte_expand() {
-        let ikm = hex::decode("3df646a590007b20e599678926543bad804f03c4cd15d8122813d97b08b657d9").unwrap();
+        let ikm = hex::decode("3df646a590007b20e599678926543bad804f03c4cd15d8122813d97b08b657d9")
+            .unwrap();
         let okm = hkdf_blake3(&ikm, b"", b"cess-kem-v1", 64);
         assert_eq!(
             hex::encode(&okm),

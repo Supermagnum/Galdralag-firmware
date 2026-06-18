@@ -8,17 +8,13 @@
 #![forbid(unsafe_code)]
 
 #[cfg(feature = "dudect")]
-mod dudect_stats;
+mod biometric_timing;
+#[cfg(feature = "dudect")]
+mod dudect_harnesses;
 #[cfg(feature = "dudect")]
 mod dudect_sample_counts;
 #[cfg(feature = "dudect")]
-mod biometric_timing;
-#[cfg(feature = "dudect")]
-mod timing_pbkdf2;
-#[cfg(feature = "dudect")]
-mod timing_sha2;
-#[cfg(feature = "dudect")]
-mod timing_sha3;
+mod dudect_stats;
 #[cfg(feature = "dudect")]
 mod timing_blake2;
 #[cfg(feature = "dudect")]
@@ -26,7 +22,11 @@ mod timing_blake3;
 #[cfg(feature = "dudect")]
 mod timing_cascade;
 #[cfg(feature = "dudect")]
-mod dudect_harnesses;
+mod timing_pbkdf2;
+#[cfg(feature = "dudect")]
+mod timing_sha2;
+#[cfg(feature = "dudect")]
+mod timing_sha3;
 
 #[cfg(feature = "dudect")]
 pub fn run_dudect_harnesses() -> i32 {

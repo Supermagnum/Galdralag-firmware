@@ -25,11 +25,15 @@ fn provisioned_attempt_range() {
         Err(PinPolicyProvisionError::MaxAttemptsOutOfRange)
     );
     assert_eq!(
-        PinPolicyConfig::try_with_max_attempts(3).unwrap().max_attempts,
+        PinPolicyConfig::try_with_max_attempts(3)
+            .unwrap()
+            .max_attempts,
         3
     );
     assert_eq!(
-        PinPolicyConfig::try_with_max_attempts(10).unwrap().max_attempts,
+        PinPolicyConfig::try_with_max_attempts(10)
+            .unwrap()
+            .max_attempts,
         10
     );
     assert_eq!(PinPolicyConfig::default().max_attempts, 3);
@@ -54,9 +58,7 @@ fn increment_before_compare_exhausts_attempts() {
         z,
     );
     m.enter_locked_idle();
-    let r = m
-        .submit_attempt(|| Choice::from(0u8))
-        .unwrap();
+    let r = m.submit_attempt(|| Choice::from(0u8)).unwrap();
     assert_eq!(r, PinOutcome::Failed { attempts_used: 1 });
     let r = m.submit_attempt(|| Choice::from(1u8)).unwrap();
     assert_eq!(r, PinOutcome::Breach);

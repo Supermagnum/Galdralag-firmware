@@ -110,4 +110,3 @@ pub fn rdr_to_pc_parameters(slot: u8, seq: u8) -> Vec<u8, 530> {
     }
     out
 }
-

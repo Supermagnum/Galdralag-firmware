@@ -1,8 +1,6 @@
 //! Integration tests with `test-hal` mock drivers.
 
-use biometric_api::{
-    galdrad_validate_match_result, BiometricBackendDriver, BiometricError,
-};
+use biometric_api::{galdrad_validate_match_result, BiometricBackendDriver, BiometricError};
 use biometric_fingervein::MockFingerVeinDevice;
 use biometric_sweet::MockSweetPlatform;
 use biometric_vault::{
@@ -106,12 +104,23 @@ fn test_full_auth_flow_fingervein_pin_accepted() {
     let mk = [0x55u8; 32];
     let uid = mock.device_id;
     let raw = mock.enroll(1).unwrap();
-    let enc = encrypt_template(&mk, &uid, biometric_api::Modality::FingerVein, raw.as_slice()).unwrap();
+    let enc = encrypt_template(
+        &mk,
+        &uid,
+        biometric_api::Modality::FingerVein,
+        raw.as_slice(),
+    )
+    .unwrap();
     let nonce = [0x11u8; 32];
     let sm = mock.authenticate(&nonce, enc.as_slice()).unwrap();
     galdrad_validate_match_result(&sm, &vk, &nonce, 1_700_000_001, 300).unwrap();
     let hmac_key = [0x66u8; 32];
-    let tok = generate_session_token(&hmac_key, &nonce, &sm.payload.device_id, sm.payload.timestamp);
+    let tok = generate_session_token(
+        &hmac_key,
+        &nonce,
+        &sm.payload.device_id,
+        sm.payload.timestamp,
+    );
     verify_session_token(
         &hmac_key,
         &nonce,
@@ -122,7 +131,13 @@ fn test_full_auth_flow_fingervein_pin_accepted() {
         1_700_000_001,
     )
     .unwrap();
-    let _ = decrypt_template(&mk, &uid, biometric_api::Modality::FingerVein, enc.as_slice()).unwrap();
+    let _ = decrypt_template(
+        &mk,
+        &uid,
+        biometric_api::Modality::FingerVein,
+        enc.as_slice(),
+    )
+    .unwrap();
 }
 
 #[test]
@@ -133,12 +148,18 @@ fn test_full_auth_flow_sweet_pin_accepted() {
     let mk = [0x33u8; 32];
     let uid = mock.device_id;
     let raw = mock.enroll(1).unwrap();
-    let enc = encrypt_template(&mk, &uid, biometric_api::Modality::PalmVein, raw.as_slice()).unwrap();
+    let enc =
+        encrypt_template(&mk, &uid, biometric_api::Modality::PalmVein, raw.as_slice()).unwrap();
     let nonce = [0x22u8; 32];
     let sm = mock.authenticate(&nonce, enc.as_slice()).unwrap();
     galdrad_validate_match_result(&sm, &vk, &nonce, 1_700_000_002, 300).unwrap();
     let hmac_key = [0x77u8; 32];
-    let tok = generate_session_token(&hmac_key, &nonce, &sm.payload.device_id, sm.payload.timestamp);
+    let tok = generate_session_token(
+        &hmac_key,
+        &nonce,
+        &sm.payload.device_id,
+        sm.payload.timestamp,
+    );
     verify_session_token(
         &hmac_key,
         &nonce,
@@ -154,7 +175,10 @@ fn test_full_auth_flow_sweet_pin_accepted() {
 #[test]
 fn test_full_auth_flow_no_biometric_provisioned_pin_only() {
     let provisioned = false;
-    assert!(!provisioned, "when false, host skips biometric gate (PIN-only path)");
+    assert!(
+        !provisioned,
+        "when false, host skips biometric gate (PIN-only path)"
+    );
 }
 
 #[test]
@@ -172,7 +196,10 @@ fn test_full_auth_flow_replay_attack_rejected() {
     let sm = mock.authenticate(&nonce, &[]).unwrap();
     let mut seen = std::collections::BTreeSet::new();
     assert!(seen.insert(nonce));
-    assert!(!seen.insert(nonce), "replay nonce should be detectable host-side");
+    assert!(
+        !seen.insert(nonce),
+        "replay nonce should be detectable host-side"
+    );
     let e = galdrad_validate_match_result(&sm, &vk, &nonce, 1_700_000_100, 1);
     assert_eq!(e, Err(BiometricError::TimestampExpired));
 }

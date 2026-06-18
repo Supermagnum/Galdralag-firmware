@@ -4,9 +4,6 @@ use galdr_core::fake_hal::FakeTrng;
 use galdr_core::fake_hal::FakeVaultStorage;
 use galdr_core::hal::VaultStorage;
 use galdr_core::HalError;
-use paste::paste;
-use static_assertions::assert_not_impl_any;
-use std::vec::Vec;
 use galdr_vault::brainpool::BrainpoolScalar;
 use galdr_vault::brainpool384::{BrainpoolP384Scalar, BrainpoolP384SigningKey};
 use galdr_vault::brainpool512::{BrainpoolP512Scalar, BrainpoolP512SigningKey};
@@ -19,8 +16,11 @@ use galdr_vault::rsa_vault::{
     RsaVaultStoreContext,
 };
 use galdr_vault::serpent_cipher::{serpent_decrypt, serpent_encrypt, SerpentKey, SerpentNonce};
-use galdr_vault::twofish_cipher::{twofish_decrypt, twofish_encrypt, TwofishKey, TwofishNonce};
 use galdr_vault::shamir::{shamir_recover, shamir_split, ShamirShare};
+use galdr_vault::twofish_cipher::{twofish_decrypt, twofish_encrypt, TwofishKey, TwofishNonce};
+use paste::paste;
+use static_assertions::assert_not_impl_any;
+use std::vec::Vec;
 
 const SLOT_STRIDE: u64 = 8192;
 const MAGIC: &[u8; 4] = b"KVLT";
@@ -41,9 +41,7 @@ fn write_blob(storage: &mut FakeVaultStorage, slot: u32, payload: &[u8]) -> Resu
     buf.extend_from_slice(MAGIC);
     buf.extend_from_slice(&(payload.len() as u32).to_le_bytes());
     buf.extend_from_slice(payload);
-    let end = off
-        .checked_add(buf.len() as u64)
-        .ok_or(HalError::Denied)?;
+    let end = off.checked_add(buf.len() as u64).ok_or(HalError::Denied)?;
     if end > storage.as_slice().len() as u64 {
         return Err(HalError::Denied);
     }

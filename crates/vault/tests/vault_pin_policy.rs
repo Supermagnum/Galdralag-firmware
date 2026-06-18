@@ -1,10 +1,10 @@
 //! Integration: PIN policy record (verifier hash + attempt ceiling) round-trips through vault storage.
 
 use galdr_core::fake_hal::FakeVaultStorage;
-use pin_policy::DEFAULT_MAX_PIN_ATTEMPTS;
 use galdr_vault::{
     vault_read_pin_policy, vault_write_pin_policy, VaultPinPolicyError, VaultPinPolicyRecord,
 };
+use pin_policy::DEFAULT_MAX_PIN_ATTEMPTS;
 
 #[test]
 fn provisioned_policy_persisted_with_pin_hash() {

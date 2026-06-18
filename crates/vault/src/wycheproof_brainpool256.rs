@@ -1,8 +1,8 @@
 //! Wycheproof JSON vectors for Brainpool P-256r1 ECDH (`tests/data/wycheproof/ecdh_brainpoolP256r1_test.json`).
 
 use crate::brainpool::{BrainpoolPublicKey, BrainpoolScalar};
-use bp256::BrainpoolP256r1;
 use bp256::elliptic_curve::SecretKey;
+use bp256::BrainpoolP256r1;
 
 fn hex_decode_tc(tc_id: u64, label: &str, s: &str) -> Vec<u8> {
     hex::decode(s).unwrap_or_else(|e| panic!("tcId {tc_id} {label} hex: {e}"))
@@ -72,7 +72,8 @@ fn run_ecdh_case(tc_id: u64, public_hex: &str, private_hex: &str, shared_hex: &s
             let pk_ok = BrainpoolPublicKey::from_public_key_der(&pub_der).ok();
             match (sk_ok, pk_ok) {
                 (Some(_), Some(pk)) => {
-                    let Ok(scalar) = BrainpoolScalar::from_secret_key_bytes_for_test(&private_bytes)
+                    let Ok(scalar) =
+                        BrainpoolScalar::from_secret_key_bytes_for_test(&private_bytes)
                     else {
                         return;
                     };

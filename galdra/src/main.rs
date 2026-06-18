@@ -13,9 +13,7 @@ use common::{
     prompt_pin, resolve_identity, OutputMode,
 };
 use galdra_core_host::audit::{self, AuditAction, AuditEntry, AuditFilter, AuditVerifyResult};
-use galdra_core_host::contacts::{
-    self, ContactFilter, ContactUpdate, KeySource, NewContact,
-};
+use galdra_core_host::contacts::{self, ContactFilter, ContactUpdate, KeySource, NewContact};
 use galdra_core_host::device::{Device, KeyFormat, ProvisionPolicy};
 use galdra_core_host::groups::{self, GroupWithMembers};
 use galdra_core_host::keyserver;
@@ -23,10 +21,10 @@ use galdra_core_host::ldap;
 use galdra_core_host::sync;
 use galdra_core_host::GaldraError;
 use galdra_core_host::SyncImportMode;
-use std::io::Write;
-use std::path::PathBuf;
 use sequoia_openpgp::parse::Parse;
 use sequoia_openpgp::serialize::Serialize;
+use std::io::Write;
+use std::path::PathBuf;
 use std::process::ExitCode;
 
 /// Galdra manages contacts, groups, and Galdralag tokens.
@@ -238,6 +236,18 @@ enum ContactCmd {
         role: Option<String>,
         #[arg(long)]
         note: Option<String>,
+        #[arg(long)]
+        dmr_id: Option<i64>,
+        #[arg(long)]
+        radio_affiliation: Option<String>,
+        #[arg(long)]
+        street: Option<String>,
+        #[arg(long)]
+        country: Option<String>,
+        #[arg(long)]
+        postal_code: Option<String>,
+        #[arg(long)]
+        region: Option<String>,
     },
     /// Fetch a key from a remote source.
     Fetch {
@@ -257,9 +267,7 @@ enum ContactCmd {
         peer: bool,
     },
     /// Show one contact.
-    Show {
-        identifier: String,
-    },
+    Show { identifier: String },
     /// List contacts.
     List {
         #[arg(long)]
@@ -286,8 +294,19 @@ enum ContactCmd {
         role: Option<String>,
         #[arg(long)]
         note: Option<String>,
+        #[arg(long)]
+        dmr_id: Option<i64>,
+        #[arg(long)]
+        radio_affiliation: Option<String>,
+        #[arg(long)]
+        street: Option<String>,
+        #[arg(long)]
+        country: Option<String>,
+        #[arg(long)]
+        postal_code: Option<String>,
+        #[arg(long)]
+        region: Option<String>,
     },
-    /// Delete a contact.
     Delete {
         identifier: String,
         #[arg(long)]
@@ -403,9 +422,7 @@ pub enum ProfileCmd {
     /// List all profiles (built-in and user-defined).
     List,
     /// Show details for one profile.
-    Show {
-        name: String,
-    },
+    Show { name: String },
     /// Add a user-defined profile.
     Add {
         name: String,
@@ -628,11 +645,9 @@ fn run(cli: Cli, output_mode: OutputMode) -> Result<(), GaldraError> {
             output,
             detach,
         } => crypto_cmds::run_sign(&mut db, output_mode, quiet, input, output, detach),
-        Commands::Verify {
-            input,
-            sig,
-            signer,
-        } => crypto_cmds::run_verify(&mut db, output_mode, quiet, input, sig, signer),
+        Commands::Verify { input, sig, signer } => {
+            crypto_cmds::run_verify(&mut db, output_mode, quiet, input, sig, signer)
+        }
     }
 }
 
@@ -786,7 +801,10 @@ fn run_device(
                     info.serial.as_deref().unwrap_or("(not available)")
                 );
                 println!("Firmware:   {}", info.firmware_version);
-                println!("Key slots:  {} / {} used", info.key_slots_used, info.key_slot_count);
+                println!(
+                    "Key slots:  {} / {} used",
+                    info.key_slots_used, info.key_slot_count
+                );
             }
             Ok(())
         }
@@ -806,7 +824,9 @@ fn confirm_zeroise(device: &Device) -> Result<(), GaldraError> {
             eprint!("Type the serial number exactly to confirm: ");
             flush_stderr()?;
             let mut input = String::new();
-            std::io::stdin().read_line(&mut input).map_err(GaldraError::Io)?;
+            std::io::stdin()
+                .read_line(&mut input)
+                .map_err(GaldraError::Io)?;
             if input.trim() != serial.as_str() {
                 eprintln!("Confirmation did not match. Aborting.");
                 return Err(GaldraError::UserAborted);
@@ -816,7 +836,9 @@ fn confirm_zeroise(device: &Device) -> Result<(), GaldraError> {
             eprint!("Type ZEROISE (all capitals) to confirm: ");
             flush_stderr()?;
             let mut input = String::new();
-            std::io::stdin().read_line(&mut input).map_err(GaldraError::Io)?;
+            std::io::stdin()
+                .read_line(&mut input)
+                .map_err(GaldraError::Io)?;
             if input.trim() != "ZEROISE" {
                 eprintln!("Confirmation did not match. Aborting.");
                 return Err(GaldraError::UserAborted);
@@ -833,7 +855,9 @@ fn confirm_delete(label: &str) -> Result<(), GaldraError> {
     );
     flush_stderr()?;
     let mut input = String::new();
-    std::io::stdin().read_line(&mut input).map_err(GaldraError::Io)?;
+    std::io::stdin()
+        .read_line(&mut input)
+        .map_err(GaldraError::Io)?;
     if input.trim() != "yes" {
         eprintln!("Aborting.");
         return Err(GaldraError::UserAborted);
@@ -872,10 +896,7 @@ fn run_key(
         KeyCmd::Import { .. } => Err(GaldraError::Config(
             "key import requires Phase 2 device integration".to_string(),
         )),
-        KeyCmd::Export {
-            slot,
-            format,
-        } => {
+        KeyCmd::Export { slot, format } => {
             let fmt = match format.as_deref() {
                 None | Some("pgp") => KeyFormat::Pgp,
                 Some("pem") => KeyFormat::Pem,
@@ -931,6 +952,12 @@ fn run_contact(
             org,
             role,
             note,
+            dmr_id,
+            radio_affiliation,
+            street,
+            country,
+            postal_code,
+            region,
         } => {
             let nc = NewContact {
                 display_name: name.unwrap_or_else(|| identifier.clone()),
@@ -941,6 +968,12 @@ fn run_contact(
                 department: None,
                 role,
                 note,
+                dmr_id,
+                radio_affiliation,
+                street,
+                country,
+                postal_code,
+                region,
             };
             let id = contacts::contact_add(db, nc)?;
             audit::audit_append(
@@ -966,7 +999,8 @@ fn run_contact(
             source,
             server,
         } => {
-            let rt = tokio::runtime::Runtime::new().map_err(|e| GaldraError::Config(e.to_string()))?;
+            let rt =
+                tokio::runtime::Runtime::new().map_err(|e| GaldraError::Config(e.to_string()))?;
             let src = source.as_deref().unwrap_or("keyserver");
             let timeout = std::time::Duration::from_secs(config.keyservers.timeout_seconds);
             let certs = match src {
@@ -1009,9 +1043,7 @@ fn run_contact(
             let cert = certs
                 .first()
                 .ok_or_else(|| GaldraError::KeyFetch("no certificates returned".to_string()))?;
-            let fp = cert
-                .fingerprint()
-                .to_string();
+            let fp = cert.fingerprint().to_string();
             let mut buf = Vec::new();
             cert.serialize(&mut buf)
                 .map_err(|e| GaldraError::OpenPgp(e.to_string()))?;
@@ -1024,16 +1056,15 @@ fn run_contact(
                 department: None,
                 role: None,
                 note: None,
+                dmr_id: None,
+                radio_affiliation: None,
+                street: None,
+                country: None,
+                postal_code: None,
+                region: None,
             };
             let id = contacts::contact_add(db, nc)?;
-            contacts::contact_upsert_key(
-                db,
-                &id.id,
-                &buf,
-                &fp,
-                parse_key_source(src)?,
-                None,
-            )?;
+            contacts::contact_upsert_key(db, &id.id, &buf, &fp, parse_key_source(src)?, None)?;
             audit::audit_append(
                 db,
                 AuditEntry {
@@ -1096,6 +1127,12 @@ fn run_contact(
                 department: None,
                 role: None,
                 note: None,
+                dmr_id: None,
+                radio_affiliation: None,
+                street: None,
+                country: None,
+                postal_code: None,
+                region: None,
             };
             let id = contacts::contact_add(db, nc)?;
             let mut buf = Vec::new();
@@ -1132,16 +1169,27 @@ fn run_contact(
                 println!("display_name:  {}", c.display_name);
                 println!("callsign:      {}", c.callsign.as_deref().unwrap_or(""));
                 println!("email:         {}", c.email.as_deref().unwrap_or(""));
-                println!("fingerprint:   {}", c.pgp_fingerprint.as_deref().unwrap_or(""));
+                println!(
+                    "dmr_id:        {}",
+                    c.dmr_id.map(|v| v.to_string()).unwrap_or_default()
+                );
+                println!(
+                    "radio_affiliation: {}",
+                    c.radio_affiliation.as_deref().unwrap_or("")
+                );
+                println!("street:        {}", c.street.as_deref().unwrap_or(""));
+                println!("country:       {}", c.country.as_deref().unwrap_or(""));
+                println!("postal_code:   {}", c.postal_code.as_deref().unwrap_or(""));
+                println!("region:        {}", c.region.as_deref().unwrap_or(""));
+                println!(
+                    "fingerprint:   {}",
+                    c.pgp_fingerprint.as_deref().unwrap_or("")
+                );
                 println!("source:        {:?}", c.source);
             }
             Ok(())
         }
-        ContactCmd::List {
-            expired,
-            org,
-            role,
-        } => {
+        ContactCmd::List { expired, org, role } => {
             let list = contacts::contact_list(
                 db,
                 ContactFilter {
@@ -1173,6 +1221,12 @@ fn run_contact(
             org,
             role,
             note,
+            dmr_id,
+            radio_affiliation,
+            street,
+            country,
+            postal_code,
+            region,
         } => {
             let c = resolve_identity(db, &identifier)?;
             let u = ContactUpdate {
@@ -1184,6 +1238,12 @@ fn run_contact(
                 department: None,
                 role,
                 note,
+                dmr_id,
+                radio_affiliation,
+                street,
+                country,
+                postal_code,
+                region,
             };
             let updated = contacts::contact_update(db, &c.id, u)?;
             if output_mode == OutputMode::Json {
@@ -1193,7 +1253,10 @@ fn run_contact(
             }
             Ok(())
         }
-        ContactCmd::Delete { identifier, confirm } => {
+        ContactCmd::Delete {
+            identifier,
+            confirm,
+        } => {
             if !confirm {
                 eprintln!("This operation is irreversible. Run with --confirm to proceed.");
                 return Err(GaldraError::Config("missing --confirm".to_string()));
@@ -1220,9 +1283,8 @@ fn run_contact(
                     "refresh --all is not fully implemented yet".to_string(),
                 ));
             }
-            let _ = identifier.ok_or_else(|| {
-                GaldraError::Config("specify identifier or --all".to_string())
-            })?;
+            let _ = identifier
+                .ok_or_else(|| GaldraError::Config("specify identifier or --all".to_string()))?;
             Err(GaldraError::Config(
                 "contact refresh requires stored source metadata (planned)".to_string(),
             ))
@@ -1349,7 +1411,9 @@ fn run_group(
                 .map(|s| match s {
                     "on" | "true" | "1" => Ok(true),
                     "off" | "false" | "0" => Ok(false),
-                    _ => Err(GaldraError::Config("hidden-recipients: use on|off".to_string())),
+                    _ => Err(GaldraError::Config(
+                        "hidden-recipients: use on|off".to_string(),
+                    )),
                 })
                 .transpose()?;
             groups::group_edit(db, &group, description.as_deref(), hidden)?;
@@ -1383,10 +1447,7 @@ fn run_group(
 
 fn print_group_human(g: &GroupWithMembers) {
     println!("Group:       {}", g.name);
-    println!(
-        "Description: {}",
-        g.description.as_deref().unwrap_or("")
-    );
+    println!("Description: {}", g.description.as_deref().unwrap_or(""));
     println!("Hidden:      {}", g.hidden_recipients);
     for m in &g.members {
         let exp = m
@@ -1410,7 +1471,8 @@ fn run_sync(
         SyncCmd::Export { output, sign } => {
             if sign {
                 return Err(GaldraError::Config(
-                    "sync export signing requires a connected token (not yet integrated)".to_string(),
+                    "sync export signing requires a connected token (not yet integrated)"
+                        .to_string(),
                 ));
             }
             sync::sync_export(db, &output)?;
@@ -1496,11 +1558,11 @@ fn run_audit(
             } else {
                 None
             };
-                let act = if let Some(a) = action {
-                    Some(parse_audit_action(&a)?)
-                } else {
-                    None
-                };
+            let act = if let Some(a) = action {
+                Some(parse_audit_action(&a)?)
+            } else {
+                None
+            };
             let rows = audit::audit_query(
                 db,
                 AuditFilter {
@@ -1563,7 +1625,11 @@ fn run_audit(
             match format.as_str() {
                 "csv" => audit::audit_export_csv(db, filter, &mut f)?,
                 "json" => audit::audit_export_json(db, filter, &mut f)?,
-                _ => return Err(GaldraError::Config("format must be csv or json".to_string())),
+                _ => {
+                    return Err(GaldraError::Config(
+                        "format must be csv or json".to_string(),
+                    ))
+                }
             }
             Ok(())
         }

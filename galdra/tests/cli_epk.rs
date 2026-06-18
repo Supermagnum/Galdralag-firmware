@@ -22,12 +22,7 @@ fn epk_status_empty_db_exits_zero() {
     Command::cargo_bin("galdra")
         .expect("galdra")
         .env("HOME", dir.path())
-        .args([
-            "--db",
-            db_path.to_str().expect("utf8"),
-            "epk",
-            "status",
-        ])
+        .args(["--db", db_path.to_str().expect("utf8"), "epk", "status"])
         .assert()
         .success()
         .stdout(predicate::str::contains("No ephemeral offers"));
@@ -56,8 +51,7 @@ fn epk_status_json_empty_db() {
         .stdout
         .clone();
 
-    let v: serde_json::Value =
-        serde_json::from_slice(&out).expect("valid JSON");
+    let v: serde_json::Value = serde_json::from_slice(&out).expect("valid JSON");
     assert_eq!(v["offers"].as_array().expect("array").len(), 0);
 }
 

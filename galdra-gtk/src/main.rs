@@ -26,7 +26,10 @@ struct Cli {
 
 fn main() -> glib::ExitCode {
     let cli = Cli::parse();
-    let app = gtk::Application::new(Some("org.galdra.desktop"), gtk::gio::ApplicationFlags::empty());
+    let app = gtk::Application::new(
+        Some("org.galdra.desktop"),
+        gtk::gio::ApplicationFlags::empty(),
+    );
 
     app.connect_activate(move |app| match build_window(app, &cli.base_url) {
         Ok(w) => w.present(),
@@ -49,9 +52,7 @@ fn main() -> glib::ExitCode {
 }
 
 fn build_window(app: &gtk::Application, base_url: &str) -> Result<gtk::ApplicationWindow, String> {
-    let client = Arc::new(
-        GaldradClient::new(base_url).map_err(|e| format!("HTTP client: {e}"))?,
-    );
+    let client = Arc::new(GaldradClient::new(base_url).map_err(|e| format!("HTTP client: {e}"))?);
 
     let window = gtk::ApplicationWindow::builder()
         .application(app)
@@ -145,12 +146,9 @@ fn build_window(app: &gtk::Application, base_url: &str) -> Result<gtk::Applicati
                 .map(|s| s.to_string())
                 .unwrap_or_default();
             match name.as_str() {
-                "overview" => refresh_overview(
-                    &client,
-                    &err_label,
-                    &overview_health,
-                    &overview_device,
-                ),
+                "overview" => {
+                    refresh_overview(&client, &err_label, &overview_health, &overview_device)
+                }
                 "contacts" => refresh_contacts(&client, &err_label, &contacts_list),
                 "groups" => refresh_groups(&client, &err_label, &groups_list),
                 "audit" => refresh_audit(&client, &err_label, &audit_text),
@@ -372,6 +370,24 @@ fn fill_contacts_list(list: &gtk::ListBox, rows: Vec<IdentityRow>) {
         }
         if let Some(e) = &r.email {
             sub.push_str(&format!(" · {e}"));
+        }
+        if let Some(d) = r.dmr_id {
+            sub.push_str(&format!(" · DMR {d}"));
+        }
+        if let Some(a) = &r.radio_affiliation {
+            sub.push_str(&format!(" · {a}"));
+        }
+        if let Some(s) = &r.street {
+            sub.push_str(&format!(" · {s}"));
+        }
+        if let Some(ct) = &r.country {
+            sub.push_str(&format!(" · {ct}"));
+        }
+        if let Some(pc) = &r.postal_code {
+            sub.push_str(&format!(" · {pc}"));
+        }
+        if let Some(rg) = &r.region {
+            sub.push_str(&format!(" · {rg}"));
         }
         list.append(&list_row_title_sub(&r.display_name, &sub));
     }

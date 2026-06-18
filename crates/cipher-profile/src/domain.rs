@@ -38,25 +38,19 @@ fn build_layer_info(
     push_bytes(&mut out, cipher.domain_fragment())?;
     push_bytes(&mut out, b"/layer-")?;
     if layer_index < 10 {
-        out
-            .push(b'0' + layer_index)
+        out.push(b'0' + layer_index)
             .map_err(|_| CipherProfileError::KeyDerivation)?;
     } else if layer_index < 100 {
-        out
-            .push(b'0' + (layer_index / 10))
+        out.push(b'0' + (layer_index / 10))
             .map_err(|_| CipherProfileError::KeyDerivation)?;
-        out
-            .push(b'0' + (layer_index % 10))
+        out.push(b'0' + (layer_index % 10))
             .map_err(|_| CipherProfileError::KeyDerivation)?;
     } else {
-        out
-            .push(b'0' + (layer_index / 100))
+        out.push(b'0' + (layer_index / 100))
             .map_err(|_| CipherProfileError::KeyDerivation)?;
-        out
-            .push(b'0' + ((layer_index / 10) % 10))
+        out.push(b'0' + ((layer_index / 10) % 10))
             .map_err(|_| CipherProfileError::KeyDerivation)?;
-        out
-            .push(b'0' + (layer_index % 10))
+        out.push(b'0' + (layer_index % 10))
             .map_err(|_| CipherProfileError::KeyDerivation)?;
     }
     push_bytes(&mut out, suffix)?;
@@ -65,7 +59,8 @@ fn build_layer_info(
 
 fn push_bytes(buf: &mut Vec<u8, 128>, s: &[u8]) -> Result<(), CipherProfileError> {
     for b in s {
-        buf.push(*b).map_err(|_| CipherProfileError::KeyDerivation)?;
+        buf.push(*b)
+            .map_err(|_| CipherProfileError::KeyDerivation)?;
     }
     Ok(())
 }

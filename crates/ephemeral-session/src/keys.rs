@@ -1,19 +1,19 @@
 //! Ephemeral key pairs and derived session keys.
 
-use cess::derive_k_outer;
 use crate::curve_select::SessionCurve;
 use crate::error::EphemeralSessionError;
+use cess::derive_k_outer;
 use galdr_core::hal::HardwareTrng;
+use galdr_vault::brainpool::BrainpoolPublicKey;
+use galdr_vault::brainpool::BrainpoolScalar;
+use galdr_vault::brainpool384::BrainpoolP384PublicKey;
+use galdr_vault::brainpool384::BrainpoolP384Scalar;
+use galdr_vault::brainpool512::BrainpoolP512PublicKey;
+use galdr_vault::brainpool512::BrainpoolP512Scalar;
 use heapless::Vec;
 use hkdf::Hkdf;
 use hmac::{Hmac, Mac};
 use sha2::Sha256;
-use galdr_vault::brainpool::BrainpoolPublicKey;
-use galdr_vault::brainpool384::BrainpoolP384PublicKey;
-use galdr_vault::brainpool512::BrainpoolP512PublicKey;
-use galdr_vault::brainpool::BrainpoolScalar;
-use galdr_vault::brainpool384::BrainpoolP384Scalar;
-use galdr_vault::brainpool512::BrainpoolP512Scalar;
 use zeroize::{Zeroize, ZeroizeOnDrop, Zeroizing};
 
 /// Maximum length of a Brainpool P-512r1 ECDH shared secret (x-coordinate).
@@ -39,8 +39,11 @@ impl EphemeralKeyPair {
     ) -> Result<Self, EphemeralSessionError> {
         match curve {
             SessionCurve::BrainpoolP256r1 => {
-                let sk = BrainpoolScalar::generate(trng).map_err(|_| EphemeralSessionError::KeyGeneration)?;
-                let pk = sk.public_key().map_err(|_| EphemeralSessionError::KeyGeneration)?;
+                let sk = BrainpoolScalar::generate(trng)
+                    .map_err(|_| EphemeralSessionError::KeyGeneration)?;
+                let pk = sk
+                    .public_key()
+                    .map_err(|_| EphemeralSessionError::KeyGeneration)?;
                 let sec1 = pk.to_sec1_uncompressed();
                 let mut public_key = Vec::new();
                 public_key
@@ -57,8 +60,11 @@ impl EphemeralKeyPair {
                 })
             }
             SessionCurve::BrainpoolP384r1 => {
-                let sk = BrainpoolP384Scalar::generate(trng).map_err(|_| EphemeralSessionError::KeyGeneration)?;
-                let pk = sk.public_key().map_err(|_| EphemeralSessionError::KeyGeneration)?;
+                let sk = BrainpoolP384Scalar::generate(trng)
+                    .map_err(|_| EphemeralSessionError::KeyGeneration)?;
+                let pk = sk
+                    .public_key()
+                    .map_err(|_| EphemeralSessionError::KeyGeneration)?;
                 let sec1 = pk.to_sec1_uncompressed();
                 let mut public_key = Vec::new();
                 public_key
@@ -75,8 +81,11 @@ impl EphemeralKeyPair {
                 })
             }
             SessionCurve::BrainpoolP512r1 => {
-                let sk = BrainpoolP512Scalar::generate(trng).map_err(|_| EphemeralSessionError::KeyGeneration)?;
-                let pk = sk.public_key().map_err(|_| EphemeralSessionError::KeyGeneration)?;
+                let sk = BrainpoolP512Scalar::generate(trng)
+                    .map_err(|_| EphemeralSessionError::KeyGeneration)?;
+                let pk = sk
+                    .public_key()
+                    .map_err(|_| EphemeralSessionError::KeyGeneration)?;
                 let sec1 = pk.to_sec1_uncompressed();
                 let mut public_key = Vec::new();
                 public_key
@@ -102,7 +111,10 @@ impl EphemeralKeyPair {
     /// Perform ECDH with the peer's ephemeral public key.
     /// Consumes `self` — the private key is zeroised after this call
     /// regardless of whether ECDH succeeds or fails.
-    pub fn ecdh(self, peer_public_key: &[u8]) -> Result<EphemeralSharedSecret, EphemeralSessionError> {
+    pub fn ecdh(
+        self,
+        peer_public_key: &[u8],
+    ) -> Result<EphemeralSharedSecret, EphemeralSessionError> {
         let EphemeralKeyPair {
             curve,
             public_key: _,
@@ -116,7 +128,9 @@ impl EphemeralKeyPair {
                     .map_err(|_| EphemeralSessionError::EcdhFailed)?;
                 let peer = BrainpoolPublicKey::from_sec1(peer_public_key)
                     .map_err(|_| EphemeralSessionError::InvalidPeerPublicKey)?;
-                let x = s.diffie_hellman(&peer).map_err(|_| EphemeralSessionError::EcdhFailed)?;
+                let x = s
+                    .diffie_hellman(&peer)
+                    .map_err(|_| EphemeralSessionError::EcdhFailed)?;
                 pack_shared(x.as_bytes())?
             }
             SessionCurve::BrainpoolP384r1 => {
@@ -124,7 +138,9 @@ impl EphemeralKeyPair {
                     .map_err(|_| EphemeralSessionError::EcdhFailed)?;
                 let peer = BrainpoolP384PublicKey::from_sec1(peer_public_key)
                     .map_err(|_| EphemeralSessionError::InvalidPeerPublicKey)?;
-                let x = s.diffie_hellman(&peer).map_err(|_| EphemeralSessionError::EcdhFailed)?;
+                let x = s
+                    .diffie_hellman(&peer)
+                    .map_err(|_| EphemeralSessionError::EcdhFailed)?;
                 pack_shared(x.as_bytes())?
             }
             SessionCurve::BrainpoolP512r1 => {
@@ -132,7 +148,9 @@ impl EphemeralKeyPair {
                     .map_err(|_| EphemeralSessionError::EcdhFailed)?;
                 let peer = BrainpoolP512PublicKey::from_sec1(peer_public_key)
                     .map_err(|_| EphemeralSessionError::InvalidPeerPublicKey)?;
-                let x = s.diffie_hellman(&peer).map_err(|_| EphemeralSessionError::EcdhFailed)?;
+                let x = s
+                    .diffie_hellman(&peer)
+                    .map_err(|_| EphemeralSessionError::EcdhFailed)?;
                 pack_shared(x.as_bytes())?
             }
         };
@@ -317,14 +335,7 @@ impl SessionKeys {
     ///
     /// GR-K-GDSS uses a single payload key; this returns `payload_key_i2r` as the
     /// payload encryption key. The caller chooses direction keys by role.
-    pub fn as_gdss_keys(
-        &self,
-    ) -> (
-        &[u8; 32],
-        &[u8; 32],
-        &[u8; 32],
-        &[u8; 32],
-    ) {
+    pub fn as_gdss_keys(&self) -> (&[u8; 32], &[u8; 32], &[u8; 32], &[u8; 32]) {
         (
             &self.payload_key_i2r,
             &self.gdss_mask_key,

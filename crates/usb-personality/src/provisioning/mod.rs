@@ -227,7 +227,12 @@ impl<'a, B: UsbBus, C: ProvisioningCommit + ?Sized> UsbClass<B> for Provisioning
             None,
         )?;
 
-        writer.interface(self.if_comm, USB_CLASS_CDC, USB_CDC_SUBCLASS_ACM, USB_CDC_PROTOCOL_AT)?;
+        writer.interface(
+            self.if_comm,
+            USB_CLASS_CDC,
+            USB_CDC_SUBCLASS_ACM,
+            USB_CDC_PROTOCOL_AT,
+        )?;
         writer.write(CS_INTERFACE, &[0x00, 0x10, 0x01])?;
         writer.write(CS_INTERFACE, &[0x02, 0x02])?;
         writer.write(

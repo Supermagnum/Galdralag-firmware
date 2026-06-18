@@ -3,10 +3,10 @@
 use std::io::Write;
 
 use sequoia_openpgp::cert::prelude::*;
-use sequoia_openpgp::parse::Parse;
 use sequoia_openpgp::parse::stream::{
     DetachedVerifierBuilder, MessageLayer, MessageStructure, VerificationHelper,
 };
+use sequoia_openpgp::parse::Parse;
 use sequoia_openpgp::policy::Policy;
 use sequoia_openpgp::serialize::stream::{Message, Signer};
 use sequoia_openpgp::KeyHandle;

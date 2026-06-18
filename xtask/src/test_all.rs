@@ -57,10 +57,7 @@ fn parse_dudect_stdout(stdout: &str) -> DudectReport {
                 let mut j = i + 1;
                 while j < lines.len() {
                     let l = lines[j].trim();
-                    if l.is_empty()
-                        || l.starts_with("[DUDECT]")
-                        || l.starts_with("[MISSING]")
-                    {
+                    if l.is_empty() || l.starts_with("[DUDECT]") || l.starts_with("[MISSING]") {
                         break;
                     }
                     if let Some(smp) = l.strip_prefix("Samples:") {
@@ -135,12 +132,12 @@ fn dudect_compact_note(name: &str) -> &'static str {
     match name {
         "timing_fingerprint_lookup" => "Null pairing — same absent fingerprint both classes",
         "timing_cascade_auth_failure" => "Null pairing — identical tampered ciphertext per class",
-        "timing_cascade_inner_vs_outer_failure" => "Null pairing — identical inner tamper per class",
+        "timing_cascade_inner_vs_outer_failure" => {
+            "Null pairing — identical inner tamper per class"
+        }
         "timing_pbkdf2" => "PBKDF2-HMAC-SHA256; two 16-byte passwords",
         "timing_blake3" => "Single-chunk 64-byte message",
-        "dudect_template_decrypt_constant_time" => {
-            "Null pairing — decrypt good blob both classes"
-        }
+        "dudect_template_decrypt_constant_time" => "Null pairing — decrypt good blob both classes",
         "dudect_session_token_verify_constant_time" => "Constant-time compare harness",
         "dudect_signature_verify_constant_time" => "Constant-time limb compare harness",
         _ => "",
@@ -193,22 +190,15 @@ pub fn run(workspace_root: &Path, skip_fuzz: bool) -> i32 {
         workspace_root,
         &["test", "--workspace", "--exclude", "xtask"],
     );
-    let ws_ok = ws_out
-        .as_ref()
-        .map(|o| o.status.success())
-        .unwrap_or(false);
+    let ws_ok = ws_out.as_ref().map(|o| o.status.success()).unwrap_or(false);
     let ws_text = ws_out
         .as_ref()
         .map(|o| {
-            String::from_utf8_lossy(&o.stdout).to_string()
-                + &String::from_utf8_lossy(&o.stderr)
+            String::from_utf8_lossy(&o.stdout).to_string() + &String::from_utf8_lossy(&o.stderr)
         })
         .unwrap_or_default();
     let (u_pass, u_fail, u_ign) = aggregate_test_lines(&ws_text);
-    log.push_step(
-        "unit tests (workspace)",
-        ws_ok && u_fail == 0,
-    );
+    log.push_step("unit tests (workspace)", ws_ok && u_fail == 0);
 
     eprintln!("test-all: 4/15 wycheproof (vault)");
     log.push_step(
@@ -222,31 +212,46 @@ pub fn run(workspace_root: &Path, skip_fuzz: bool) -> i32 {
     eprintln!("test-all: 5/15 rfc_vectors");
     log.push_step(
         "rfc_vectors",
-        cargo_ok(workspace_root, &["test", "-p", "galdr-vault", "--test", "rfc_vectors", "-q"]),
+        cargo_ok(
+            workspace_root,
+            &["test", "-p", "galdr-vault", "--test", "rfc_vectors", "-q"],
+        ),
     );
 
     eprintln!("test-all: 6/15 bsi_brainpool");
     log.push_step(
         "bsi_brainpool",
-        cargo_ok(workspace_root, &["test", "-p", "galdr-vault", "--test", "bsi_brainpool", "-q"]),
+        cargo_ok(
+            workspace_root,
+            &["test", "-p", "galdr-vault", "--test", "bsi_brainpool", "-q"],
+        ),
     );
 
     eprintln!("test-all: 7/15 nist_cavp");
     log.push_step(
         "nist_cavp",
-        cargo_ok(workspace_root, &["test", "-p", "galdr-vault", "--test", "nist_cavp", "-q"]),
+        cargo_ok(
+            workspace_root,
+            &["test", "-p", "galdr-vault", "--test", "nist_cavp", "-q"],
+        ),
     );
 
     eprintln!("test-all: 8/15 kat_vectors");
     log.push_step(
         "kat_vectors",
-        cargo_ok(workspace_root, &["test", "-p", "galdr-vault", "--test", "kat_vectors", "-q"]),
+        cargo_ok(
+            workspace_root,
+            &["test", "-p", "galdr-vault", "--test", "kat_vectors", "-q"],
+        ),
     );
 
     eprintln!("test-all: 9/15 key_lifecycle");
     log.push_step(
         "key_lifecycle",
-        cargo_ok(workspace_root, &["test", "-p", "galdr-vault", "--test", "key_lifecycle", "-q"]),
+        cargo_ok(
+            workspace_root,
+            &["test", "-p", "galdr-vault", "--test", "key_lifecycle", "-q"],
+        ),
     );
 
     eprintln!("test-all: 10/15 pin_lifecycle");
@@ -368,7 +373,10 @@ pub fn run(workspace_root: &Path, skip_fuzz: bool) -> i32 {
     eprintln!("test-all: wrote {}", doc_path.display());
 
     if !overall {
-        eprintln!("test-all: FAILED (see steps above and {})", doc_path.display());
+        eprintln!(
+            "test-all: FAILED (see steps above and {})",
+            doc_path.display()
+        );
         return 1;
     }
     if !fuzz_ok && !fuzz_skipped {
@@ -436,10 +444,7 @@ fn count_json_vectors(root: &Path, rel: &str) -> u32 {
     let Ok(v) = serde_json::from_str::<Value>(&data) else {
         return 0;
     };
-    v["vectors"]
-        .as_array()
-        .map(|a| a.len() as u32)
-        .unwrap_or(0)
+    v["vectors"].as_array().map(|a| a.len() as u32).unwrap_or(0)
 }
 
 /// Count Wycheproof AES-GCM vectors that the vault runner applies (skips AES-192, empty IV, 257-byte IV).
@@ -509,9 +514,7 @@ fn run_embedded_check(root: &Path, sub: &[&str], pq: bool) -> bool {
     cmd.stdin(Stdio::inherit())
         .stdout(Stdio::inherit())
         .stderr(Stdio::inherit());
-    cmd.status()
-        .map(|s| s.success())
-        .unwrap_or(false)
+    cmd.status().map(|s| s.success()).unwrap_or(false)
 }
 
 fn cargo_ok(root: &Path, args: &[&str]) -> bool {
@@ -601,7 +604,9 @@ fn git_head(root: &Path) -> Option<String> {
         .output()
         .ok()?;
     if o.status.success() {
-        String::from_utf8(o.stdout).ok().map(|s| s.trim().to_string())
+        String::from_utf8(o.stdout)
+            .ok()
+            .map(|s| s.trim().to_string())
     } else {
         None
     }
@@ -627,14 +632,7 @@ fn run_fuzz_status(fuzz_dir: &Path, bin: &str, secs: u64) -> Result<bool, String
     let max_time = format!("-max_total_time={}", secs);
     let st = Command::new("rustup")
         .args([
-            "run",
-            "nightly",
-            "cargo",
-            "fuzz",
-            "run",
-            bin,
-            "--",
-            &max_time,
+            "run", "nightly", "cargo", "fuzz", "run", bin, "--", &max_time,
         ])
         .current_dir(fuzz_dir)
         .stdin(Stdio::inherit())
@@ -854,7 +852,9 @@ fn build_markdown(
     s.push_str("| Variable-text 128-bit | 200 | PASS |\n");
     s.push_str("| Variable-text 192-bit | 200 | PASS |\n");
     s.push_str("| Variable-text 256-bit | 200 | PASS |\n");
-    s.push_str("| Monte Carlo (10 000 iter, 256-bit) | 1 | PASS (`a59b573030de1bffffe5c50fb030d847`) |\n");
+    s.push_str(
+        "| Monte Carlo (10 000 iter, 256-bit) | 1 | PASS (`a59b573030de1bffffe5c50fb030d847`) |\n",
+    );
     s.push_str("| **Total** | **1203** | **PASS** |\n\n");
 
     s.push_str("### 2.4 RFC, BSI, Wycheproof, and KAT asset paths\n\n");
@@ -880,7 +880,9 @@ fn build_markdown(
     }
     s.push_str("**Cache:** `crates/security-tests/dudect_results.json`\n\n");
     s.push_str("| Command | Purpose |\n|---------|---------|\n");
-    s.push_str("| `cargo run -p xtask -- timing-test` | Incremental (~155 s when 5 remain uncached) |\n");
+    s.push_str(
+        "| `cargo run -p xtask -- timing-test` | Incremental (~155 s when 5 remain uncached) |\n",
+    );
     s.push_str("| `cargo run -p xtask -- timing-test --all` | Full suite (~910 s) |\n");
     s.push_str("| `cargo run -p xtask -- timing-test --full` | 3× sample multiplier |\n");
     s.push_str("| `cargo run -p xtask -- timing-test <name>` | Named harnesses only |\n\n");
@@ -978,7 +980,9 @@ fn build_markdown(
     s.push_str("| dudect: PSRAM tag check | Printed `[MISSING]` by `dudect_galdr` |\n");
     s.push_str("| dudect: XMSS / LMS verify | Printed `[MISSING]` by `dudect_galdr` |\n");
     s.push_str("| OpenPGP end-to-end on hardware | Requires CCID USB + host pcscd / GnuPG |\n");
-    s.push_str("| Longer fuzz runs / `cargo fuzz cmin` | Optional pre-release; see `fuzz/README.md` |\n");
+    s.push_str(
+        "| Longer fuzz runs / `cargo fuzz cmin` | Optional pre-release; see `fuzz/README.md` |\n",
+    );
 
     s
 }

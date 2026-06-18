@@ -102,7 +102,9 @@ pub fn build(client: Arc<GaldradClient>) -> gtk::Box {
             let c = client.clone();
             let tv = split_out.clone();
             glib::spawn_future_local(async move {
-                let res = spawn_blocking(move || c.shamir_split(slot, &profile)).await.unwrap();
+                let res = spawn_blocking(move || c.shamir_split(slot, &profile))
+                    .await
+                    .unwrap();
                 match res {
                     Ok(arms) => {
                         let s = arms.join("\n\n");
@@ -128,13 +130,16 @@ pub fn build(client: Arc<GaldradClient>) -> gtk::Box {
             );
             let shares = split_pem_blocks(&text);
             if shares.is_empty() {
-                rec_status.set_text("No armoured blocks found (expect lines starting with -----BEGIN).");
+                rec_status
+                    .set_text("No armoured blocks found (expect lines starting with -----BEGIN).");
                 return;
             }
             let c = client.clone();
             let rec_status = rec_status.clone();
             glib::spawn_future_local(async move {
-                let res = spawn_blocking(move || c.shamir_recover(slot, &shares)).await.unwrap();
+                let res = spawn_blocking(move || c.shamir_recover(slot, &shares))
+                    .await
+                    .unwrap();
                 match res {
                     Ok(()) => rec_status.set_text("Recover completed (see galdrad logs / device)."),
                     Err(e) => rec_status.set_text(&format!("Error: {e}")),

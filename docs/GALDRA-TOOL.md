@@ -63,8 +63,12 @@ galdra device lock
 Add a contact **without** importing a key (metadata only). The first argument is a free-text identifier string; use `--callsign`, `--email`, and other fields as needed:
 
 ```bash
-galdra contact add W1ABC --name "Example station" --callsign W1ABC --email ops@example.org
+galdra contact add W1ABC --name "Example station" --callsign W1ABC --email ops@example.org \
+  --street "Karl Johans gate 1" --postal-code 0154 --region Oslo --country NO --dmr-id 2412345 \
+  --radio-affiliation NRRL
 ```
+
+Optional **postal hints** (`--street`, `--country`, `--postal-code`, `--region`) are stored in the local SQLite contact row only (not authenticated; omit them if you prefer least data). Amateur-radio fields **`--dmr-id`** (1–16777215) and **`--radio-affiliation`** (max 128 characters) behave the same way.
 
 Import an OpenPGP public key from a file:
 
@@ -430,7 +434,7 @@ definitions, and encrypted data only.
 ## Tier 1 — Core library: `galdra-core-host`
 
 **Crate type:** `lib`
-**Location:** `host-tools/galdra-core-host/`
+**Location:** `galdra-core-host/` (workspace root)
 **`std`:** yes (host-side only, no `no_std` requirement)
 
 This library provides all business logic. It has no user interface.
@@ -463,7 +467,7 @@ user.
 ## Tier 2a — CLI: `galdra`
 
 **Crate type:** `bin`
-**Location:** `host-tools/galdra/`
+**Location:** `galdra/` (workspace root)
 **Framework:** `clap` with derive macros
 
 The primary interface. Suitable for all technically capable users,
@@ -487,7 +491,7 @@ The CLI must:
 ## Tier 2b — Local daemon: `galdrad`
 
 **Crate type:** `bin`
-**Location:** `host-tools/galdrad/`
+**Location:** `galdrad/` (workspace root; same level as `galdra/` and `galdra-gtk/`)
 **Protocol:** HTTP/1.1 over **TCP** on **127.0.0.1:8742** by default (`--listen`).
 This keeps traffic on the loopback interface unless you explicitly bind to a
 different address. A Unix domain socket or named pipe may be added later as
@@ -514,11 +518,11 @@ material — all private key operations still go to the token.
 RESTful JSON API. Endpoints mirror the CLI command surface. Example:
 
 ```
-GET    /contacts                  → list all contacts
-POST   /contacts                  → add or import a contact
-GET    /contacts/{id}             → get a contact by id or callsign
+GET    /contacts                  → list all contacts (JSON mirrors `Identity` fields)
+POST   /contacts                  → create contact (optional keys: amateur-radio + postal metadata)
+GET    /contacts/{id}             → get a contact by id, callsign, or email (resolver matches CLI)
+PATCH  /contacts/{id}             → partial metadata update (same optional fields as POST body)
 DELETE /contacts/{id}             → delete a contact
-POST   /contacts/{id}/fetch       → re-fetch key from source
 
 GET    /groups                    → list all groups
 POST   /groups                    → create a group
@@ -526,22 +530,27 @@ GET    /groups/{name}             → get group with members
 POST   /groups/{name}/members     → add member(s)
 DELETE /groups/{name}/members/{id} → remove a member
 
-POST   /encrypt                   → encrypt to group or individual
-POST   /decrypt                   → decrypt (token required)
-POST   /sign                      → sign (token required)
-POST   /verify                    → verify signature
+POST   /encrypt                   → OpenPGP encrypt to group (uses contact DB; see `galdrad` handler)
+POST   /decrypt                   → OpenPGP decrypt path (host public keys only — see handler errors)
+POST   /sign                      → not implemented (HTTP 501 stub)
+POST   /verify                    → not implemented (HTTP 501 stub)
 
 GET    /device/status             → token presence and lock state
-POST   /device/unlock             → unlock token (PIN prompt to user)
-POST   /device/lock               → lock token
-GET    /audit                     → query audit log
+GET    /audit                     → audit rows
+GET|POST /profiles, /profiles/:name  → cipher profile store
+
+POST   /shamir/split              → token-backed profile Shamir split (shares as JSON)
+POST   /shamir/recover            → token-backed recover from share armoured strings
+GET    /shamir/share-info         → share metadata (query param)
 ```
+
+Token **unlock** / **lock** remain **`galdra device`** CLI flows; they are **not** exposed as `galdrad` HTTP routes in the current crate.
 
 ---
 
 ## Tier 2c — Desktop GUI (GTK4)
 
-**Location:** `host-tools/galdra-gtk/` (or equivalent crate name under `host-tools/`)
+**Location:** `galdra-gtk/` (workspace root; **`gtk4`** crate)
 **Technology:** **GTK 4** with **Rust** bindings (**gtk4-rs** / **gtk-rs-core**). No HTML, no embedded browser engine, no SPA served over HTTP for the primary UI.
 
 The desktop application is a **native** client over the `galdrad` HTTP API (same JSON routes as the CLI-oriented surface). It provides:
@@ -581,7 +590,13 @@ key. Identities are not limited to humans.
 | `organisation` | text | Employer, club, agency |
 | `department` | text | Ward, division, team |
 | `role` | text | Functional role: "on_call_physician", "net_control", "dispatch" |
-| `note` | text | Free-text notes; also searched during keyserver queries |
+| `note` | text | Free-text notes |
+| `dmr_id` | integer | Optional DMR subscriber id (stored as SQLite `INTEGER`; when set must be **1..=16777215**) |
+| `radio_affiliation` | text | Optional society / club / net label (**max 128** characters when set) |
+| `street` | text | Optional postal street line (**max 512** characters when set) |
+| `country` | text | Optional country name or code (**max 128** characters when set) |
+| `postal_code` | text | Optional postal or ZIP (**max 32** characters when set) |
+| `region` | text | Optional region, state, or county (**max 128** characters when set) |
 | `pgp_fingerprint` | text | OpenPGP key fingerprint |
 | `pgp_pubkey` | blob | Serialised OpenPGP public key packet |
 | `fetched_at` | ISO8601 | When the key was last retrieved from its source |
@@ -590,11 +605,9 @@ key. Identities are not limited to humans.
 
 ### Searching identities
 
-When fetching from a keyserver or searching the local database, the query
-is matched against: `display_name`, `callsign`, `email`, `badge_number`,
-`role`, and `note`. This allows a dispatcher to search for "net control"
-and find all identities with that role, or search "W1ABC" and find the
-contact by callsign.
+**HKP / WKD fetch:** the upstream keyserver matches your query against **OpenPGP User ID** name, email, and comment fields (implementation-dependent).
+
+**Local contact search (`galdra contact` search path and the `contact_search` helper in `galdra-core-host`):** textual `LIKE` search covers `display_name`, `callsign`, `email`, `badge_number`, `organisation`, `department`, `role`, `note`, `radio_affiliation`, **`dmr_id` as text**, `street`, `country`, `postal_code`, and `region`. That lets a dispatcher find "Oslo", a postal prefix, organisation name, **and** amateur-radio affiliation or numeric DMR substring in one place on the workstation.
 
 ---
 
@@ -631,12 +644,12 @@ region_east:    KEY4, KEY5, KEY6
 emergency_all:  W1ABC, K2XYZ, N3DEF, KEY4, KEY5, KEY6
 ```
 
-`emergency_all` can be maintained either by explicit membership or derived
-at encrypt time by unioning `net_control` and `region_east`. Both patterns
-are supported. The CLI provides:
+`emergency_all` can be maintained either by explicit membership or by copying
+members from existing groups one source at a time (`--from-group` accepts a single name per invocation):
 
 ```
-galdra group add emergency_all --from-group net_control --from-group region_east
+galdra group add emergency_all --from-group net_control
+galdra group add emergency_all --from-group region_east
 ```
 
 ### Shift-based membership expiry
@@ -658,64 +671,43 @@ The local database is SQLite stored at a user-configurable path
 (default: `~/.local/share/galdra/galdra.db` on Linux,
 `%APPDATA%\galdra\galdra.db` on Windows).
 
+**Authoritative DDL** lives in **`galdra-core-host/migrations/`** (`001_initial.sql` through **`006_identity_address_fields.sql`**), applied in order by `galdra_core_host::db::Db`; `schema_migrations` records which versions ran. Older files gain new columns via `ALTER TABLE` (SQLite appends physically), but **`galdra` always selects identity columns by name** in the order the Rust API expects.
+
+**`identities` — effective columns** (after migrations **005** amateur-radio fields and **006** postal hints):
+
 ```sql
+-- Reference layout; exact CREATE/ALTER sequences are in the migration files above.
 CREATE TABLE identities (
-    id              TEXT PRIMARY KEY,
-    display_name    TEXT NOT NULL,
-    callsign        TEXT UNIQUE,
-    email           TEXT,
-    badge_number    TEXT,
-    organisation    TEXT,
-    department      TEXT,
-    role            TEXT,
-    note            TEXT,
-    pgp_fingerprint TEXT,
-    pgp_pubkey      BLOB,
-    fetched_at      TEXT,
-    expires_at      TEXT,
-    source          TEXT NOT NULL DEFAULT 'manual'
+    id               TEXT PRIMARY KEY,
+    display_name     TEXT NOT NULL,
+    callsign         TEXT UNIQUE,
+    email            TEXT,
+    badge_number     TEXT,
+    organisation     TEXT,
+    department       TEXT,
+    role             TEXT,
+    note             TEXT,
+    dmr_id           INTEGER,
+    radio_affiliation TEXT,
+    street           TEXT,
+    country          TEXT,
+    postal_code      TEXT,
+    region           TEXT,
+    pgp_fingerprint  TEXT,
+    pgp_pubkey       BLOB,
+    fetched_at       TEXT,
+    expires_at       TEXT,
+    source           TEXT NOT NULL DEFAULT 'manual'
 );
-
-CREATE TABLE groups (
-    group_name  TEXT NOT NULL,
-    identity_id TEXT NOT NULL REFERENCES identities(id) ON DELETE CASCADE,
-    added_at    TEXT NOT NULL,
-    added_by    TEXT,
-    expires_at  TEXT,
-    PRIMARY KEY (group_name, identity_id)
-);
-
-CREATE TABLE group_metadata (
-    group_name         TEXT PRIMARY KEY,
-    description        TEXT,
-    hidden_recipients  INTEGER NOT NULL DEFAULT 0,
-    created_at         TEXT NOT NULL,
-    created_by         TEXT
-);
-
-CREATE TABLE audit_log (
-    id            INTEGER PRIMARY KEY AUTOINCREMENT,
-    timestamp     TEXT NOT NULL,
-    operator      TEXT,
-    action        TEXT NOT NULL,
-    subject       TEXT,
-    detail        TEXT,
-    device_serial TEXT
-);
-
-CREATE TABLE config (
-    key   TEXT PRIMARY KEY,
-    value TEXT NOT NULL
-);
-
 CREATE INDEX idx_identities_callsign ON identities(callsign);
 CREATE INDEX idx_identities_email    ON identities(email);
-CREATE INDEX idx_groups_identity     ON groups(identity_id);
-CREATE INDEX idx_audit_timestamp     ON audit_log(timestamp);
+CREATE INDEX idx_identities_dmr_id   ON identities(dmr_id);
 ```
 
-Schema migrations are numbered sequentially in `migrations/` and applied
-automatically at startup using a migration table.
+**Other core tables** (`groups`, `group_metadata`, `audit_log`, `config`, cipher profile / ephemeral-offer tables, and `audit_log` **prev_hash**) are defined in the same migration series; copy the shipped SQL rather than relying on this summary alone if you extend the schema.
+
+Schema migrations are numbered sequentially under **`galdra-core-host/migrations/`** and applied
+automatically at startup using **`schema_migrations`**.
 
 ---
 
@@ -1048,6 +1040,7 @@ The host stores **OpenPGP public certificates** for people you communicate with.
 | **Import** from another token on the same USB bus | `galdra contact fetch <query> --source peer` (requires a connected peer token; see implementation notes). |
 | **Refresh** keys from their recorded source | `galdra contact refresh <identifier>` or `galdra contact refresh --all` |
 | **Remove** a contact and its public key from the local database | `galdra contact delete <identifier> --confirm` — removes the row and group memberships; does not revoke the key on the internet. |
+| **Optional metadata** (not cryptographically verified) | Set on add/edit: `--dmr-id`, `--radio-affiliation`, `--street`, `--country`, `--postal-code`, `--region` (CLI); same keys in **`galdrad`** JSON bodies (`radio_affiliation`, `postal_code`, …); see **[Identity model](#identity-model)** and [README](../README.md#compile-and-install-host-tools-galdra-galdrad-galdra-gtk). |
 | **List / show** | `galdra contact list`, `galdra contact show <id>` |
 
 **Delete public key material locally** means **delete the contact** (`contact delete`). That only affects your machine.
@@ -1080,9 +1073,7 @@ All **private** key generation and use is intended to occur **on the Galdralag t
 
 **In firmware:** Shamir (k-of-n) splitting and recovery is implemented in the **`vault`** crate on the device (for example [`crates/vault/src/shamir.rs`](../crates/vault/src/shamir.rs) in this repository). It operates on **short secrets** (byte length bounds per profile), uses **GF(256)** arithmetic via `vsss-rs`, and participates in **recovery and backup policy** together with **HKDF** domain separation (`KeyPurpose::ShamirRecovery` in [`kdf_policy.rs`](../crates/vault/src/kdf_policy.rs)).
 
-**Alone:** Shamir is used to split a **single secret** (for example a recovery root) into shares. Each share is useless until enough distinct shares (at least **k**) are combined on-device. There is **no** `galdra shamir split` CLI; share generation and recombination are **firmware flows** (provisioning, recovery mode), not host SQLite operations.
-
-**With keys:** After enough shares are combined, firmware derives further keys using **HKDF** with the Shamir-recovery label so those keys are **domain-separated** from storage keys, transport keys, and other purposes. Host tools (`galdra`) do not perform Shamir math; they may **prompt**, **display status**, or **audit** events when product integration exposes recovery in the USB protocol.
+**Host tools (`galdra` / `galdrad`):** For **cipher profiles** that include a **Shamir** layer and a connected token, `galdra shamir split`, `shamir recover`, `shamir show-share`, and QR helpers orchestrate **`galdra-core-host::shamir_ops`**, which talks to the device. **`galdrad`** exposes **`POST /shamir/split`** and **`POST /shamir/recover`** for the same flows. Shares are sensitivity **physical artefacts** once exported; details: [API_REFERENCE.md](API_REFERENCE.md) and the Shamir subsection in [README](../README.md#shamir-secret-sharing-and-drive-encryption) plus the CLI block under [CLI command reference](#cli-command-reference).
 
 **Operational takeaway:** treat Shamir shares like **physical recovery codes**: store offline, restrict who holds them, and assume compromise of k shares equals compromise of the recovered secret. For day-to-day OpenPGP, use **contacts** and **token slots** as described above.
 
@@ -1140,13 +1131,15 @@ galdra key delete --slot <n> [--confirm]
 ```
 galdra contact add <identifier> [--name <name>] [--email <addr>]
     [--callsign <call>] [--badge <id>] [--org <org>] [--role <role>]
-    [--note <text>]
+    [--note <text>] [--dmr-id <id>] [--radio-affiliation <text>]
+    [--street <line>] [--country <text>] [--postal-code <code>] [--region <text>]
     Add a contact manually without a key.
 
 galdra contact fetch <query> [--source keyserver|wkd|ldap|peer|file]
     [--server <url>]
-    Fetch a public key for a contact. Query is matched against name,
-    callsign, email, badge number, role, and note fields.
+    Fetch a public key for a contact. When searching the local database, text
+    matches span display name, callsign, email, badge, organisation, department,
+    role, notes, radio affiliation, DMR id, and optional postal fields.
     If contact does not exist locally, creates it.
     If contact exists, updates the key.
 
@@ -1165,7 +1158,10 @@ galdra contact show <identifier>
 galdra contact list [--expired] [--org <org>] [--role <role>]
     List contacts, optionally filtered.
 
-galdra contact edit <identifier> [--name <name>] [--role <role>] ...
+galdra contact edit <identifier> [--name <name>] [--email <addr>] [--callsign <call>]
+    [--badge <id>] [--org <org>] [--role <role>] [--note <text>]
+    [--dmr-id <id>] [--radio-affiliation <text>]
+    [--street <line>] [--country <text>] [--postal-code <code>] [--region <text>]
     Update contact metadata. Does not change the key.
 
 galdra contact delete <identifier> [--confirm]
@@ -1258,6 +1254,25 @@ galdra audit export [--since <ISO8601>] [--format csv|json] --output <file>
 
 galdra audit verify
     Verify the audit log hash chain has not been modified or truncated.
+```
+
+### Shamir (cipher profile shares)
+
+Requires a **connected unlocked token**. Profile must define Shamir thresholds; see [CIPHER_PROFILES.md](CIPHER_PROFILES.md).
+
+```
+galdra shamir split --slot <n> --profile <name> --output-dir <dir>
+    Split material for the profile's Shamir layer; writes share files under output-dir.
+
+galdra shamir recover --slot <n> --share <file> [--share <file>...] [--confirm]
+    Recover from exported share files; imports combined result back to the token.
+
+galdra shamir show-share --input <share-file>
+    Print metadata from a share file (no secret dump).
+
+galdra shamir export-qr --share <file> --output <png>
+galdra shamir import-qr --input <png>
+    Optional QR packaging for shares.
 ```
 
 ---

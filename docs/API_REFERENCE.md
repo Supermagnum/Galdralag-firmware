@@ -144,11 +144,13 @@ Re-exports **`cipher_profile`**. Modules: `contacts`, `groups`, `db`, `encrypt`,
 | Method | Path |
 |--------|------|
 | `GET` | `/health` |
-| `GET`/`POST` | `/contacts`, `/contacts/:id` (GET/PATCH/DELETE) |
+| `GET`/`POST` | `/contacts`; `GET`/`PATCH`/`DELETE` `/contacts/:id` |
 | `GET`/`POST` | `/groups`, `/groups/:name`, `/groups/:name/members`, `/groups/:name/members/:id` |
 | `GET` | `/device/status`, `/audit` |
 | `GET`/`POST` | `/profiles`, `/profiles/:name` (GET/DELETE) |
 | `POST` | `/encrypt`, `/decrypt`, `/sign`, `/verify` |
+
+`POST /contacts` and `PATCH /contacts/:id` accept optional **`dmr_id`**, **`radio_affiliation`**, **`street`**, **`country`**, **`postal_code`**, and **`region`** in JSON (alongside `name`, `email`, …); see structs **`CreateContactBody`** / **`UpdateContactBody`** in `galdrad/src/api.rs`.
 
 ### Firmware crates (pointers)
 

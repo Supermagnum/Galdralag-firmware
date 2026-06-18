@@ -55,10 +55,7 @@ impl ShamirShare {
         for b in value {
             buf.push(*b).map_err(|_| ShamirError::InvalidParameters)?;
         }
-        Ok(Self {
-            index,
-            value: buf,
-        })
+        Ok(Self { index, value: buf })
     }
 
     /// Share payload (same length as the original secret).
@@ -107,10 +104,7 @@ pub fn shamir_split<T: HardwareTrng>(
             value.push(0).map_err(|_| ShamirError::InvalidParameters)?;
         }
         shares
-            .push(ShamirShare {
-                index: idx,
-                value,
-            })
+            .push(ShamirShare { index: idx, value })
             .map_err(|_| ShamirError::InvalidParameters)?;
     }
     let kk = usize::from(k);
@@ -168,9 +162,7 @@ pub fn shamir_recover(shares: &[ShamirShare], k: u8) -> Result<ShamirSecret, Sha
     let len = if let Some(first) = shares.first() {
         let l = first.value_len();
         if !(16..=64).contains(&l) {
-            return Err(ShamirError::InvalidShare {
-                index: first.index,
-            });
+            return Err(ShamirError::InvalidShare { index: first.index });
         }
         l
     } else {
@@ -189,7 +181,9 @@ pub fn shamir_recover(shares: &[ShamirShare], k: u8) -> Result<ShamirSecret, Sha
     let take = usize::from(k);
     let mut chosen: Vec<&ShamirShare, 255> = Vec::new();
     for sh in sorted.iter().take(take) {
-        chosen.push(*sh).map_err(|_| ShamirError::InvalidParameters)?;
+        chosen
+            .push(*sh)
+            .map_err(|_| ShamirError::InvalidParameters)?;
     }
     if chosen.len() < take {
         return Err(ShamirError::InsufficientShares);
@@ -300,18 +294,9 @@ mod tests {
         let secret = [0x11u8; 32];
         let mut trng = FakeTrng::from_seed(0x51);
         let shares = shamir_split(&secret, 2, 3, &mut trng)?;
-        let r1 = shamir_recover(
-            &[clone_share(&shares[0])?, clone_share(&shares[1])?],
-            2,
-        )?;
-        let r2 = shamir_recover(
-            &[clone_share(&shares[0])?, clone_share(&shares[2])?],
-            2,
-        )?;
-        let r3 = shamir_recover(
-            &[clone_share(&shares[1])?, clone_share(&shares[2])?],
-            2,
-        )?;
+        let r1 = shamir_recover(&[clone_share(&shares[0])?, clone_share(&shares[1])?], 2)?;
+        let r2 = shamir_recover(&[clone_share(&shares[0])?, clone_share(&shares[2])?], 2)?;
+        let r3 = shamir_recover(&[clone_share(&shares[1])?, clone_share(&shares[2])?], 2)?;
         assert_eq!(r1.as_slice(), secret.as_slice());
         assert_eq!(r2.as_slice(), secret.as_slice());
         assert_eq!(r3.as_slice(), secret.as_slice());
@@ -323,10 +308,7 @@ mod tests {
         let secret = [0x22u8; 32];
         let mut trng = FakeTrng::from_seed(0x52);
         let shares = shamir_split(&secret, 3, 5, &mut trng)?;
-        let two = [
-            clone_share(&shares[0])?,
-            clone_share(&shares[1])?,
-        ];
+        let two = [clone_share(&shares[0])?, clone_share(&shares[1])?];
         let r = shamir_recover(&two, 3);
         assert!(matches!(r, Err(ShamirError::InsufficientShares)));
         Ok(())
@@ -371,10 +353,7 @@ mod tests {
             },
         ];
         let r = shamir_recover(&dup, 2);
-        assert!(matches!(
-            r,
-            Err(ShamirError::DuplicateIndex { index: 1 })
-        ));
+        assert!(matches!(r, Err(ShamirError::DuplicateIndex { index: 1 })));
         Ok(())
     }
 
@@ -490,4 +469,3 @@ mod tests {
         Ok(out)
     }
 }
-

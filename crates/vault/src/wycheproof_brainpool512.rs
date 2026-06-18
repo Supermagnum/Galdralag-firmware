@@ -4,8 +4,8 @@ use crate::brainpool512::{
     BrainpoolP512PublicKey, BrainpoolP512Scalar, BrainpoolP512Signature, BrainpoolP512VerifyingKey,
 };
 use crate::brainpool_common::BrainpoolError;
-use bp512::BrainpoolP512r1;
 use bp512::elliptic_curve::SecretKey;
+use bp512::BrainpoolP512r1;
 
 fn hex_decode_tc(tc_id: u64, label: &str, s: &str) -> Vec<u8> {
     hex::decode(s).unwrap_or_else(|e| panic!("tcId {tc_id} {label} hex: {e}"))

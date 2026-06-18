@@ -1,11 +1,13 @@
 //! Known-answer tests for BLAKE3 (hash, keyed-hash, derive-key), Camellia, Serpent, Twofish smokes, Shamir JSON presence.
 
 use galdr_core::fake_hal::FakeTrng;
-use serde_json::Value;
-use galdr_vault::camellia_cipher::{camellia_decrypt, camellia_encrypt, CamelliaKey, CamelliaNonce};
+use galdr_vault::camellia_cipher::{
+    camellia_decrypt, camellia_encrypt, CamelliaKey, CamelliaNonce,
+};
 use galdr_vault::kdf_policy::KeyPurpose;
 use galdr_vault::serpent_cipher::{serpent_decrypt, serpent_encrypt, SerpentKey, SerpentNonce};
 use galdr_vault::twofish_cipher::{twofish_decrypt, twofish_encrypt, TwofishKey, TwofishNonce};
+use serde_json::Value;
 
 #[test]
 fn kat_blake3_from_json() {

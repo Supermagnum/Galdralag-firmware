@@ -10,7 +10,9 @@ use alloc::vec::Vec;
 
 use galdr_core::hal::{HardwareTrng, VaultStorage};
 
-use crate::chacha_aead::{chacha_decrypt, chacha_encrypt, ChaChaCiphertext, ChaChaKey, ChaChaNonce};
+use crate::chacha_aead::{
+    chacha_decrypt, chacha_encrypt, ChaChaCiphertext, ChaChaKey, ChaChaNonce,
+};
 use crate::kdf_policy::KeyPurpose;
 use crate::rsa_keys::{RsaDerBytes, RsaPrivateKey};
 
@@ -156,7 +158,8 @@ pub fn vault_load_rsa_key(
     }
     let ct = ChaChaCiphertext::from_heapless_vec(v);
     let wrap_key = derive_wrap_key(vault_master_prk, slot)?;
-    let plain = chacha_decrypt(&wrap_key, &nonce, RSA_WRAP_AAD, &ct).map_err(RsaVaultError::Wrap)?;
+    let plain =
+        chacha_decrypt(&wrap_key, &nonce, RSA_WRAP_AAD, &ct).map_err(RsaVaultError::Wrap)?;
     let pkcs8 = plain.as_slice();
     RsaPrivateKey::from_pkcs8_der(pkcs8).map_err(RsaVaultError::Rsa)
 }
@@ -198,7 +201,10 @@ mod tests {
         let loaded = vault_load_rsa_key(&mut mem, &prk, &slot)?;
         assert_eq!(
             key.public_key().to_spki_der().map_err(RsaVaultError::Rsa)?,
-            loaded.public_key().to_spki_der().map_err(RsaVaultError::Rsa)?
+            loaded
+                .public_key()
+                .to_spki_der()
+                .map_err(RsaVaultError::Rsa)?
         );
         Ok(())
     }

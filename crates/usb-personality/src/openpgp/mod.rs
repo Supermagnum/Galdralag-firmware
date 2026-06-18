@@ -16,13 +16,13 @@ pub mod commands;
 
 pub use aid::{aid_matches_openpgp, build_aid, OPENPGP_AID_PREFIX};
 pub use apdu::{ApduError, CommandApdu, ResponseApdu};
-pub use backend::{OpenPgpAudit, OpenPgpBackend, OpenPgpBackendError, OpenPgpKeySlot, NullAudit};
-pub use vault_backend::{NoopZeroise, OpenPgpVaultBackend};
+pub use backend::{NullAudit, OpenPgpAudit, OpenPgpBackend, OpenPgpBackendError, OpenPgpKeySlot};
 pub use dispatch::{handle_apdu, OpenPgpCcidDispatcher, OpenPgpDispatch};
 pub use do_store::{DoStore, DoStoreError, DO_STORE_MAGIC, DO_STORE_REGION_BYTES};
 pub use dos::{compute_v4_fingerprint, pin_bytes_to_verifier_digest, AlgorithmAttributes};
 pub use error::StatusWord;
 pub use state::CardState;
+pub use vault_backend::{NoopZeroise, OpenPgpVaultBackend};
 
 /// Reset OpenPGP session state and notify backend when the token is locked (PIN exhaustion or explicit lock).
 ///

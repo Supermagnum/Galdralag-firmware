@@ -1,8 +1,8 @@
 //! ECDSA over Brainpool P-256r1 with SHA-256 (audited `bp256` / `ecdsa` stack).
 
 use crate::brainpool_common::BrainpoolError;
-use bp256::BrainpoolP256r1;
 use bp256::elliptic_curve::pkcs8::DecodePublicKey;
+use bp256::BrainpoolP256r1;
 use ecdsa::der;
 use ecdsa::signature::hazmat::{PrehashSigner, PrehashVerifier};
 use ecdsa::signature::{Signer, Verifier};
@@ -70,8 +70,7 @@ impl BrainpoolSigningKey {
     pub fn generate<T: HardwareTrng>(trng: &mut T) -> Result<Self, BrainpoolError> {
         for _ in 0..SCALAR_SAMPLE_TRIES {
             let mut raw = [0u8; 32];
-            trng
-                .try_fill_bytes(&mut raw)
+            trng.try_fill_bytes(&mut raw)
                 .map_err(|_| BrainpoolError::TrngFailure)?;
             if let Ok(sk) = SigningKey::<BrainpoolP256r1>::from_slice(&raw) {
                 raw.zeroize();
@@ -138,7 +137,8 @@ impl BrainpoolSigningKey {
 
     #[doc(hidden)]
     pub fn from_scalar_bytes_for_test(bytes: &[u8; 32]) -> Result<Self, BrainpoolError> {
-        let sk = SigningKey::from_slice(bytes.as_slice()).map_err(|_| BrainpoolError::InvalidScalar)?;
+        let sk =
+            SigningKey::from_slice(bytes.as_slice()).map_err(|_| BrainpoolError::InvalidScalar)?;
         Ok(Self(sk))
     }
 }
@@ -234,10 +234,7 @@ mod tests {
         let mut msg = b"original".to_vec();
         let sig = sk.sign(&msg, &mut trng).expect("sign");
         msg[0] ^= 0x01;
-        assert_eq!(
-            vk.verify(&msg, &sig),
-            Err(BrainpoolError::InvalidSignature)
-        );
+        assert_eq!(vk.verify(&msg, &sig), Err(BrainpoolError::InvalidSignature));
     }
 
     #[test]
@@ -248,10 +245,7 @@ mod tests {
         let msg = b"fixed message";
         let mut sig = sk.sign(msg, &mut trng).expect("sign");
         sig.xor_first_byte_for_test();
-        assert_eq!(
-            vk.verify(msg, &sig),
-            Err(BrainpoolError::InvalidSignature)
-        );
+        assert_eq!(vk.verify(msg, &sig), Err(BrainpoolError::InvalidSignature));
     }
 
     #[test]

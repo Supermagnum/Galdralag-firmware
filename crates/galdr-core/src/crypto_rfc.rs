@@ -17,7 +17,10 @@ fn hkdf_sha256_rfc5869_appendix_a() {
     let mut okm = [0u8; 42];
     let hk = Hkdf::<Sha256>::new(Some(&salt), &ikm);
     hk.expand(&info, &mut okm).unwrap();
-    let exp = hex::decode("3cb25f25faacd57a90434f64d0362f2a2d2d0a90cf1a5a4c5db02d56ecc4c5bf34007208d5b887185865").unwrap();
+    let exp = hex::decode(
+        "3cb25f25faacd57a90434f64d0362f2a2d2d0a90cf1a5a4c5db02d56ecc4c5bf34007208d5b887185865",
+    )
+    .unwrap();
     assert_eq!(okm.as_slice(), exp.as_slice());
 }
 
@@ -36,7 +39,8 @@ fn chacha20poly1305_rfc8439_aead() {
     use chacha20poly1305::aead::{Aead, KeyInit, Payload};
     use chacha20poly1305::{ChaCha20Poly1305, Key, Nonce};
 
-    let key_bytes = hex::decode("808182838485868788898a8b8c8d8e8f909192939495969798999a9b9c9d9e9f").unwrap();
+    let key_bytes =
+        hex::decode("808182838485868788898a8b8c8d8e8f909192939495969798999a9b9c9d9e9f").unwrap();
     let nonce_bytes = hex::decode("070000004041424344454647").unwrap();
     let key = Key::from_slice(key_bytes.as_slice());
     let nonce = Nonce::from_slice(nonce_bytes.as_slice());
@@ -45,7 +49,13 @@ fn chacha20poly1305_rfc8439_aead() {
     ct.extend_from_slice(&hex::decode("1ae10b594f09e26a7e902ecbd0600691").unwrap());
     let cipher = ChaCha20Poly1305::new(key);
     let pt = cipher
-        .decrypt(nonce, Payload { msg: &ct, aad: &aad })
+        .decrypt(
+            nonce,
+            Payload {
+                msg: &ct,
+                aad: &aad,
+            },
+        )
         .unwrap();
     let expected = b"Ladies and Gentlemen of the class of '99: If I could offer you only one tip for the future, sunscreen would be it.";
     assert_eq!(pt.as_slice(), expected.as_slice());
@@ -54,8 +64,10 @@ fn chacha20poly1305_rfc8439_aead() {
 #[test]
 fn x25519_rfc7748() {
     use x25519_dalek::{PublicKey, StaticSecret};
-    let alice = hex::decode("77076d0a7318a57d3c16c17251b26645df1496dff944d7fbfc15b887fe467530").unwrap();
-    let bob = hex::decode("5dab087e624a8a4b79e17f8b83800ee66f3bb1292618b6fd1c2f8b27ff88e0eb").unwrap();
+    let alice =
+        hex::decode("77076d0a7318a57d3c16c17251b26645df1496dff944d7fbfc15b887fe467530").unwrap();
+    let bob =
+        hex::decode("5dab087e624a8a4b79e17f8b83800ee66f3bb1292618b6fd1c2f8b27ff88e0eb").unwrap();
     let a = StaticSecret::from(<[u8; 32]>::try_from(alice.as_slice()).unwrap());
     let b = StaticSecret::from(<[u8; 32]>::try_from(bob.as_slice()).unwrap());
     let bp = PublicKey::from(&b);
@@ -84,9 +96,13 @@ fn hmac_sha256_rfc4231_case_1() {
     use hmac::{Hmac, Mac};
     use sha2::Sha256;
     type HmacSha256 = Hmac<Sha256>;
-    let mut mac = HmacSha256::new_from_slice(b"\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b").unwrap();
+    let mut mac = HmacSha256::new_from_slice(
+        b"\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b",
+    )
+    .unwrap();
     mac.update(b"Hi There");
-    let expected = hex::decode("b0344c61d8db38535ca8afceaf0bf12b881dc200c9833da726e9376c2e32cff7").unwrap();
+    let expected =
+        hex::decode("b0344c61d8db38535ca8afceaf0bf12b881dc200c9833da726e9376c2e32cff7").unwrap();
     assert_eq!(mac.finalize().into_bytes().as_slice(), expected.as_slice());
 }
 
@@ -109,7 +125,13 @@ fn aes256_gcm_nist_one_block() {
     let nonce = Nonce::from_slice(&[0x01u8; 12]);
     let cipher = Aes256Gcm::new(key);
     let ct = cipher
-        .encrypt(nonce, Payload { msg: b"plaintext", aad: b"" })
+        .encrypt(
+            nonce,
+            Payload {
+                msg: b"plaintext",
+                aad: b"",
+            },
+        )
         .unwrap();
     let pt = cipher
         .decrypt(nonce, Payload { msg: &ct, aad: b"" })
@@ -121,7 +143,8 @@ fn aes256_gcm_nist_one_block() {
 fn sha3_256_empty() {
     use sha3::{Digest, Sha3_256};
     let h = Sha3_256::digest([]);
-    let exp = hex::decode("a7ffc6f8bf1ed76651c14756a061d662f580ff4de43b49fa82d80a4b80f8434a").unwrap();
+    let exp =
+        hex::decode("a7ffc6f8bf1ed76651c14756a061d662f580ff4de43b49fa82d80a4b80f8434a").unwrap();
     assert_eq!(h.as_slice(), exp.as_slice());
 }
 
@@ -143,4 +166,3 @@ fn blake3_deterministic() {
     let b = blake3::hash(b"galdr");
     assert_eq!(a, b);
 }
-

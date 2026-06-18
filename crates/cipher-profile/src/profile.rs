@@ -104,7 +104,9 @@ impl CipherProfile {
             let wid = *bytes.get(i).ok_or(CipherProfileError::MalformedEncoding)?;
             i += 1;
             let layer = CipherLayer::from_wire(wid).ok_or(CipherProfileError::MalformedEncoding)?;
-            layers.push(layer).map_err(|_| CipherProfileError::MalformedEncoding)?;
+            layers
+                .push(layer)
+                .map_err(|_| CipherProfileError::MalformedEncoding)?;
         }
         let sk = *bytes.get(i).ok_or(CipherProfileError::MalformedEncoding)?;
         i += 1;
@@ -113,14 +115,19 @@ impl CipherProfile {
         if i != bytes.len() {
             return Err(CipherProfileError::MalformedEncoding);
         }
-        let shamir = ShamirConfig::new(sk, sn).map_err(|_| CipherProfileError::InvalidShamirConfig)?;
-        let name = core::str::from_utf8(name_slice).map_err(|_| CipherProfileError::MalformedEncoding)?;
-        let desc = core::str::from_utf8(desc_slice).map_err(|_| CipherProfileError::MalformedEncoding)?;
+        let shamir =
+            ShamirConfig::new(sk, sn).map_err(|_| CipherProfileError::InvalidShamirConfig)?;
+        let name =
+            core::str::from_utf8(name_slice).map_err(|_| CipherProfileError::MalformedEncoding)?;
+        let desc =
+            core::str::from_utf8(desc_slice).map_err(|_| CipherProfileError::MalformedEncoding)?;
         validate_profile_name(name)?;
         let mut ns = String::new();
-        ns.push_str(name).map_err(|_| CipherProfileError::MalformedEncoding)?;
+        ns.push_str(name)
+            .map_err(|_| CipherProfileError::MalformedEncoding)?;
         let mut ds = String::new();
-        ds.push_str(desc).map_err(|_| CipherProfileError::MalformedEncoding)?;
+        ds.push_str(desc)
+            .map_err(|_| CipherProfileError::MalformedEncoding)?;
         check_layers(&layers)?;
         Ok(CipherProfile {
             name: ns,
@@ -166,7 +173,8 @@ impl CipherProfileBuilder {
     pub fn new(name: &str) -> Result<Self, CipherProfileError> {
         validate_profile_name(name)?;
         let mut ns = String::new();
-        ns.push_str(name).map_err(|_| CipherProfileError::InvalidProfileName)?;
+        ns.push_str(name)
+            .map_err(|_| CipherProfileError::InvalidProfileName)?;
         Ok(Self {
             name: ns,
             description: String::new(),
@@ -201,7 +209,9 @@ impl CipherProfileBuilder {
                 return Err(CipherProfileError::DuplicateCipher);
             }
         }
-        self.layers.push(cipher).map_err(|_| CipherProfileError::TooManyLayers)?;
+        self.layers
+            .push(cipher)
+            .map_err(|_| CipherProfileError::TooManyLayers)?;
         Ok(self)
     }
 
@@ -277,10 +287,9 @@ mod tests {
     #[test]
     fn profile_builder_valid_single_layer() {
         let b = tr(CipherProfileBuilder::new("ab-c"));
-        let b = tr(
-            b.curve(SessionCurve::BrainpoolP256r1)
-                .layer(CipherLayer::ChaCha20Poly1305),
-        );
+        let b = tr(b
+            .curve(SessionCurve::BrainpoolP256r1)
+            .layer(CipherLayer::ChaCha20Poly1305));
         let p = tr(b.build());
         assert_eq!(p.layers().len(), 1);
     }
@@ -288,13 +297,15 @@ mod tests {
     #[test]
     fn profile_builder_valid_cascade() {
         let b = tr(CipherProfileBuilder::new("x"));
-        let b = tr(
-            b.curve(SessionCurve::BrainpoolP256r1)
-                .layer(CipherLayer::Serpent256),
-        );
+        let b = tr(b
+            .curve(SessionCurve::BrainpoolP256r1)
+            .layer(CipherLayer::Serpent256));
         let b = tr(b.layer(CipherLayer::ChaCha20Poly1305));
         let p = tr(b.build());
-        assert_eq!(p.layers(), &[CipherLayer::Serpent256, CipherLayer::ChaCha20Poly1305]);
+        assert_eq!(
+            p.layers(),
+            &[CipherLayer::Serpent256, CipherLayer::ChaCha20Poly1305]
+        );
     }
 
     #[test]

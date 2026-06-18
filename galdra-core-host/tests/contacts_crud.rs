@@ -1,6 +1,4 @@
-use galdra_core_host::contacts::{
-    self, ContactUpdate, NewContact,
-};
+use galdra_core_host::contacts::{self, ContactUpdate, NewContact};
 use galdra_core_host::db::Db;
 
 #[test]
@@ -17,6 +15,12 @@ fn contact_crud_roundtrip() {
             department: None,
             role: None,
             note: None,
+            dmr_id: None,
+            radio_affiliation: None,
+            street: None,
+            country: None,
+            postal_code: None,
+            region: None,
         },
     )
     .expect("add");
@@ -37,6 +41,20 @@ fn contact_crud_roundtrip() {
     )
     .expect("upd");
     assert_eq!(u.display_name, "Alice B");
+
+    let u_addr = contacts::contact_update(
+        &mut db,
+        &c.id,
+        ContactUpdate {
+            street: Some("Station road 42".into()),
+            country: Some("NO".into()),
+            postal_code: Some("5008".into()),
+            region: Some("BERGEN".into()),
+            ..Default::default()
+        },
+    )
+    .expect("addr upd");
+    assert_eq!(u_addr.street.as_deref(), Some("Station road 42"));
 
     contacts::contact_delete(&mut db, &c.id).expect("del");
     assert!(contacts::contact_get_by_id(&db, &c.id).is_err());

@@ -167,7 +167,8 @@ impl CamelliaKey {
     }
 
     fn camellia(&self) -> Result<Camellia256, CamelliaError> {
-        Camellia256::new_from_slice(self.cipher_key.as_ref()).map_err(|_| CamelliaError::CipherError)
+        Camellia256::new_from_slice(self.cipher_key.as_ref())
+            .map_err(|_| CamelliaError::CipherError)
     }
 
     fn mac_key(&self) -> Result<HmacSha256, CamelliaError> {
@@ -376,7 +377,10 @@ pub fn camellia_ctr_unauthenticated(
 
 /// Single-block ECB encrypt for KAT tests (not exposed for production protocols).
 #[cfg(test)]
-pub(crate) fn camellia_ecb_encrypt_block(key: &[u8], plaintext: &[u8; 16]) -> Result<[u8; 16], CamelliaError> {
+pub(crate) fn camellia_ecb_encrypt_block(
+    key: &[u8],
+    plaintext: &[u8; 16],
+) -> Result<[u8; 16], CamelliaError> {
     let cam = Camellia256::new_from_slice(key).map_err(|_| CamelliaError::CipherError)?;
     let block_in: Array<u8, U16> = (*plaintext).into();
     let mut block_out = Array::<u8, U16>::default();
@@ -401,10 +405,18 @@ mod tests {
         for entry in arr {
             let key = hex::decode(entry["key"].as_str().ok_or(CamelliaError::CipherError)?)
                 .map_err(|_| CamelliaError::CipherError)?;
-            let pt = hex::decode(entry["plaintext"].as_str().ok_or(CamelliaError::CipherError)?)
-                .map_err(|_| CamelliaError::CipherError)?;
-            let exp = hex::decode(entry["ciphertext"].as_str().ok_or(CamelliaError::CipherError)?)
-                .map_err(|_| CamelliaError::CipherError)?;
+            let pt = hex::decode(
+                entry["plaintext"]
+                    .as_str()
+                    .ok_or(CamelliaError::CipherError)?,
+            )
+            .map_err(|_| CamelliaError::CipherError)?;
+            let exp = hex::decode(
+                entry["ciphertext"]
+                    .as_str()
+                    .ok_or(CamelliaError::CipherError)?,
+            )
+            .map_err(|_| CamelliaError::CipherError)?;
             if key.len() != 32 || pt.len() != 16 || exp.len() != 16 {
                 return Err(CamelliaError::CipherError);
             }

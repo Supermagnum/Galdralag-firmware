@@ -11,11 +11,7 @@ const HDR_LEN: usize = 10;
 #[allow(clippy::large_enum_variant)]
 pub enum PcToRdr {
     /// PC_to_RDR_IccPowerOn (0x62).
-    IccPowerOn {
-        slot: u8,
-        seq: u8,
-        power_select: u8,
-    },
+    IccPowerOn { slot: u8, seq: u8, power_select: u8 },
     /// PC_to_RDR_IccPowerOff (0x63).
     IccPowerOff { slot: u8, seq: u8 },
     /// PC_to_RDR_GetSlotStatus (0x65).
@@ -135,7 +131,9 @@ mod tests {
 
     #[test]
     fn parse_xfr_block() {
-        let apdu = [0x00u8, 0xA4, 0x04, 0x00, 0x06, 0xD2, 0x76, 0x00, 0x01, 0x24, 0x01];
+        let apdu = [
+            0x00u8, 0xA4, 0x04, 0x00, 0x06, 0xD2, 0x76, 0x00, 0x01, 0x24, 0x01,
+        ];
         let mut m = heapless::Vec::<u8, 600>::new();
         let h = hdr(0x6F, apdu.len() as u32, 0, 2, 0, 0, 0);
         for b in h {

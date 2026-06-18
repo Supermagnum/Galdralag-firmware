@@ -31,7 +31,10 @@ impl FingerVeinDevice {
     }
 
     pub fn connect(&mut self, usb_path: &str) -> Result<(), BiometricError> {
-        let mut g = self.usb_path.lock().map_err(|_| BiometricError::HardwareError(1))?;
+        let mut g = self
+            .usb_path
+            .lock()
+            .map_err(|_| BiometricError::HardwareError(1))?;
         *g = Some(usb_path.to_string());
         Ok(())
     }

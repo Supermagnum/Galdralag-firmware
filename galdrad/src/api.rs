@@ -6,29 +6,27 @@ use axum::routing::{delete, get, post};
 use axum::{Json, Router};
 use chrono::{DateTime, Utc};
 use galdra_core_host::audit::{self, AuditAction, AuditEntry, AuditFilter, AuditRecord};
-use galdra_core_host::contacts::{
-    self, ContactFilter, ContactUpdate, Identity, NewContact,
-};
-use galdra_core_host::db::Db;
-use galdra_core_host::device::Device;
-use galdra_core_host::groups::{self, GroupSummary, GroupWithMembers};
-use galdra_core_host::cipher_profile::CipherProfileError;
 use galdra_core_host::cipher_envelope::{
     open_plaintext_from_openpgp_literal, parse_hex_fixed, seal_plaintext_with_profile,
     wrap_inner_with_cess_mode_a,
 };
+use galdra_core_host::cipher_profile::CipherProfileError;
+use galdra_core_host::contacts::{self, ContactFilter, ContactUpdate, Identity, NewContact};
+use galdra_core_host::db::Db;
+use galdra_core_host::device::Device;
 use galdra_core_host::encrypt::{self, encrypt_openpgp, try_decrypt_session_key_from_cert};
+use galdra_core_host::groups::{self, GroupSummary, GroupWithMembers};
 use galdra_core_host::profiles::{
     audit_crypto_detail_multiline, build_profile_from_options, parse_curve_wire, parse_layer_name,
     ProfileStore, ProfileSummary,
 };
-use sha2::digest::Digest;
-use sha2::Sha256;
 use galdra_core_host::shamir_ops::{shamir_recover_key, shamir_split_key, ShamirShareExport};
 use galdra_core_host::GaldraError;
-use serde::Deserialize;
 use sequoia_openpgp::parse::Parse;
 use sequoia_openpgp::policy::StandardPolicy;
+use serde::Deserialize;
+use sha2::digest::Digest;
+use sha2::Sha256;
 use tower_http::trace::TraceLayer;
 use utoipa::OpenApi;
 use utoipa_swagger_ui::SwaggerUi;
@@ -67,9 +65,10 @@ where
 const PLACEHOLDER_SENDER_FP: &str = "0000000000000000000000000000000000000000";
 
 fn identity_to_cert(id: &Identity) -> Result<sequoia_openpgp::Cert, GaldraError> {
-    let bytes = id.pgp_pubkey.as_ref().ok_or_else(|| {
-        GaldraError::OpenPgp(format!("contact {} has no OpenPGP key", id.id))
-    })?;
+    let bytes = id
+        .pgp_pubkey
+        .as_ref()
+        .ok_or_else(|| GaldraError::OpenPgp(format!("contact {} has no OpenPGP key", id.id)))?;
     sequoia_openpgp::Cert::from_bytes(bytes).map_err(|e| GaldraError::OpenPgp(e.to_string()))
 }
 
@@ -143,6 +142,12 @@ pub struct CreateContactBody {
     pub org: Option<String>,
     pub role: Option<String>,
     pub note: Option<String>,
+    pub dmr_id: Option<i64>,
+    pub radio_affiliation: Option<String>,
+    pub street: Option<String>,
+    pub country: Option<String>,
+    pub postal_code: Option<String>,
+    pub region: Option<String>,
 }
 
 #[utoipa::path(
@@ -164,6 +169,12 @@ async fn create_contact(
         department: None,
         role: body.role,
         note: body.note,
+        dmr_id: body.dmr_id,
+        radio_affiliation: body.radio_affiliation,
+        street: body.street,
+        country: body.country,
+        postal_code: body.postal_code,
+        region: body.region,
     };
     let out = run_db(&state, move |db| contacts::contact_add(db, nc)).await?;
     Ok(Json(out))
@@ -178,6 +189,12 @@ pub struct UpdateContactBody {
     pub org: Option<String>,
     pub role: Option<String>,
     pub note: Option<String>,
+    pub dmr_id: Option<i64>,
+    pub radio_affiliation: Option<String>,
+    pub street: Option<String>,
+    pub country: Option<String>,
+    pub postal_code: Option<String>,
+    pub region: Option<String>,
 }
 
 async fn update_contact(
@@ -195,6 +212,12 @@ async fn update_contact(
         department: None,
         role: body.role,
         note: body.note,
+        dmr_id: body.dmr_id,
+        radio_affiliation: body.radio_affiliation,
+        street: body.street,
+        country: body.country,
+        postal_code: body.postal_code,
+        region: body.region,
     };
     let out = run_db(&state, move |db| {
         let c = resolve_identity(db, &id_s)?;
@@ -355,9 +378,8 @@ async fn list_audit(
     };
     let act = if let Some(a) = &q.action {
         Some(
-            AuditAction::from_wire(a).ok_or_else(|| {
-                GaldraError::Config(format!("unknown audit action: {a}"))
-            })?,
+            AuditAction::from_wire(a)
+                .ok_or_else(|| GaldraError::Config(format!("unknown audit action: {a}")))?,
         )
     } else {
         None
@@ -430,28 +452,15 @@ async fn encrypt_msg(
             certs.push(identity_to_cert(id)?);
         }
         let g = groups::group_get(db, &group)?;
-        let mut sealed = seal_plaintext_with_profile(&cipher_profile, &plain, PLACEHOLDER_SENDER_FP)?;
+        let mut sealed =
+            seal_plaintext_with_profile(&cipher_profile, &plain, PLACEHOLDER_SENDER_FP)?;
         if let Some(ref k_outer) = cess_k_outer {
-            let nonce = parse_hex_fixed::<12>("cess_nonce_hex", cess_nonce_hex.as_ref().expect("paired"))?;
-            sealed = wrap_inner_with_cess_mode_a(
-                &sealed,
-                cipher_profile.name(),
-                k_outer,
-                &nonce,
-            )?;
+            let nonce =
+                parse_hex_fixed::<12>("cess_nonce_hex", cess_nonce_hex.as_ref().expect("paired"))?;
+            sealed = wrap_inner_with_cess_mode_a(&sealed, cipher_profile.name(), k_outer, &nonce)?;
         }
-        let ct = encrypt_openpgp(
-            &policy,
-            &sealed,
-            None,
-            &certs,
-            g.hidden_recipients,
-            true,
-        )?;
-        let b64 = base64::Engine::encode(
-            &base64::engine::general_purpose::STANDARD,
-            ct.as_slice(),
-        );
+        let ct = encrypt_openpgp(&policy, &sealed, None, &certs, g.hidden_recipients, true)?;
+        let b64 = base64::Engine::encode(&base64::engine::general_purpose::STANDARD, ct.as_slice());
         Ok::<_, GaldraError>(b64)
     })
     .await?;
@@ -568,7 +577,12 @@ async fn shamir_split_handler(
             .ok_or_else(|| GaldraError::ProfileNotFound(profile.clone()))?;
         let dev = Device::connect()?;
         let shares = shamir_split_key(&dev, &p, slot)?;
-        Ok::<_, GaldraError>(shares.into_iter().map(|s| s.to_armoured()).collect::<Vec<_>>())
+        Ok::<_, GaldraError>(
+            shares
+                .into_iter()
+                .map(|s| s.to_armoured())
+                .collect::<Vec<_>>(),
+        )
     })
     .await?;
     Ok(Json(serde_json::json!(arms)))
@@ -751,7 +765,7 @@ async fn stub_verify(State(_): State<AppState>) -> (StatusCode, Json<serde_json:
         description = "Local Galdra REST API (JSON over HTTP)",
         version = "0.1.0",
     ),
-    components(schemas(CreateContactBody, UpdateContactBody, CreateGroupBody, AddMembersBody)),
+    components(schemas(CreateContactBody, UpdateContactBody, CreateGroupBody, AddMembersBody))
 )]
 pub struct ApiDoc;
 
@@ -772,10 +786,7 @@ pub fn router(state: AppState) -> Router {
         .route("/device/status", get(device_status))
         .route("/audit", get(list_audit))
         .route("/profiles", get(list_profiles).post(create_profile))
-        .route(
-            "/profiles/:name",
-            get(get_profile).delete(delete_profile),
-        )
+        .route("/profiles/:name", get(get_profile).delete(delete_profile))
         .route("/shamir/split", post(shamir_split_handler))
         .route("/shamir/recover", post(shamir_recover_handler))
         .route("/shamir/share-info", get(shamir_share_info))
@@ -787,9 +798,6 @@ pub fn router(state: AppState) -> Router {
         .layer(TraceLayer::new_for_http());
 
     Router::new()
-        .merge(
-            SwaggerUi::new("/swagger-ui")
-                .url("/api-docs/openapi.json", ApiDoc::openapi()),
-        )
+        .merge(SwaggerUi::new("/swagger-ui").url("/api-docs/openapi.json", ApiDoc::openapi()))
         .merge(api)
 }

@@ -22,18 +22,16 @@ use crate::profile::CipherProfile;
 use aead::{Aead, KeyInit, Payload};
 use aes_gcm::{Aes256Gcm, Key, Nonce};
 use cess::{
-    cess_blake3_integrity_gap_info, cess_blake3_integrity_info, hkdf_blake3, hmac_blake3,
-    suite_id_for_profile_name, CessInnerEtM64Cipher, cess_inner_cascade_etm64_info,
-    cess_inner_cascade_layer_key_info, cess_inner_cascade_layer_nonce_info,
-};
-use heapless::Vec;
-use subtle::ConstantTimeEq;
-use galdr_vault::chacha_aead::{
-    chacha_decrypt, chacha_encrypt, ChaChaCiphertext, ChaChaKey, ChaChaNonce, ChaChaPlaintext,
+    cess_blake3_integrity_gap_info, cess_blake3_integrity_info, cess_inner_cascade_etm64_info,
+    cess_inner_cascade_layer_key_info, cess_inner_cascade_layer_nonce_info, hkdf_blake3,
+    hmac_blake3, suite_id_for_profile_name, CessInnerEtM64Cipher,
 };
 use galdr_vault::camellia_cipher::{
     camellia_decrypt, camellia_encrypt, CamelliaCiphertext, CamelliaKey, CamelliaNonce,
     CamelliaPlaintext,
+};
+use galdr_vault::chacha_aead::{
+    chacha_decrypt, chacha_encrypt, ChaChaCiphertext, ChaChaKey, ChaChaNonce, ChaChaPlaintext,
 };
 use galdr_vault::serpent_cipher::{
     serpent_decrypt, serpent_encrypt, SerpentCiphertext, SerpentKey, SerpentNonce, SerpentPlaintext,
@@ -41,6 +39,8 @@ use galdr_vault::serpent_cipher::{
 use galdr_vault::twofish_cipher::{
     twofish_decrypt, twofish_encrypt, TwofishCiphertext, TwofishKey, TwofishNonce, TwofishPlaintext,
 };
+use heapless::Vec;
+use subtle::ConstantTimeEq;
 use zeroize::Zeroize;
 
 const MAX_CT: usize = 65536;
@@ -83,14 +83,12 @@ impl CascadePlaintext {
 
 fn hkdf_blake3_okm32(ikm: &[u8], info: &[u8]) -> Result<[u8; 32], CipherProfileError> {
     let v = hkdf_blake3(ikm, b"", info, 32);
-    v.try_into()
-        .map_err(|_| CipherProfileError::KeyDerivation)
+    v.try_into().map_err(|_| CipherProfileError::KeyDerivation)
 }
 
 fn hkdf_blake3_okm64(ikm: &[u8], info: &[u8]) -> Result<[u8; 64], CipherProfileError> {
     let v = hkdf_blake3(ikm, b"", info, 64);
-    v.try_into()
-        .map_err(|_| CipherProfileError::KeyDerivation)
+    v.try_into().map_err(|_| CipherProfileError::KeyDerivation)
 }
 
 /// Bytes fed to the **outermost** cascade encrypt step (after inner layers and any inter-layer MACs).
@@ -133,7 +131,9 @@ fn cascade_forward_encrypt(
     }
     let mut current = Vec::<u8, MAX_CT>::new();
     for b in plaintext {
-        current.push(*b).map_err(|_| CipherProfileError::PayloadTooLarge)?;
+        current
+            .push(*b)
+            .map_err(|_| CipherProfileError::PayloadTooLarge)?;
     }
     for i in 0..last_layer_exclusive {
         let layer = layers[i];
@@ -206,7 +206,8 @@ pub fn cascade_decrypt(
     let n = layers.len();
     let mut buf = Vec::<u8, MAX_CT>::new();
     for b in ct.ciphertext.iter() {
-        buf.push(*b).map_err(|_| CipherProfileError::AuthenticationFailed)?;
+        buf.push(*b)
+            .map_err(|_| CipherProfileError::AuthenticationFailed)?;
     }
     for idx in (0..n).rev() {
         let layer = layers[idx];
@@ -257,10 +258,12 @@ fn cess_inter_layer_hmac_message(
     let label = cess_blake3_integrity_info(suite_id);
     let mut out = Vec::new();
     for b in label {
-        out.push(b).map_err(|_| CipherProfileError::PayloadTooLarge)?;
+        out.push(b)
+            .map_err(|_| CipherProfileError::PayloadTooLarge)?;
     }
     for b in body {
-        out.push(*b).map_err(|_| CipherProfileError::PayloadTooLarge)?;
+        out.push(*b)
+            .map_err(|_| CipherProfileError::PayloadTooLarge)?;
     }
     Ok(out)
 }
@@ -276,7 +279,8 @@ fn cess_append_inter_layer_mac(
     let mac = hmac_blake3(&key, msg.as_slice());
     let mut out = body;
     for b in mac.iter() {
-        out.push(*b).map_err(|_| CipherProfileError::PayloadTooLarge)?;
+        out.push(*b)
+            .map_err(|_| CipherProfileError::PayloadTooLarge)?;
     }
     Ok(out)
 }
@@ -304,7 +308,8 @@ fn cess_verify_and_strip_inter_layer_mac(
     }
     let mut out = Vec::new();
     for b in body {
-        out.push(*b).map_err(|_| CipherProfileError::AuthenticationFailed)?;
+        out.push(*b)
+            .map_err(|_| CipherProfileError::AuthenticationFailed)?;
     }
     Ok(out)
 }
@@ -378,7 +383,9 @@ fn encrypt_layer_cess(
             let ink = cess_inner_cascade_layer_nonce_info(sid, layer_idx);
             let key = hkdf_blake3_okm32(ikm, ik.as_slice())?;
             let nb = hkdf_blake3(ikm, b"", ink.as_slice(), 12);
-            let nb12: [u8; 12] = nb.try_into().map_err(|_| CipherProfileError::KeyDerivation)?;
+            let nb12: [u8; 12] = nb
+                .try_into()
+                .map_err(|_| CipherProfileError::KeyDerivation)?;
             let cipher = Aes256Gcm::new(Key::<Aes256Gcm>::from_slice(&key));
             let nonce = Nonce::from_slice(&nb12);
             let ct = cipher
@@ -386,7 +393,8 @@ fn encrypt_layer_cess(
                 .map_err(|_| CipherProfileError::CipherError { layer: layer_idx })?;
             let mut out = Vec::new();
             for b in ct {
-                out.push(b).map_err(|_| CipherProfileError::PayloadTooLarge)?;
+                out.push(b)
+                    .map_err(|_| CipherProfileError::PayloadTooLarge)?;
             }
             Ok(out)
         }
@@ -402,7 +410,8 @@ fn encrypt_layer_cess(
             copy_ct_chacha(&ct)
         }
         CipherLayer::Twofish256 => {
-            let inf = cess_inner_cascade_etm64_info(sid, layer_idx, CessInnerEtM64Cipher::Twofish256);
+            let inf =
+                cess_inner_cascade_etm64_info(sid, layer_idx, CessInnerEtM64Cipher::Twofish256);
             let okm = hkdf_blake3_okm64(ikm, inf.as_slice())?;
             let key = TwofishKey::from_okm64(&okm);
             let n_inf = cess_inner_cascade_layer_nonce_info(sid, layer_idx);
@@ -413,7 +422,8 @@ fn encrypt_layer_cess(
             copy_ct_twofish(&ct)
         }
         CipherLayer::Serpent256 => {
-            let inf = cess_inner_cascade_etm64_info(sid, layer_idx, CessInnerEtM64Cipher::Serpent256);
+            let inf =
+                cess_inner_cascade_etm64_info(sid, layer_idx, CessInnerEtM64Cipher::Serpent256);
             let okm = hkdf_blake3_okm64(ikm, inf.as_slice())?;
             let key = SerpentKey::from_okm64(&okm);
             let n_inf = cess_inner_cascade_layer_nonce_info(sid, layer_idx);
@@ -424,7 +434,8 @@ fn encrypt_layer_cess(
             copy_ct_serpent(&ct)
         }
         CipherLayer::Camellia256 => {
-            let inf = cess_inner_cascade_etm64_info(sid, layer_idx, CessInnerEtM64Cipher::Camellia256);
+            let inf =
+                cess_inner_cascade_etm64_info(sid, layer_idx, CessInnerEtM64Cipher::Camellia256);
             let okm = hkdf_blake3_okm64(ikm, inf.as_slice())?;
             let key = CamelliaKey::from_okm64(&okm);
             let n_inf = cess_inner_cascade_layer_nonce_info(sid, layer_idx);
@@ -527,7 +538,8 @@ fn decrypt_layer_cess(
                 .map_err(|_| CipherProfileError::AuthenticationFailed)?;
             let mut out = Vec::new();
             for b in pt {
-                out.push(b).map_err(|_| CipherProfileError::AuthenticationFailed)?;
+                out.push(b)
+                    .map_err(|_| CipherProfileError::AuthenticationFailed)?;
             }
             Ok(out)
         }
@@ -547,7 +559,8 @@ fn decrypt_layer_cess(
             copy_pt_chacha(&pt)
         }
         CipherLayer::Twofish256 => {
-            let inf = cess_inner_cascade_etm64_info(sid, layer_idx, CessInnerEtM64Cipher::Twofish256);
+            let inf =
+                cess_inner_cascade_etm64_info(sid, layer_idx, CessInnerEtM64Cipher::Twofish256);
             let okm = hkdf_blake3_okm64(ikm, inf.as_slice())
                 .map_err(|_| CipherProfileError::AuthenticationFailed)?;
             let key = TwofishKey::from_okm64(&okm);
@@ -562,7 +575,8 @@ fn decrypt_layer_cess(
             copy_pt_twofish(&pt)
         }
         CipherLayer::Serpent256 => {
-            let inf = cess_inner_cascade_etm64_info(sid, layer_idx, CessInnerEtM64Cipher::Serpent256);
+            let inf =
+                cess_inner_cascade_etm64_info(sid, layer_idx, CessInnerEtM64Cipher::Serpent256);
             let okm = hkdf_blake3_okm64(ikm, inf.as_slice())
                 .map_err(|_| CipherProfileError::AuthenticationFailed)?;
             let key = SerpentKey::from_okm64(&okm);
@@ -577,7 +591,8 @@ fn decrypt_layer_cess(
             copy_pt_serpent(&pt)
         }
         CipherLayer::Camellia256 => {
-            let inf = cess_inner_cascade_etm64_info(sid, layer_idx, CessInnerEtM64Cipher::Camellia256);
+            let inf =
+                cess_inner_cascade_etm64_info(sid, layer_idx, CessInnerEtM64Cipher::Camellia256);
             let okm = hkdf_blake3_okm64(ikm, inf.as_slice())
                 .map_err(|_| CipherProfileError::AuthenticationFailed)?;
             let key = CamelliaKey::from_okm64(&okm);
@@ -603,7 +618,8 @@ fn aes_encrypt(
 ) -> Result<Vec<u8, MAX_CT>, CipherProfileError> {
     use hkdf::Hkdf;
     use sha2::Sha256;
-    let hk = Hkdf::<Sha256>::from_prk(prk.as_slice()).map_err(|_| CipherProfileError::KeyDerivation)?;
+    let hk =
+        Hkdf::<Sha256>::from_prk(prk.as_slice()).map_err(|_| CipherProfileError::KeyDerivation)?;
     let mut key = [0u8; 32];
     hk.expand(key_info, &mut key)
         .map_err(|_| CipherProfileError::KeyDerivation)?;
@@ -617,7 +633,8 @@ fn aes_encrypt(
         .map_err(|_| CipherProfileError::CipherError { layer: 0 })?;
     let mut out = Vec::new();
     for b in ct {
-        out.push(b).map_err(|_| CipherProfileError::PayloadTooLarge)?;
+        out.push(b)
+            .map_err(|_| CipherProfileError::PayloadTooLarge)?;
     }
     Ok(out)
 }
@@ -631,8 +648,8 @@ fn aes_decrypt(
 ) -> Result<Vec<u8, MAX_CT>, CipherProfileError> {
     use hkdf::Hkdf;
     use sha2::Sha256;
-    let hk =
-        Hkdf::<Sha256>::from_prk(prk.as_slice()).map_err(|_| CipherProfileError::AuthenticationFailed)?;
+    let hk = Hkdf::<Sha256>::from_prk(prk.as_slice())
+        .map_err(|_| CipherProfileError::AuthenticationFailed)?;
     let mut key = [0u8; 32];
     hk.expand(key_info, &mut key)
         .map_err(|_| CipherProfileError::AuthenticationFailed)?;
@@ -646,7 +663,8 @@ fn aes_decrypt(
         .map_err(|_| CipherProfileError::AuthenticationFailed)?;
     let mut out = Vec::new();
     for b in pt {
-        out.push(b).map_err(|_| CipherProfileError::AuthenticationFailed)?;
+        out.push(b)
+            .map_err(|_| CipherProfileError::AuthenticationFailed)?;
     }
     Ok(out)
 }
@@ -654,7 +672,8 @@ fn aes_decrypt(
 fn copy_ct_chacha(ct: &ChaChaCiphertext) -> Result<Vec<u8, MAX_CT>, CipherProfileError> {
     let mut out = Vec::new();
     for b in ct.as_slice() {
-        out.push(*b).map_err(|_| CipherProfileError::PayloadTooLarge)?;
+        out.push(*b)
+            .map_err(|_| CipherProfileError::PayloadTooLarge)?;
     }
     Ok(out)
 }
@@ -662,7 +681,8 @@ fn copy_ct_chacha(ct: &ChaChaCiphertext) -> Result<Vec<u8, MAX_CT>, CipherProfil
 fn copy_pt_chacha(pt: &ChaChaPlaintext) -> Result<Vec<u8, MAX_CT>, CipherProfileError> {
     let mut out = Vec::new();
     for b in pt.as_slice() {
-        out.push(*b).map_err(|_| CipherProfileError::AuthenticationFailed)?;
+        out.push(*b)
+            .map_err(|_| CipherProfileError::AuthenticationFailed)?;
     }
     Ok(out)
 }
@@ -670,7 +690,8 @@ fn copy_pt_chacha(pt: &ChaChaPlaintext) -> Result<Vec<u8, MAX_CT>, CipherProfile
 fn copy_ct_twofish(ct: &TwofishCiphertext) -> Result<Vec<u8, MAX_CT>, CipherProfileError> {
     let mut out = Vec::new();
     for b in ct.as_slice() {
-        out.push(*b).map_err(|_| CipherProfileError::PayloadTooLarge)?;
+        out.push(*b)
+            .map_err(|_| CipherProfileError::PayloadTooLarge)?;
     }
     Ok(out)
 }
@@ -678,7 +699,8 @@ fn copy_ct_twofish(ct: &TwofishCiphertext) -> Result<Vec<u8, MAX_CT>, CipherProf
 fn copy_pt_twofish(pt: &TwofishPlaintext) -> Result<Vec<u8, MAX_CT>, CipherProfileError> {
     let mut out = Vec::new();
     for b in pt.as_slice() {
-        out.push(*b).map_err(|_| CipherProfileError::AuthenticationFailed)?;
+        out.push(*b)
+            .map_err(|_| CipherProfileError::AuthenticationFailed)?;
     }
     Ok(out)
 }
@@ -686,7 +708,8 @@ fn copy_pt_twofish(pt: &TwofishPlaintext) -> Result<Vec<u8, MAX_CT>, CipherProfi
 fn copy_ct_serpent(ct: &SerpentCiphertext) -> Result<Vec<u8, MAX_CT>, CipherProfileError> {
     let mut out = Vec::new();
     for b in ct.as_slice() {
-        out.push(*b).map_err(|_| CipherProfileError::PayloadTooLarge)?;
+        out.push(*b)
+            .map_err(|_| CipherProfileError::PayloadTooLarge)?;
     }
     Ok(out)
 }
@@ -694,7 +717,8 @@ fn copy_ct_serpent(ct: &SerpentCiphertext) -> Result<Vec<u8, MAX_CT>, CipherProf
 fn copy_pt_serpent(pt: &SerpentPlaintext) -> Result<Vec<u8, MAX_CT>, CipherProfileError> {
     let mut out = Vec::new();
     for b in pt.as_slice() {
-        out.push(*b).map_err(|_| CipherProfileError::AuthenticationFailed)?;
+        out.push(*b)
+            .map_err(|_| CipherProfileError::AuthenticationFailed)?;
     }
     Ok(out)
 }
@@ -704,21 +728,33 @@ fn map_cipher_encrypt_err(
     layer: u8,
 ) -> CipherProfileError {
     match e {
-        galdr_vault::chacha_aead::ChaChaError::AuthenticationFailed => CipherProfileError::CipherError { layer },
+        galdr_vault::chacha_aead::ChaChaError::AuthenticationFailed => {
+            CipherProfileError::CipherError { layer }
+        }
         _ => CipherProfileError::CipherError { layer },
     }
 }
 
-fn map_twofish_encrypt_err(e: galdr_vault::twofish_cipher::TwofishError, layer: u8) -> CipherProfileError {
+fn map_twofish_encrypt_err(
+    e: galdr_vault::twofish_cipher::TwofishError,
+    layer: u8,
+) -> CipherProfileError {
     match e {
-        galdr_vault::twofish_cipher::TwofishError::AuthenticationFailed => CipherProfileError::CipherError { layer },
+        galdr_vault::twofish_cipher::TwofishError::AuthenticationFailed => {
+            CipherProfileError::CipherError { layer }
+        }
         _ => CipherProfileError::CipherError { layer },
     }
 }
 
-fn map_serpent_encrypt_err(e: galdr_vault::serpent_cipher::SerpentError, layer: u8) -> CipherProfileError {
+fn map_serpent_encrypt_err(
+    e: galdr_vault::serpent_cipher::SerpentError,
+    layer: u8,
+) -> CipherProfileError {
     match e {
-        galdr_vault::serpent_cipher::SerpentError::AuthenticationFailed => CipherProfileError::CipherError { layer },
+        galdr_vault::serpent_cipher::SerpentError::AuthenticationFailed => {
+            CipherProfileError::CipherError { layer }
+        }
         _ => CipherProfileError::CipherError { layer },
     }
 }
@@ -726,7 +762,8 @@ fn map_serpent_encrypt_err(e: galdr_vault::serpent_cipher::SerpentError, layer: 
 fn copy_ct_camellia(ct: &CamelliaCiphertext) -> Result<Vec<u8, MAX_CT>, CipherProfileError> {
     let mut out = Vec::new();
     for b in ct.as_slice() {
-        out.push(*b).map_err(|_| CipherProfileError::PayloadTooLarge)?;
+        out.push(*b)
+            .map_err(|_| CipherProfileError::PayloadTooLarge)?;
     }
     Ok(out)
 }
@@ -734,14 +771,20 @@ fn copy_ct_camellia(ct: &CamelliaCiphertext) -> Result<Vec<u8, MAX_CT>, CipherPr
 fn copy_pt_camellia(pt: &CamelliaPlaintext) -> Result<Vec<u8, MAX_CT>, CipherProfileError> {
     let mut out = Vec::new();
     for b in pt.as_slice() {
-        out.push(*b).map_err(|_| CipherProfileError::AuthenticationFailed)?;
+        out.push(*b)
+            .map_err(|_| CipherProfileError::AuthenticationFailed)?;
     }
     Ok(out)
 }
 
-fn map_camellia_encrypt_err(e: galdr_vault::camellia_cipher::CamelliaError, layer: u8) -> CipherProfileError {
+fn map_camellia_encrypt_err(
+    e: galdr_vault::camellia_cipher::CamelliaError,
+    layer: u8,
+) -> CipherProfileError {
     match e {
-        galdr_vault::camellia_cipher::CamelliaError::AuthenticationFailed => CipherProfileError::CipherError { layer },
+        galdr_vault::camellia_cipher::CamelliaError::AuthenticationFailed => {
+            CipherProfileError::CipherError { layer }
+        }
         _ => CipherProfileError::CipherError { layer },
     }
 }

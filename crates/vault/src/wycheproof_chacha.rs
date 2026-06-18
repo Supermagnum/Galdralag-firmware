@@ -8,11 +8,8 @@ use crate::chacha_aead::{
 #[test]
 fn wycheproof_chacha20_poly1305_json() {
     let data = include_str!("../tests/data/wycheproof_chacha20_poly1305_test.json");
-    let root: serde_json::Value =
-        serde_json::from_str(data).expect("wycheproof JSON must parse");
-    let groups = root["testGroups"]
-        .as_array()
-        .expect("testGroups array");
+    let root: serde_json::Value = serde_json::from_str(data).expect("wycheproof JSON must parse");
+    let groups = root["testGroups"].as_array().expect("testGroups array");
     for group in groups {
         let tests = group["tests"].as_array().expect("tests array");
         for t in tests {

@@ -32,12 +32,12 @@ use crate::audit::{audit_append, AuditAction, AuditEntry};
 use crate::db::Db;
 use crate::GaldraError;
 use chrono::Utc;
+use galdr_vault::brainpool::BrainpoolScalar;
 use rand::rngs::OsRng;
 use rusqlite::{params, OptionalExtension};
 use serde::{Deserialize, Serialize};
 use std::io::Write as _;
 use std::process::Command;
-use galdr_vault::brainpool::BrainpoolScalar;
 
 const OFFER_SCHEMA_VERSION: u64 = 1;
 
@@ -101,26 +101,27 @@ impl OfferRow {
 
 /// Insert an offer row into the database.
 pub fn store_offer(db: &mut Db, row: &OfferRow) -> Result<(), GaldraError> {
-    db.connection_mut().execute(
-        r"INSERT INTO ephemeral_offers
+    db.connection_mut()
+        .execute(
+            r"INSERT INTO ephemeral_offers
             (session_id, epk_hex, curve, long_term_fingerprint, signature_hex,
              expires_at, created_at, consumed, revoked, imported_at, my_private_key_pem)
           VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)",
-        params![
-            row.session_id,
-            row.epk_hex,
-            row.curve,
-            row.long_term_fingerprint,
-            row.signature_hex,
-            row.expires_at,
-            row.created_at,
-            row.consumed as i64,
-            row.revoked as i64,
-            row.imported_at,
-            row.my_private_key_bytes,
-        ],
-    )
-    .map_err(GaldraError::Database)?;
+            params![
+                row.session_id,
+                row.epk_hex,
+                row.curve,
+                row.long_term_fingerprint,
+                row.signature_hex,
+                row.expires_at,
+                row.created_at,
+                row.consumed as i64,
+                row.revoked as i64,
+                row.imported_at,
+                row.my_private_key_bytes,
+            ],
+        )
+        .map_err(GaldraError::Database)?;
     Ok(())
 }
 
@@ -315,8 +316,8 @@ pub fn generate_offer(
         session_id: session_id.clone(),
         consumed: false,
     };
-    let raw_json = serde_json::to_vec(&offer_json)
-        .map_err(|e| GaldraError::Serialise(e.to_string()))?;
+    let raw_json =
+        serde_json::to_vec(&offer_json).map_err(|e| GaldraError::Serialise(e.to_string()))?;
 
     // Encrypt+sign the JSON with GnuPG.
     let gpg_bytes = gpg_encrypt_sign(params.gpg_key_id, params.recipient_key_ids, &raw_json)?;
@@ -380,10 +381,7 @@ pub struct ImportParams<'a> {
 /// 5. Append an `EpkImport` audit event.
 ///
 /// Returns the parsed `OfferJson` on success.
-pub fn import_offer(
-    db: &mut Db,
-    params: &ImportParams<'_>,
-) -> Result<OfferJson, GaldraError> {
+pub fn import_offer(db: &mut Db, params: &ImportParams<'_>) -> Result<OfferJson, GaldraError> {
     // Decrypt GPG envelope.
     let json_bytes = gpg_decrypt(params.offer_gpg_bytes)?;
     let offer: OfferJson = serde_json::from_slice(&json_bytes)
@@ -400,7 +398,12 @@ pub fn import_offer(
 
     // Validate not already consumed.
     if offer.consumed {
-        audit_reject(db, &offer.session_id, "already_consumed", params.operator.clone())?;
+        audit_reject(
+            db,
+            &offer.session_id,
+            "already_consumed",
+            params.operator.clone(),
+        )?;
         return Err(GaldraError::EpkConsumed(offer.session_id.clone()));
     }
 
@@ -415,7 +418,12 @@ pub fn import_offer(
     let got_fp = normalise_fingerprint(&offer.long_term_fingerprint);
     let want_fp = normalise_fingerprint(params.verify_fingerprint);
     if got_fp != want_fp {
-        audit_reject(db, &offer.session_id, "fingerprint_mismatch", params.operator.clone())?;
+        audit_reject(
+            db,
+            &offer.session_id,
+            "fingerprint_mismatch",
+            params.operator.clone(),
+        )?;
         return Err(GaldraError::Config(
             "long_term_fingerprint does not match verify_fingerprint".to_string(),
         ));
@@ -427,7 +435,12 @@ pub fn import_offer(
     let sig_bin = hex::decode(&offer.signature_hex)
         .map_err(|e| GaldraError::Config(format!("signature_hex: {e}")))?;
     if let Err(e) = gpg_verify_detached(&epk_sec1, &sig_bin) {
-        audit_reject(db, &offer.session_id, "bad_epk_signature", params.operator.clone())?;
+        audit_reject(
+            db,
+            &offer.session_id,
+            "bad_epk_signature",
+            params.operator.clone(),
+        )?;
         return Err(e);
     }
 
@@ -489,8 +502,7 @@ fn run_gpg(args: &[&str], stdin: Option<&[u8]>) -> Result<Vec<u8>, GaldraError> 
 
     if let Some(data) = stdin {
         if let Some(mut si) = child.stdin.take() {
-            si.write_all(data)
-                .map_err(|e| GaldraError::Io(e))?;
+            si.write_all(data).map_err(|e| GaldraError::Io(e))?;
         }
     }
 
@@ -572,10 +584,7 @@ fn gpg_encrypt_sign(
 /// Decrypt a GPG-encrypted payload. Returns the plaintext bytes.
 fn gpg_decrypt(data: &[u8]) -> Result<Vec<u8>, GaldraError> {
     let tmp = tempfile_with(data)?;
-    run_gpg(
-        &["--decrypt", tmp.path().to_str().unwrap_or("")],
-        None,
-    )
+    run_gpg(&["--decrypt", tmp.path().to_str().unwrap_or("")], None)
 }
 
 /// Verify a detached binary GnuPG signature over `data`.
@@ -706,7 +715,10 @@ mod tests {
         row.my_private_key_bytes = Some(vec![0x42u8; 32]);
         store_offer(&mut db, &row).expect("store");
         let got = get_offer(&db, "eeee0000eeee0000").expect("get");
-        assert_eq!(got.my_private_key_bytes.as_deref(), Some([0x42u8; 32].as_ref()));
+        assert_eq!(
+            got.my_private_key_bytes.as_deref(),
+            Some([0x42u8; 32].as_ref())
+        );
     }
 
     #[test]

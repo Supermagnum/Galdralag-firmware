@@ -70,10 +70,7 @@ pub fn bench_timing_cascade_inner_vs_outer_failure() -> CtSummary {
     let profile = reg.get("conservative").expect("conservative profile");
     let good = cascade_encrypt(profile, &prk, aad, &pt).expect("cascade encrypt");
     let len = good.ciphertext.len();
-    assert!(
-        len > CHACHA_TAG_LEN + 1,
-        "dudect: ciphertext too short"
-    );
+    assert!(len > CHACHA_TAG_LEN + 1, "dudect: ciphertext too short");
     let inner_tamper_idx = len - CHACHA_TAG_LEN - 1;
 
     let mut bad = copy_cascade_ct(&good);

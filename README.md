@@ -47,6 +47,7 @@ This project is **registered with the [Open Invention Network (OIN)](https://ope
   - [Using keyservers](#using-keyservers)
   - [Common keyservers](#common-keyservers)
   - [Best practices and caveats](#best-practices-and-caveats)
+  - [WoT registry server specification](server.md)
 - [Standards vs. firmware-specific features](#standards-vs-firmware-specific-features)
 - [Shamir secret sharing and drive encryption](#shamir-secret-sharing-and-drive-encryption)
 - [German eID and Governikus as a trust anchor for public keys](#german-eid-and-governikus-as-a-trust-anchor-for-public-keys)
@@ -137,7 +138,7 @@ One can also check integrity of crates with this when the pr is closed:
 https://github.com/rust-lang/cargo/issues/16850
 
 
-> **Status:** Ready for testing by humans — no production-ready release exists.
+> **Status:** Ready for testing by humans, on real hardware — no production-ready release exists.
 > It's written in Rust using validated and audited crypto crates. 
 > Cryptographic primitives are drawn exclusively from audited workspace
 > dependencies. Post-quantum algorithms are feature-gated and marked
@@ -152,6 +153,8 @@ https://github.com/rust-lang/cargo/issues/16850
 It is ready for testing by humans. **You** decide whether to build or run any of this software; there may be bugs that **unit tests, fuzzing, and other checks** have not found. Using an **optional virtual machine** for experimentation **reduces risk** to your host system but does not eliminate it. Detailed results are in **[Test results](#test-results)** ([`docs/TEST_RESULTS.md#run-metadata`](docs/TEST_RESULTS.md#run-metadata)). **Plain-language definitions** (A–Z) of technical terms: **[Glossary](docs/GLOSSARY.md)**.
 
 ## Is this AI slop?
+
+The primary developer has a **neurological condition related to dyscalculia**. Dyscalculia affects number sense and related symbolic processing in ways that, for them, make **traditional programming** — hand-authored code editing as the sole workflow — **not workable** without assisted tooling (for example conversational AI editors). That constraint is distinct from correctness: reviewers should still weigh tests, fuzzing, and independent audit as documented elsewhere on this page.
 
 A cryptographer or serious implementer reviewing Galdralag will typically open `crates/vault/tests/` and `crates/cipher-profile/tests/` before reading prose. The test suite is the proof of work: it encodes domain knowledge that cannot be substituted with narrative alone.
 
@@ -333,6 +336,7 @@ was only known to those who understood.
 | [docs/FINGERVEIN_DEVICE.md](docs/FINGERVEIN_DEVICE.md) | ESP32-CAM open finger vein device: hardware, protocol sketch, liveness |
 | [docs/SWEET_PLATFORM_INTEGRATION.md](docs/SWEET_PLATFORM_INTEGRATION.md) | sweet platform hand scanner: hardware, integration, liveness, dataset |
 | [docs/GALDRA-TOOL.md](docs/GALDRA-TOOL.md) | Host tools (`galdra`, `galdrad`, `galdra-gtk`): workflows, provisioning, PIN policy, operational behaviour |
+| [server.md](server.md) | **WoT registry server**: specification for a project-hosted OpenPGP public-key registry (`galdralag-keyserver`, planned); optional amateur-radio labels and postal hint fields aligned with local contact rows; Hagrid reuse, SQLite, **`galdra keyserver push`** (not implemented yet)—see also [Web of Trust and Key Signing Parties](#web-of-trust-and-key-signing-parties) |
 | [docs/GLOSSARY.md](docs/GLOSSARY.md) | **Plain-language glossary** (A–Z) for non-technical readers; technical detail remains in linked docs |
 | [CLAUDE.md](CLAUDE.md) | Instructions for **Claude** / AI coding agents; points to [`.cursor/rules/`](.cursor/rules/) for **Cursor** |
 | [docs/GALDRALAG_DEV_REFERENCE.md](docs/GALDRALAG_DEV_REFERENCE.md) | Toolchain, `xtask` commands, fuzzing and crypto test entry points |
@@ -494,6 +498,8 @@ gpg --refresh-keys
 - A signature means: you attest this **public key** belonged to that verified identity **at signing time**; others still choose trust paths themselves.
 
 For authoritative behaviour of **`gpg`**, trust models, and distribution options, see the **GnuPG** manual and upstream documentation.
+
+A separate **WoT-aligned project registry server** (`galdralag-keyserver`, not yet in this workspace Cargo tree) is specified in **[server.md](server.md)** for storing contributor public keys plus optional amateur-radio labels and postal hint columns (organisation, department, radio fields, mailing-address strings); **`galdra keyserver push`** and the **`[keyserver]`** config stanza described there remain to be wired into **`galdra`** / **`galdra-core-host`**.
 
 ---
 
@@ -735,7 +741,7 @@ cargo install --locked --path galdra-gtk
 
 You can instead copy those three binaries to any directory on your `PATH`.
 
-### Uninstall host tools
+**Contact directory (`galdra contact`, `galdrad` `/contacts`):** besides identity and OpenPGP material, contacts may hold **optional postal hints** (`street`, `country`, `postal_code`, `region` / state-county style text), amateur-radio **`dmr_id`** (integer when set), and **`radio_affiliation`**. These fields are stored only in local SQLite metadata (they are **not verified** endpoints). Commands and lengths are summarized in **[docs/GALDRA-TOOL.md](docs/GALDRA-TOOL.md)** under **Contacts**.
 
 If you used `cargo install --path` as above:
 

@@ -128,7 +128,10 @@ pub trait OpenPgpBackend: OpenPgpAudit {
     ) -> Result<Vec<u8, 32>, OpenPgpBackendError>;
 
     /// INTERNAL AUTHENTICATE.
-    fn internal_authenticate(&mut self, challenge: &[u8]) -> Result<Vec<u8, 512>, OpenPgpBackendError>;
+    fn internal_authenticate(
+        &mut self,
+        challenge: &[u8],
+    ) -> Result<Vec<u8, 512>, OpenPgpBackendError>;
 
     /// GENERATE ASYMMETRIC KEY PAIR (P1=0x80) or read public (P1=0x81).
     fn generate_or_read_key(

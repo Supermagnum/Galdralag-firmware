@@ -18,6 +18,12 @@ fn active_members_excludes_expired() {
             department: None,
             role: None,
             note: None,
+            dmr_id: None,
+            radio_affiliation: None,
+            street: None,
+            country: None,
+            postal_code: None,
+            region: None,
         },
     )
     .expect("a");

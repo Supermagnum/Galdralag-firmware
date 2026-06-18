@@ -87,17 +87,19 @@ pub fn group_get(db: &Db, name: &str) -> Result<GroupWithMembers, GaldraError> {
             FROM group_metadata WHERE group_name = ?1",
         )
         .map_err(GaldraError::Database)?;
-    let (description, hidden, created_at_s, created_by): (Option<String>, i64, String, Option<String>) =
-        stmt
-            .query_row([name], |row| {
-                Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?))
-            })
-            .map_err(|e| match e {
-                rusqlite::Error::QueryReturnedNoRows => {
-                    GaldraError::GroupNotFound(name.to_string())
-                }
-                e => GaldraError::Database(e),
-            })?;
+    let (description, hidden, created_at_s, created_by): (
+        Option<String>,
+        i64,
+        String,
+        Option<String>,
+    ) = stmt
+        .query_row([name], |row| {
+            Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?))
+        })
+        .map_err(|e| match e {
+            rusqlite::Error::QueryReturnedNoRows => GaldraError::GroupNotFound(name.to_string()),
+            e => GaldraError::Database(e),
+        })?;
 
     let created_at = parse_dt_required(&created_at_s)?;
 
@@ -106,8 +108,9 @@ pub fn group_get(db: &Db, name: &str) -> Result<GroupWithMembers, GaldraError> {
         .prepare(
             r"SELECT g.added_at, g.added_by, g.expires_at,
                 i.id, i.display_name, i.callsign, i.email, i.badge_number, i.organisation,
-                i.department, i.role, i.note, i.pgp_fingerprint, i.pgp_pubkey, i.fetched_at,
-                i.expires_at, i.source
+                i.department, i.role, i.note, i.dmr_id, i.radio_affiliation, i.street,
+                i.country, i.postal_code, i.region, i.pgp_fingerprint, i.pgp_pubkey,
+                i.fetched_at, i.expires_at, i.source
             FROM groups g
             JOIN identities i ON i.id = g.identity_id
             WHERE g.group_name = ?1",
@@ -239,10 +242,7 @@ pub fn group_remove_member(db: &mut Db, group: &str, identity_id: &str) -> Resul
 pub fn group_delete(db: &mut Db, name: &str) -> Result<(), GaldraError> {
     let n = db
         .connection_mut()
-        .execute(
-            "DELETE FROM group_metadata WHERE group_name = ?1",
-            [name],
-        )
+        .execute("DELETE FROM group_metadata WHERE group_name = ?1", [name])
         .map_err(GaldraError::Database)?;
     if n == 0 {
         return Err(GaldraError::GroupNotFound(name.to_string()));
@@ -304,11 +304,7 @@ pub fn group_edit(
                 description = COALESCE(?2, description),
                 hidden_recipients = COALESCE(?3, hidden_recipients)
             WHERE group_name = ?1",
-            params![
-                name,
-                description,
-                hidden_recipients.map(|b| b as i64),
-            ],
+            params![name, description, hidden_recipients.map(|b| b as i64),],
         )
         .map_err(GaldraError::Database)?;
     Ok(())

@@ -64,8 +64,8 @@ pub fn print_expiry_warnings(db: &Db, config: &Config, quiet: bool) -> Result<()
     if quiet {
         return Ok(());
     }
-    let warn_before = chrono::Utc::now()
-        + chrono::Duration::days(i64::from(config.key_expiry_warn_days));
+    let warn_before =
+        chrono::Utc::now() + chrono::Duration::days(i64::from(config.key_expiry_warn_days));
     let list = contacts::contact_list(
         db,
         ContactFilter {
@@ -85,15 +85,16 @@ pub fn print_expiry_warnings(db: &Db, config: &Config, quiet: bool) -> Result<()
     if near.is_empty() {
         return Ok(());
     }
-    eprintln!("Warning: the following contacts have keys expiring within {} days:", config.key_expiry_warn_days);
+    eprintln!(
+        "Warning: the following contacts have keys expiring within {} days:",
+        config.key_expiry_warn_days
+    );
     for c in near {
         eprintln!(
             "  {} ({}) expires {}",
             c.display_name,
             c.id,
-            c.expires_at
-                .map(|t| t.to_rfc3339())
-                .unwrap_or_default()
+            c.expires_at.map(|t| t.to_rfc3339()).unwrap_or_default()
         );
     }
     Ok(())
@@ -120,7 +121,8 @@ pub fn exit_code(err: &GaldraError) -> i32 {
 
 /// Serialise a value as JSON for `--output json` mode.
 pub fn print_json<T: serde::Serialize>(value: &T) -> Result<(), GaldraError> {
-    let s = serde_json::to_string_pretty(value).map_err(|e| GaldraError::Serialise(e.to_string()))?;
+    let s =
+        serde_json::to_string_pretty(value).map_err(|e| GaldraError::Serialise(e.to_string()))?;
     println!("{}", s);
     Ok(())
 }

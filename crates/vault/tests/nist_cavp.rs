@@ -6,7 +6,10 @@ use sha2::{Digest, Sha256};
 use sha3::Sha3_256;
 
 fn rf(path: &str) -> String {
-    let p = format!("{}/tests/nist_cavp_vectors/{path}", env!("CARGO_MANIFEST_DIR"));
+    let p = format!(
+        "{}/tests/nist_cavp_vectors/{path}",
+        env!("CARGO_MANIFEST_DIR")
+    );
     std::fs::read_to_string(&p).unwrap_or_else(|e| panic!("read {p}: {e}"))
 }
 

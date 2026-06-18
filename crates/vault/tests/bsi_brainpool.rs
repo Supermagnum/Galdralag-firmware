@@ -1,7 +1,6 @@
 //! BSI TR-03111 JSON vectors (ECDH cross-check; ECDSA project-owned KAT rows).
 
 use galdr_core::fake_hal::FakeTrng;
-use serde_json::Value;
 use galdr_vault::brainpool::{BrainpoolPublicKey, BrainpoolScalar};
 use galdr_vault::brainpool384::{
     BrainpoolP384PublicKey, BrainpoolP384Scalar, BrainpoolP384Signature, BrainpoolP384SigningKey,
@@ -11,7 +10,10 @@ use galdr_vault::brainpool512::{
     BrainpoolP512PublicKey, BrainpoolP512Scalar, BrainpoolP512Signature, BrainpoolP512SigningKey,
     BrainpoolP512VerifyingKey,
 };
-use galdr_vault::ecdsa_brainpool::{BrainpoolSignature, BrainpoolSigningKey, BrainpoolVerifyingKey};
+use galdr_vault::ecdsa_brainpool::{
+    BrainpoolSignature, BrainpoolSigningKey, BrainpoolVerifyingKey,
+};
+use serde_json::Value;
 
 fn ecdh_rows(v: &Value) -> &[Value] {
     v.get("vectors")
@@ -72,7 +74,10 @@ fn bsi_tr03111_brainpool256r1_ecdh() {
         );
         let qalice = hex_decode("Q_alice", row["Q_alice"].as_str().expect("Q_alice"));
         let derived_pk = sk.public_key().expect("pk");
-        assert_eq!(derived_pk.to_sec1_uncompressed().as_slice(), qalice.as_slice());
+        assert_eq!(
+            derived_pk.to_sec1_uncompressed().as_slice(),
+            qalice.as_slice()
+        );
     }
 }
 
@@ -140,16 +145,20 @@ fn bsi_tr03111_brainpool256r1_ecdsa() {
         let sk = BrainpoolSigningKey::from_scalar_bytes_for_test(&d32).expect("signing key");
         let msg = hex_decode("msg_hex", row["msg_hex"].as_str().expect("msg_hex"));
         let got = sk.sign(&msg, &mut trng).expect("sign");
-        let exp = hex_decode("sig_der_hex", row["sig_der_hex"].as_str().expect("sig_der_hex"));
+        let exp = hex_decode(
+            "sig_der_hex",
+            row["sig_der_hex"].as_str().expect("sig_der_hex"),
+        );
         assert_eq!(got.der_bytes(), exp.as_slice(), "ecdsa_sign row {i}");
     }
     for (i, row) in ecdsa_verify_rows(&f).iter().enumerate() {
         let q = hex_decode("Q_hex", row["Q_hex"].as_str().expect("Q_hex"));
         let vk = BrainpoolVerifyingKey::from_sec1(&q).expect("verifying key");
         let msg = hex_decode("msg_hex", row["msg_hex"].as_str().expect("msg_hex"));
-        let sig = BrainpoolSignature::from_der_bytes(
-            &hex_decode("sig_der_hex", row["sig_der_hex"].as_str().expect("sig_der_hex")),
-        )
+        let sig = BrainpoolSignature::from_der_bytes(&hex_decode(
+            "sig_der_hex",
+            row["sig_der_hex"].as_str().expect("sig_der_hex"),
+        ))
         .expect("DER signature");
         let expect = row["expect"].as_str().expect("expect");
         let r = vk.verify(&msg, &sig);
@@ -177,16 +186,20 @@ fn bsi_tr03111_brainpool384r1_ecdsa() {
         let sk = BrainpoolP384SigningKey::from_scalar_bytes_for_test(&d48).expect("signing key");
         let msg = hex_decode("msg_hex", row["msg_hex"].as_str().expect("msg_hex"));
         let got = sk.sign(&msg, &mut trng).expect("sign");
-        let exp = hex_decode("sig_der_hex", row["sig_der_hex"].as_str().expect("sig_der_hex"));
+        let exp = hex_decode(
+            "sig_der_hex",
+            row["sig_der_hex"].as_str().expect("sig_der_hex"),
+        );
         assert_eq!(got.der_bytes(), exp.as_slice(), "ecdsa_sign row {i}");
     }
     for (i, row) in ecdsa_verify_rows(&f).iter().enumerate() {
         let q = hex_decode("Q_hex", row["Q_hex"].as_str().expect("Q_hex"));
         let vk = BrainpoolP384VerifyingKey::from_sec1(&q).expect("verifying key");
         let msg = hex_decode("msg_hex", row["msg_hex"].as_str().expect("msg_hex"));
-        let sig = BrainpoolP384Signature::from_der_bytes(
-            &hex_decode("sig_der_hex", row["sig_der_hex"].as_str().expect("sig_der_hex")),
-        )
+        let sig = BrainpoolP384Signature::from_der_bytes(&hex_decode(
+            "sig_der_hex",
+            row["sig_der_hex"].as_str().expect("sig_der_hex"),
+        ))
         .expect("DER signature");
         let expect = row["expect"].as_str().expect("expect");
         let r = vk.verify(&msg, &sig);
@@ -214,16 +227,20 @@ fn bsi_tr03111_brainpool512r1_ecdsa() {
         let sk = BrainpoolP512SigningKey::from_scalar_bytes_for_test(&d64).expect("signing key");
         let msg = hex_decode("msg_hex", row["msg_hex"].as_str().expect("msg_hex"));
         let got = sk.sign(&msg, &mut trng).expect("sign");
-        let exp = hex_decode("sig_der_hex", row["sig_der_hex"].as_str().expect("sig_der_hex"));
+        let exp = hex_decode(
+            "sig_der_hex",
+            row["sig_der_hex"].as_str().expect("sig_der_hex"),
+        );
         assert_eq!(got.der_bytes(), exp.as_slice(), "ecdsa_sign row {i}");
     }
     for (i, row) in ecdsa_verify_rows(&f).iter().enumerate() {
         let q = hex_decode("Q_hex", row["Q_hex"].as_str().expect("Q_hex"));
         let vk = BrainpoolP512VerifyingKey::from_sec1(&q).expect("verifying key");
         let msg = hex_decode("msg_hex", row["msg_hex"].as_str().expect("msg_hex"));
-        let sig = BrainpoolP512Signature::from_der_bytes(
-            &hex_decode("sig_der_hex", row["sig_der_hex"].as_str().expect("sig_der_hex")),
-        )
+        let sig = BrainpoolP512Signature::from_der_bytes(&hex_decode(
+            "sig_der_hex",
+            row["sig_der_hex"].as_str().expect("sig_der_hex"),
+        ))
         .expect("DER signature");
         let expect = row["expect"].as_str().expect("expect");
         let r = vk.verify(&msg, &sig);
@@ -240,9 +257,15 @@ fn bsi_tr03111_brainpool512r1_ecdsa() {
 #[test]
 #[ignore]
 fn bsi_ecdsa_sig_hex_dump() {
-    let msg = hex_decode("msg", "67616c6472616c61672d747230333131312d65636473612d6b61742d7631");
+    let msg = hex_decode(
+        "msg",
+        "67616c6472616c61672d747230333131312d65636473612d6b61742d7631",
+    );
     let mut t256 = FakeTrng::from_seed(0xEC05_A256);
-    let d256 = hex_decode("d256", "62e7bbfc99af20b70131d4762de9a94870b82744accd1b7ed3f30548e4e15ad3");
+    let d256 = hex_decode(
+        "d256",
+        "62e7bbfc99af20b70131d4762de9a94870b82744accd1b7ed3f30548e4e15ad3",
+    );
     let mut a32 = [0u8; 32];
     a32.copy_from_slice(&d256);
     let s256 = BrainpoolSigningKey::from_scalar_bytes_for_test(&a32)

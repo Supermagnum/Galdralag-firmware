@@ -26,12 +26,12 @@ use galdr_core::hal::HardwareTrng;
 use hkdf::Hkdf;
 use hmac::digest::KeyInit as HmacKeyInit;
 use hmac::{Hmac, Mac};
-use subtle::ConstantTimeEq;
 use serpent::cipher::array::Array;
 use serpent::cipher::consts::U16;
 use serpent::cipher::{BlockCipherEncrypt, KeyInit as CipherKeyInit};
 use serpent::Serpent;
 use sha2::Sha256;
+use subtle::ConstantTimeEq;
 use zeroize::{Zeroize, ZeroizeOnDrop};
 
 /// HMAC-SHA256 tag length (EtM).
@@ -363,7 +363,10 @@ pub fn serpent_ctr_unauthenticated(
 
 /// Single-block ECB encrypt for KAT tests (not exposed for production protocols).
 #[cfg(test)]
-pub(crate) fn serpent_ecb_encrypt_block(key: &[u8], plaintext: &[u8; 16]) -> Result<[u8; 16], SerpentError> {
+pub(crate) fn serpent_ecb_encrypt_block(
+    key: &[u8],
+    plaintext: &[u8; 16],
+) -> Result<[u8; 16], SerpentError> {
     let serpent = Serpent::new_from_slice(key).map_err(|_| SerpentError::CipherError)?;
     let block_in: Array<u8, U16> = (*plaintext).into();
     let mut block_out = Array::<u8, U16>::default();
@@ -383,16 +386,23 @@ mod tests {
     #[test]
     fn serpent_vectors_json_kat() -> Result<(), SerpentError> {
         let data = include_str!("../tests/serpent_vectors.json");
-        let parsed: Value =
-            serde_json::from_str(data).map_err(|_| SerpentError::CipherError)?;
+        let parsed: Value = serde_json::from_str(data).map_err(|_| SerpentError::CipherError)?;
         let arr = parsed.as_array().ok_or(SerpentError::CipherError)?;
         for entry in arr {
             let key = hex::decode(entry["key"].as_str().ok_or(SerpentError::CipherError)?)
                 .map_err(|_| SerpentError::CipherError)?;
-            let pt = hex::decode(entry["plaintext"].as_str().ok_or(SerpentError::CipherError)?)
-                .map_err(|_| SerpentError::CipherError)?;
-            let exp = hex::decode(entry["ciphertext"].as_str().ok_or(SerpentError::CipherError)?)
-                .map_err(|_| SerpentError::CipherError)?;
+            let pt = hex::decode(
+                entry["plaintext"]
+                    .as_str()
+                    .ok_or(SerpentError::CipherError)?,
+            )
+            .map_err(|_| SerpentError::CipherError)?;
+            let exp = hex::decode(
+                entry["ciphertext"]
+                    .as_str()
+                    .ok_or(SerpentError::CipherError)?,
+            )
+            .map_err(|_| SerpentError::CipherError)?;
             if pt.len() != 16 || exp.len() != 16 {
                 return Err(SerpentError::CipherError);
             }

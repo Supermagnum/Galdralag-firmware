@@ -250,7 +250,10 @@ mod tests {
     fn parse_truncated_apdu() {
         // Lc claims 5 data bytes but only one byte of payload follows the header.
         let raw = [0x00u8, 0xA4, 0x04, 0x00, 0x05, 0x01];
-        assert_eq!(CommandApdu::parse(&raw), Err(ApduError::InconsistentLengths));
+        assert_eq!(
+            CommandApdu::parse(&raw),
+            Err(ApduError::InconsistentLengths)
+        );
     }
 
     #[test]

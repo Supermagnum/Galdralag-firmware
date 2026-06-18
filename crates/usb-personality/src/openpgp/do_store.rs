@@ -73,7 +73,9 @@ impl<S: VaultStorage> DoStore<S> {
         }
         let mut slot = [0u8; SLOT_BYTES];
         let off = self.base + HEADER_LEN as u64 + (index * SLOT_BYTES) as u64;
-        self.storage.read(off, &mut slot).map_err(DoStoreError::from)?;
+        self.storage
+            .read(off, &mut slot)
+            .map_err(DoStoreError::from)?;
         Ok(slot)
     }
 

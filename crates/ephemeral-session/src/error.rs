@@ -58,7 +58,9 @@ impl From<galdr_vault::brainpool::BrainpoolError> for EphemeralSessionError {
     }
 }
 
-impl From<galdr_vault::session_long_term_signing::SessionLongTermSigningVaultError> for EphemeralSessionError {
+impl From<galdr_vault::session_long_term_signing::SessionLongTermSigningVaultError>
+    for EphemeralSessionError
+{
     fn from(e: galdr_vault::session_long_term_signing::SessionLongTermSigningVaultError) -> Self {
         match e {
             galdr_vault::session_long_term_signing::SessionLongTermSigningVaultError::StorageError => {

@@ -63,10 +63,7 @@ pub fn run(workspace_root: &Path, args: impl Iterator<Item = String>) -> i32 {
         match load_passing_harnesses(&cache_path) {
             Ok(s) => s,
             Err(e) => {
-                eprintln!(
-                    "timing-test: failed to read {}: {e}",
-                    cache_path.display()
-                );
+                eprintln!("timing-test: failed to read {}: {e}", cache_path.display());
                 return 1;
             }
         }

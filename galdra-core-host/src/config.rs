@@ -115,14 +115,14 @@ pub fn default_database_path() -> Result<PathBuf, GaldraError> {
         })?;
         Ok(PathBuf::from(appdata).join("galdra").join("galdra.db"))
     }
-    #[cfg(not(any(
-        target_os = "linux",
-        target_os = "macos",
-        target_os = "windows"
-    )))]
+    #[cfg(not(any(target_os = "linux", target_os = "macos", target_os = "windows")))]
     {
         let home = home_dir()?;
-        Ok(home.join(".local").join("share").join("galdra").join("galdra.db"))
+        Ok(home
+            .join(".local")
+            .join("share")
+            .join("galdra")
+            .join("galdra.db"))
     }
 }
 
@@ -149,11 +149,7 @@ pub fn default_config_path() -> Result<PathBuf, GaldraError> {
         })?;
         Ok(PathBuf::from(appdata).join("galdra").join("config.toml"))
     }
-    #[cfg(not(any(
-        target_os = "linux",
-        target_os = "macos",
-        target_os = "windows"
-    )))]
+    #[cfg(not(any(target_os = "linux", target_os = "macos", target_os = "windows")))]
     {
         let home = home_dir()?;
         Ok(home.join(".config").join("galdra").join("config.toml"))

@@ -64,7 +64,9 @@ impl<const N: usize> InMemoryTrustStore<N> {
 
     /// Insert a certificate. Fails if the store is full.
     pub fn add(&mut self, cert: LongTermCert) -> Result<(), EphemeralSessionError> {
-        self.entries.push(cert).map_err(|_| EphemeralSessionError::TrustStoreFull)
+        self.entries
+            .push(cert)
+            .map_err(|_| EphemeralSessionError::TrustStoreFull)
     }
 
     /// Remove an entry by fingerprint. Returns `true` if an entry was removed.
@@ -113,8 +115,8 @@ impl<const N: usize> TrustStore for InMemoryTrustStore<N> {
 mod tests {
     use super::*;
     use crate::curve_select::SessionCurve;
-    use galdr_vault::ecdsa_brainpool::BrainpoolSigningKey;
     use galdr_core::fake_hal::FakeTrng;
+    use galdr_vault::ecdsa_brainpool::BrainpoolSigningKey;
 
     fn sample_cert() -> LongTermCert {
         let mut trng = FakeTrng::from_seed(0x71);

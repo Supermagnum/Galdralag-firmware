@@ -1,9 +1,7 @@
 //! `galdra epk` subcommands — ephemeral key offer lifecycle management.
 
 use crate::common::{print_json, OutputMode};
-use galdra_core_host::ephemeral_offers::{
-    self, GenerateParams, ImportParams, OfferRow,
-};
+use galdra_core_host::ephemeral_offers::{self, GenerateParams, ImportParams, OfferRow};
 use galdra_core_host::GaldraError;
 use std::path::PathBuf;
 
@@ -20,7 +18,16 @@ pub fn run_epk(
             expires,
             output,
             operator,
-        } => run_generate(db, output_mode, quiet, gpg_key_id, recipient, expires, output, operator),
+        } => run_generate(
+            db,
+            output_mode,
+            quiet,
+            gpg_key_id,
+            recipient,
+            expires,
+            output,
+            operator,
+        ),
 
         crate::EpkCmd::Import {
             input,
@@ -124,7 +131,11 @@ fn run_status(
             "session_id", "long_term_fp", "expires_at", "consumed", "revoked", "mine"
         );
         for r in &rows {
-            let mine = if r.my_private_key_bytes.is_some() { "yes" } else { "no" };
+            let mine = if r.my_private_key_bytes.is_some() {
+                "yes"
+            } else {
+                "no"
+            };
             let consumed = if r.consumed { "yes" } else { "no" };
             let revoked = if r.revoked { "yes" } else { "no" };
             let fp_short = if r.long_term_fingerprint.len() > 16 {
@@ -134,12 +145,7 @@ fn run_status(
             };
             println!(
                 "{:<34} ...{:<15} {:<10} {:<8} {:<8} {:<5}",
-                r.session_id,
-                fp_short,
-                r.expires_at,
-                consumed,
-                revoked,
-                mine,
+                r.session_id, fp_short, r.expires_at, consumed, revoked, mine,
             );
         }
     }
@@ -163,8 +169,8 @@ fn run_expire(
     ephemeral_offers::revoke_offer(db, &session_id)?;
 
     // Audit the revocation as a reject with reason "manual_revoke".
-    use galdra_core_host::audit::{audit_append, AuditAction, AuditEntry};
     use chrono::Utc;
+    use galdra_core_host::audit::{audit_append, AuditAction, AuditEntry};
     audit_append(
         db,
         AuditEntry {

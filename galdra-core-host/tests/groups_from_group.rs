@@ -16,6 +16,12 @@ fn add_from_group_copies_members() {
             department: None,
             role: None,
             note: None,
+            dmr_id: None,
+            radio_affiliation: None,
+            street: None,
+            country: None,
+            postal_code: None,
+            region: None,
         },
     )
     .expect("a");
@@ -30,6 +36,12 @@ fn add_from_group_copies_members() {
             department: None,
             role: None,
             note: None,
+            dmr_id: None,
+            radio_affiliation: None,
+            street: None,
+            country: None,
+            postal_code: None,
+            region: None,
         },
     )
     .expect("b");

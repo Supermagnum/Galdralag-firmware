@@ -70,7 +70,8 @@ impl InitMessage {
     /// Serialise to a flat byte array.
     pub fn serialise(&self) -> Result<Vec<u8, MAX_HANDSHAKE_BYTES>, EphemeralSessionError> {
         let mut out = Vec::new();
-        out.push(self.version).map_err(|_| EphemeralSessionError::MalformedHandshake)?;
+        out.push(self.version)
+            .map_err(|_| EphemeralSessionError::MalformedHandshake)?;
         out.push(self.curve.wire_id())
             .map_err(|_| EphemeralSessionError::MalformedHandshake)?;
         let epk = self.ephemeral_public_key.as_slice();
@@ -78,7 +79,8 @@ impl InitMessage {
         if n > u8::MAX as usize {
             return Err(EphemeralSessionError::MalformedHandshake);
         }
-        out.push(n as u8).map_err(|_| EphemeralSessionError::MalformedHandshake)?;
+        out.push(n as u8)
+            .map_err(|_| EphemeralSessionError::MalformedHandshake)?;
         out.extend_from_slice(epk)
             .map_err(|_| EphemeralSessionError::MalformedHandshake)?;
         let fp = self.long_term_fingerprint.as_slice();
@@ -112,7 +114,8 @@ impl InitMessage {
         if version != INIT_PROTOCOL_VERSION {
             return Err(EphemeralSessionError::MalformedHandshake);
         }
-        let curve = SessionCurve::from_wire(bytes[1]).ok_or(EphemeralSessionError::MalformedHandshake)?;
+        let curve =
+            SessionCurve::from_wire(bytes[1]).ok_or(EphemeralSessionError::MalformedHandshake)?;
         let n = bytes[2] as usize;
         let expected = curve.public_key_len();
         if n != expected {
@@ -169,7 +172,8 @@ impl ResponseMessage {
     /// Serialise to a flat byte array.
     pub fn serialise(&self) -> Result<Vec<u8, MAX_HANDSHAKE_BYTES>, EphemeralSessionError> {
         let mut out = Vec::new();
-        out.push(self.version).map_err(|_| EphemeralSessionError::MalformedHandshake)?;
+        out.push(self.version)
+            .map_err(|_| EphemeralSessionError::MalformedHandshake)?;
         out.push(self.curve.wire_id())
             .map_err(|_| EphemeralSessionError::MalformedHandshake)?;
         let epk = self.ephemeral_public_key.as_slice();
@@ -177,7 +181,8 @@ impl ResponseMessage {
         if n > u8::MAX as usize {
             return Err(EphemeralSessionError::MalformedHandshake);
         }
-        out.push(n as u8).map_err(|_| EphemeralSessionError::MalformedHandshake)?;
+        out.push(n as u8)
+            .map_err(|_| EphemeralSessionError::MalformedHandshake)?;
         out.extend_from_slice(epk)
             .map_err(|_| EphemeralSessionError::MalformedHandshake)?;
         let fp = self.long_term_fingerprint.as_slice();
@@ -193,7 +198,8 @@ impl ResponseMessage {
         if in_ > u8::MAX as usize {
             return Err(EphemeralSessionError::MalformedHandshake);
         }
-        out.push(in_ as u8).map_err(|_| EphemeralSessionError::MalformedHandshake)?;
+        out.push(in_ as u8)
+            .map_err(|_| EphemeralSessionError::MalformedHandshake)?;
         out.extend_from_slice(iepk)
             .map_err(|_| EphemeralSessionError::MalformedHandshake)?;
         let sig = self.signature.as_slice();
@@ -219,7 +225,8 @@ impl ResponseMessage {
         if version != RESP_PROTOCOL_VERSION {
             return Err(EphemeralSessionError::MalformedHandshake);
         }
-        let curve = SessionCurve::from_wire(bytes[1]).ok_or(EphemeralSessionError::MalformedHandshake)?;
+        let curve =
+            SessionCurve::from_wire(bytes[1]).ok_or(EphemeralSessionError::MalformedHandshake)?;
         let n = bytes[2] as usize;
         let expected = curve.public_key_len();
         if n != expected {
@@ -303,7 +310,9 @@ mod tests {
         let mut long_term_fingerprint = Vec::new();
         long_term_fingerprint.resize_default(64).expect("64");
         let mut initiator_ephemeral_public_key = Vec::new();
-        initiator_ephemeral_public_key.resize_default(65).expect("65");
+        initiator_ephemeral_public_key
+            .resize_default(65)
+            .expect("65");
         let mut signature = Vec::new();
         signature.resize_default(10).expect("sig");
         ResponseMessage {
@@ -337,7 +346,10 @@ mod tests {
         assert_eq!(p.curve, m.curve);
         assert_eq!(p.ephemeral_public_key, m.ephemeral_public_key);
         assert_eq!(p.long_term_fingerprint, m.long_term_fingerprint);
-        assert_eq!(p.initiator_ephemeral_public_key, m.initiator_ephemeral_public_key);
+        assert_eq!(
+            p.initiator_ephemeral_public_key,
+            m.initiator_ephemeral_public_key
+        );
         assert_eq!(p.signature, m.signature);
     }
 

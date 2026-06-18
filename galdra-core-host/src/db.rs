@@ -12,6 +12,14 @@ const MIGRATIONS: &[(u32, &str)] = &[
     (2, include_str!("../migrations/002_audit_prev_hash.sql")),
     (3, include_str!("../migrations/003_user_profiles.sql")),
     (4, include_str!("../migrations/004_ephemeral_offers.sql")),
+    (
+        5,
+        include_str!("../migrations/005_identity_radio_fields.sql"),
+    ),
+    (
+        6,
+        include_str!("../migrations/006_identity_address_fields.sql"),
+    ),
 ];
 
 /// OpenPGP contacts, groups, audit, and config store.
@@ -31,8 +39,7 @@ impl Db {
         }
         let conn = Connection::open(path).map_err(GaldraError::Database)?;
         if let Some(k) = sqlcipher_key {
-            conn
-                .pragma_update(None, "key", k)
+            conn.pragma_update(None, "key", k)
                 .map_err(GaldraError::Database)?;
         }
         let mut db = Db { conn };

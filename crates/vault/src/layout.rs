@@ -9,8 +9,7 @@ pub const PUBLIC_KEY_TABLE_BYTES: usize = 64 * 1024;
 pub const SEALED_BLOB_BYTES: usize = 93;
 
 /// Sealed OpenPGP SIG slot (AEAD blob).
-pub const SEALED_SIG_OFFSET: usize =
-    PUBLIC_KEY_REGION_BASE as usize + PUBLIC_KEY_TABLE_BYTES;
+pub const SEALED_SIG_OFFSET: usize = PUBLIC_KEY_REGION_BASE as usize + PUBLIC_KEY_TABLE_BYTES;
 /// Sealed OpenPGP DEC slot.
 pub const SEALED_DEC_OFFSET: usize = SEALED_SIG_OFFSET + SEALED_BLOB_BYTES;
 /// Sealed OpenPGP AUT slot.

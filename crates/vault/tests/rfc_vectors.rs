@@ -1,11 +1,11 @@
 //! RFC JSON vectors under `tests/rfc_vectors/` (loaded at test time).
 
-use galdr_vault::brainpool::BrainpoolPublicKey;
 use chacha20poly1305::aead::{Aead, KeyInit, Payload};
 use chacha20poly1305::{ChaCha20Poly1305, Key, Nonce};
 use ed25519_dalek::{Signer, Verifier, VerifyingKey};
-use hmac::{Hmac, Mac};
+use galdr_vault::brainpool::BrainpoolPublicKey;
 use hkdf::Hkdf;
+use hmac::{Hmac, Mac};
 use pbkdf2::pbkdf2_hmac;
 use serde_json::Value;
 use sha1::Sha1;
@@ -118,7 +118,13 @@ fn rfc8439_chacha20_poly1305_aead() {
         ct.extend_from_slice(&tag);
         let cipher = ChaCha20Poly1305::new(key);
         let pt = cipher
-            .decrypt(nonce, Payload { msg: &ct, aad: &aad })
+            .decrypt(
+                nonce,
+                Payload {
+                    msg: &ct,
+                    aad: &aad,
+                },
+            )
             .expect("decrypt");
         let expected_pt = hex::decode(vec["plaintext_hex"].as_str().expect("pt")).expect("hex");
         assert_eq!(pt.as_slice(), expected_pt.as_slice());

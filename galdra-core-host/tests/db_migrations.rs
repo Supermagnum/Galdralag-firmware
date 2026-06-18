@@ -5,9 +5,7 @@ fn migrations_create_expected_tables() {
     let db = Db::open_in_memory().expect("db");
     let mut stmt = db
         .connection()
-        .prepare(
-            "SELECT name FROM sqlite_master WHERE type='table' ORDER BY name",
-        )
+        .prepare("SELECT name FROM sqlite_master WHERE type='table' ORDER BY name")
         .expect("prepare");
     let names: Vec<String> = stmt
         .query_map([], |row| row.get(0))
@@ -30,7 +28,12 @@ fn migrations_create_expected_tables() {
         .expect("q")
         .filter_map(|r| r.ok())
         .collect();
-    assert!(cols.contains(&"pgp_pubkey".to_string()));
+    assert!(cols.contains(&"dmr_id".to_string()));
+    assert!(cols.contains(&"radio_affiliation".to_string()));
+    assert!(cols.contains(&"street".to_string()));
+    assert!(cols.contains(&"country".to_string()));
+    assert!(cols.contains(&"postal_code".to_string()));
+    assert!(cols.contains(&"region".to_string()));
     assert!(cols.contains(&"source".to_string()));
 
     let mut stmt = db
@@ -50,7 +53,9 @@ fn schema_migrations_records_versions() {
     let db = Db::open_in_memory().expect("db");
     let v: i64 = db
         .connection()
-        .query_row("SELECT MAX(version) FROM schema_migrations", [], |r| r.get(0))
+        .query_row("SELECT MAX(version) FROM schema_migrations", [], |r| {
+            r.get(0)
+        })
         .expect("v");
-    assert!(v >= 2);
+    assert!(v >= 6);
 }

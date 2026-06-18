@@ -189,7 +189,14 @@ struct ChainPayload {
     device_serial: Option<String>,
 }
 
-type LastAuditFields = (String, Option<String>, String, Option<String>, Option<String>, Option<String>);
+type LastAuditFields = (
+    String,
+    Option<String>,
+    String,
+    Option<String>,
+    Option<String>,
+    Option<String>,
+);
 
 fn genesis_prev_hash() -> String {
     "0000000000000000000000000000000000000000000000000000000000000000".to_string()
@@ -249,8 +256,7 @@ pub fn audit_append(db: &mut Db, entry: AuditEntry) -> Result<(), GaldraError> {
     Ok(())
 }
 
-fn last_audit_row(db: &Db) -> Result<Option<LastAuditFields>, GaldraError>
-{
+fn last_audit_row(db: &Db) -> Result<Option<LastAuditFields>, GaldraError> {
     let mut stmt = db
         .connection()
         .prepare(
@@ -291,7 +297,10 @@ pub fn audit_query(db: &Db, filter: AuditFilter) -> Result<Vec<AuditRecord>, Gal
         sql.push_str(" LIMIT ?");
     }
 
-    let mut stmt = db.connection().prepare(&sql).map_err(GaldraError::Database)?;
+    let mut stmt = db
+        .connection()
+        .prepare(&sql)
+        .map_err(GaldraError::Database)?;
     let mut bind: Vec<String> = Vec::new();
     if let Some(s) = filter.since {
         bind.push(s.to_rfc3339());
@@ -398,8 +407,11 @@ pub fn audit_export_csv(
     writer: &mut impl std::io::Write,
 ) -> Result<(), GaldraError> {
     let rows = audit_query(db, filter)?;
-    writeln!(writer, "id,prev_hash,timestamp,operator,action,subject,detail,device_serial")
-        .map_err(GaldraError::Io)?;
+    writeln!(
+        writer,
+        "id,prev_hash,timestamp,operator,action,subject,detail,device_serial"
+    )
+    .map_err(GaldraError::Io)?;
     for r in rows {
         writeln!(
             writer,
@@ -438,7 +450,8 @@ pub fn audit_export_json(
     writer: &mut impl std::io::Write,
 ) -> Result<(), GaldraError> {
     let rows = audit_query(db, filter)?;
-    let json = serde_json::to_string_pretty(&rows).map_err(|e| GaldraError::Serialise(e.to_string()))?;
+    let json =
+        serde_json::to_string_pretty(&rows).map_err(|e| GaldraError::Serialise(e.to_string()))?;
     writer.write_all(json.as_bytes()).map_err(GaldraError::Io)?;
     Ok(())
 }

@@ -3,6 +3,7 @@
 //! Sync packages are SQLite databases containing the same `identities`, `groups`, and
 //! `group_metadata` schema as the main application database, without `audit_log` or `config`.
 
+use std::collections::HashSet;
 use std::path::Path;
 
 use rusqlite::Connection;
@@ -55,6 +56,44 @@ fn copy_table(src: &Connection, dst: &Connection, table: &str) -> Result<(), Gal
     Ok(())
 }
 
+fn pragma_identity_columns(conn: &Connection, pragma: &str) -> Result<Vec<String>, GaldraError> {
+    let mut stmt = conn.prepare(pragma).map_err(GaldraError::Database)?;
+    let rows = stmt
+        .query_map([], |row| row.get::<_, String>(1))
+        .map_err(GaldraError::Database)?;
+    let mut out = Vec::new();
+    for r in rows {
+        out.push(r.map_err(GaldraError::Database)?);
+    }
+    Ok(out)
+}
+
+fn import_identities_sql(conn: &Connection, or_replace: bool) -> Result<String, GaldraError> {
+    let dst_cols = pragma_identity_columns(conn, "PRAGMA main.table_info(identities)")?;
+    let pkg_cols = pragma_identity_columns(conn, "PRAGMA pkg.table_info(identities)")?;
+    let pkg_has: HashSet<String> = pkg_cols.into_iter().collect();
+    let select_exprs: Vec<String> = dst_cols
+        .iter()
+        .map(|c| {
+            if pkg_has.contains(c) {
+                format!("pkg.identities.{c}")
+            } else {
+                "NULL".into()
+            }
+        })
+        .collect();
+    let cols_csv = dst_cols.join(", ");
+    let sel_csv = select_exprs.join(", ");
+    let verb = if or_replace {
+        "INSERT OR REPLACE"
+    } else {
+        "INSERT"
+    };
+    Ok(format!(
+        "{verb} INTO identities ({cols_csv}) SELECT {sel_csv} FROM pkg.identities"
+    ))
+}
+
 /// Export contacts and groups to a new SQLite file at `export_path`.
 ///
 /// Data is read from the open `db` handle (no second connection to the same file), so export
@@ -83,7 +122,11 @@ pub fn sync_export(db: &Db, export_path: &Path) -> Result<(), GaldraError> {
 }
 
 /// Import a sync package produced by [`sync_export`].
-pub fn sync_import(db: &mut Db, package_path: &Path, mode: SyncImportMode) -> Result<(), GaldraError> {
+pub fn sync_import(
+    db: &mut Db,
+    package_path: &Path,
+    mode: SyncImportMode,
+) -> Result<(), GaldraError> {
     let pkg = sqlite_path_for_attach(package_path)?;
     let conn = db.connection_mut();
     conn.execute("ATTACH DATABASE ? AS pkg", [&pkg])
@@ -99,11 +142,8 @@ pub fn sync_import(db: &mut Db, package_path: &Path, mode: SyncImportMode) -> Re
                 .map_err(GaldraError::Database)?;
             tx.execute("DELETE FROM identities", [])
                 .map_err(GaldraError::Database)?;
-            tx.execute(
-                "INSERT INTO identities SELECT * FROM pkg.identities",
-                [],
-            )
-            .map_err(GaldraError::Database)?;
+            let ins = import_identities_sql(&tx, false)?;
+            tx.execute(&ins, []).map_err(GaldraError::Database)?;
             tx.execute(
                 "INSERT INTO group_metadata SELECT * FROM pkg.group_metadata",
                 [],
@@ -115,21 +155,15 @@ pub fn sync_import(db: &mut Db, package_path: &Path, mode: SyncImportMode) -> Re
                 .map_err(GaldraError::Database)?;
         }
         SyncImportMode::Merge => {
-            tx.execute(
-                "INSERT OR REPLACE INTO identities SELECT * FROM pkg.identities",
-                [],
-            )
-            .map_err(GaldraError::Database)?;
+            let ins = import_identities_sql(&tx, true)?;
+            tx.execute(&ins, []).map_err(GaldraError::Database)?;
             tx.execute(
                 "INSERT OR REPLACE INTO group_metadata SELECT * FROM pkg.group_metadata",
                 [],
             )
             .map_err(GaldraError::Database)?;
-            tx.execute(
-                "INSERT OR REPLACE INTO groups SELECT * FROM pkg.groups",
-                [],
-            )
-            .map_err(GaldraError::Database)?;
+            tx.execute("INSERT OR REPLACE INTO groups SELECT * FROM pkg.groups", [])
+                .map_err(GaldraError::Database)?;
         }
     }
     tx.commit().map_err(GaldraError::Database)?;
@@ -160,6 +194,12 @@ mod tests {
                 department: None,
                 role: None,
                 note: None,
+                dmr_id: None,
+                radio_affiliation: None,
+                street: None,
+                country: None,
+                postal_code: None,
+                region: None,
             },
         )
         .unwrap();
@@ -194,12 +234,17 @@ mod tests {
                 department: None,
                 role: None,
                 note: None,
+                dmr_id: None,
+                radio_affiliation: None,
+                street: None,
+                country: None,
+                postal_code: None,
+                region: None,
             },
         )
         .unwrap();
         crate::groups::group_create(&mut db, "g1", None, false).unwrap();
-        crate::groups::group_add_member(&mut db, "g1", &id.id, None, None)
-            .unwrap();
+        crate::groups::group_add_member(&mut db, "g1", &id.id, None, None).unwrap();
 
         let export_path = dir.path().join("sync.db");
         sync_export(&db, &export_path).unwrap();
@@ -215,6 +260,12 @@ mod tests {
                 department: None,
                 role: None,
                 note: None,
+                dmr_id: None,
+                radio_affiliation: None,
+                street: None,
+                country: None,
+                postal_code: None,
+                region: None,
             },
         )
         .unwrap();

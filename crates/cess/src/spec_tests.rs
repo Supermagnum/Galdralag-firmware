@@ -25,8 +25,8 @@ use alloc::vec;
 use alloc::vec::Vec;
 
 use crate::{
-    assemble_mode_a_outer_plaintext, is_listed_suite_id, open_mode_a_outer, parse_mode_a_outer_plaintext,
-    seal_mode_a_outer, CessCryptoError, CessWireError,
+    assemble_mode_a_outer_plaintext, is_listed_suite_id, open_mode_a_outer,
+    parse_mode_a_outer_plaintext, seal_mode_a_outer, CessCryptoError, CessWireError,
 };
 use chacha20poly1305::aead::{Aead, KeyInit};
 use chacha20poly1305::{ChaCha20Poly1305, Key, Nonce};
@@ -155,9 +155,15 @@ fn spec_section_3_overhead_totals_match_tables() {
         ClassicalProfile::SignedNoBlake3,
         ClassicalProfile::SignedBlake3,
     ] {
-        assert_eq!(p.total_spec_overhead(), SPEC_OUTER_WRAPPER_OVERHEAD + p.inner_overhead());
+        assert_eq!(
+            p.total_spec_overhead(),
+            SPEC_OUTER_WRAPPER_OVERHEAD + p.inner_overhead()
+        );
     }
-    assert_eq!(ClassicalProfile::UnsignedNoBlake3.total_spec_overhead(), 131);
+    assert_eq!(
+        ClassicalProfile::UnsignedNoBlake3.total_spec_overhead(),
+        131
+    );
     assert_eq!(ClassicalProfile::UnsignedBlake3.total_spec_overhead(), 163);
     assert_eq!(ClassicalProfile::SignedNoBlake3.total_spec_overhead(), 195);
     assert_eq!(ClassicalProfile::SignedBlake3.total_spec_overhead(), 227);
@@ -287,7 +293,8 @@ fn seal_open_roundtrip_every_listed_suite_id() {
 
 #[test]
 fn rfc8439_chacha20_poly1305_kat_empty_aad() {
-    let key_bytes = hex::decode("808182838485868788898a8b8c8d8e8f909192939495969798999a9b9c9d9e9f").unwrap();
+    let key_bytes =
+        hex::decode("808182838485868788898a8b8c8d8e8f909192939495969798999a9b9c9d9e9f").unwrap();
     let nonce_bytes = hex::decode("070000004041424344454647").unwrap();
     let pt = hex::decode(
         "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f\

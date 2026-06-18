@@ -4,8 +4,8 @@ use crate::db::Db;
 use crate::GaldraError;
 use chrono::Utc;
 use cipher_profile::{
-    curve_audit_str, layer_audit_name, CipherProfile, CipherProfileBuilder, CipherProfileError,
-    CipherLayer, ProfileRegistry, ShamirConfig,
+    curve_audit_str, layer_audit_name, CipherLayer, CipherProfile, CipherProfileBuilder,
+    CipherProfileError, ProfileRegistry, ShamirConfig,
 };
 use ephemeral_session::SessionCurve;
 use rusqlite::params;
@@ -75,9 +75,7 @@ impl ProfileStore {
         let name = profile.name().to_string();
         let desc = profile.description().to_string();
         let blob = profile.to_bytes();
-        self.registry
-            .register(profile)
-            .map_err(map_cipher_err)?;
+        self.registry.register(profile).map_err(map_cipher_err)?;
         match insert_user_row(db, &name, &desc, &blob) {
             Ok(()) => Ok(()),
             Err(e) => {
@@ -91,10 +89,7 @@ impl ProfileStore {
     pub fn remove(&mut self, db: &mut Db, name: &str) -> Result<(), GaldraError> {
         self.registry.remove(name).map_err(map_cipher_err)?;
         db.connection_mut()
-            .execute(
-                "DELETE FROM user_profiles WHERE name = ?1",
-                params![name],
-            )
+            .execute("DELETE FROM user_profiles WHERE name = ?1", params![name])
             .map_err(GaldraError::Database)?;
         Ok(())
     }

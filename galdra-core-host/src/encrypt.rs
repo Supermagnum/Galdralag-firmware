@@ -6,12 +6,12 @@
 use std::io::Write;
 
 use sequoia_openpgp::cert::prelude::*;
-use sequoia_openpgp::parse::Parse;
 use sequoia_openpgp::crypto::SessionKey;
-use sequoia_openpgp::parse::stream::{
-    DecryptorBuilder, DecryptionHelper, MessageLayer, MessageStructure, VerificationHelper,
-};
 use sequoia_openpgp::packet::prelude::*;
+use sequoia_openpgp::parse::stream::{
+    DecryptionHelper, DecryptorBuilder, MessageLayer, MessageStructure, VerificationHelper,
+};
+use sequoia_openpgp::parse::Parse;
 use sequoia_openpgp::policy::Policy;
 use sequoia_openpgp::serialize::stream::{Encryptor2, LiteralWriter, Message, Recipient, Signer};
 use sequoia_openpgp::types::{DataFormat, SymmetricAlgorithm};
@@ -71,7 +71,9 @@ fn write_literal_payload(
             .filename(name)
             .map_err(|e| GaldraError::OpenPgp(e.to_string()))?;
     }
-    let mut lit = lit.build().map_err(|e| GaldraError::OpenPgp(e.to_string()))?;
+    let mut lit = lit
+        .build()
+        .map_err(|e| GaldraError::OpenPgp(e.to_string()))?;
     lit.write_all(plaintext)
         .map_err(|e| GaldraError::OpenPgp(e.to_string()))?;
     lit.finalize()
@@ -277,15 +279,8 @@ mod tests {
             .unwrap();
 
         let msg = b"field exercise payload";
-        let ct = encrypt_openpgp(
-            &p,
-            msg,
-            None,
-            &[alice.clone(), bob.clone()],
-            false,
-            true,
-        )
-        .expect("encrypt");
+        let ct = encrypt_openpgp(&p, msg, None, &[alice.clone(), bob.clone()], false, true)
+            .expect("encrypt");
 
         let plain = decrypt_openpgp(
             &p,

@@ -56,7 +56,9 @@ fn run() -> Result<(), String> {
         return Err(format!("user PIN must be 1..={PROVISIONING_PIN_MAX} bytes"));
     }
     if ab.is_empty() || ab.len() > PROVISIONING_PIN_MAX {
-        return Err(format!("admin PIN must be 1..={PROVISIONING_PIN_MAX} bytes"));
+        return Err(format!(
+            "admin PIN must be 1..={PROVISIONING_PIN_MAX} bytes"
+        ));
     }
 
     let mut port = serialport::new(&args.port, 115_200)
@@ -71,12 +73,11 @@ fn run() -> Result<(), String> {
     send_line(port.as_mut(), ub, true)?;
     send_line(port.as_mut(), ab, true)?;
 
-    println!("Sent PIN lines. Device should store OKV1 in PDDB and reset USB for CCID enumeration.");
+    println!(
+        "Sent PIN lines. Device should store OKV1 in PDDB and reset USB for CCID enumeration."
+    );
 
-    wait_for_usb_reset_hint(
-        port.as_mut(),
-        Duration::from_secs(args.wait_reset_secs),
-    )?;
+    wait_for_usb_reset_hint(port.as_mut(), Duration::from_secs(args.wait_reset_secs))?;
 
     Ok(())
 }

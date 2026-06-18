@@ -90,7 +90,10 @@ fn store_and_retrieve_all_fields() {
     assert_eq!(got.created_at, r.created_at);
     assert!(!got.consumed);
     assert!(!got.revoked);
-    assert_eq!(got.my_private_key_bytes.as_deref(), Some([0xaa_u8; 32].as_ref()));
+    assert_eq!(
+        got.my_private_key_bytes.as_deref(),
+        Some([0xaa_u8; 32].as_ref())
+    );
 }
 
 // ---------------------------------------------------------------------------

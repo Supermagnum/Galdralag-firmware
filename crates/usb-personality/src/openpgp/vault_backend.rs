@@ -8,21 +8,19 @@
 
 use ed25519_dalek::Signer;
 use galdr_core::hal::{HardwareTrng, MonotonicCounter, VaultStorage};
-use heapless::Vec;
-use pin_policy::{
-    pin_compare, PinOutcome, PinPolicyConfig, PinPolicyMachine, ZeroisationTrigger,
-};
 use galdr_vault::brainpool::{BrainpoolPublicKey, BrainpoolScalar};
 use galdr_vault::ecdsa_brainpool::BrainpoolSigningKey;
 use galdr_vault::sealed_key::SealedKeyBlob;
-use x25519_dalek::{PublicKey as X25519PublicKey, StaticSecret};
 use galdr_vault::{
     KeyPurpose, SEALED_AUT_OFFSET, SEALED_BLOB_BYTES, SEALED_DEC_OFFSET, SEALED_SIG_OFFSET,
 };
+use heapless::Vec;
+use pin_policy::{pin_compare, PinOutcome, PinPolicyConfig, PinPolicyMachine, ZeroisationTrigger};
+use x25519_dalek::{PublicKey as X25519PublicKey, StaticSecret};
 
 use super::backend::{OpenPgpAudit, OpenPgpBackend, OpenPgpBackendError, OpenPgpKeySlot};
-use super::dos::{curve_oids, pin_bytes_to_verifier_digest, AlgorithmAttributes};
 use super::do_store::DoStore;
+use super::dos::{curve_oids, pin_bytes_to_verifier_digest, AlgorithmAttributes};
 use super::error::StatusWord;
 
 /// Zero-cost zeroisation hook when no policy FSM is wired.
@@ -207,7 +205,8 @@ where
         new_admin_counter: fn() -> Ca,
     ) -> Result<Self, galdr_core::HalError> {
         let user_machine = PinPolicyMachine::new(user_policy, (new_user_counter)(), Zu::default());
-        let admin_machine = PinPolicyMachine::new(admin_policy, (new_admin_counter)(), Za::default());
+        let admin_machine =
+            PinPolicyMachine::new(admin_policy, (new_admin_counter)(), Za::default());
         Self::new(
             do_store,
             pin_storage,
@@ -257,14 +256,11 @@ where
         self.dec_x25519 = None;
 
         let mut buf = [0u8; SEALED_BLOB_BYTES];
-        self.key_storage
-            .read(SEALED_SIG_OFFSET as u64, &mut buf)?;
+        self.key_storage.read(SEALED_SIG_OFFSET as u64, &mut buf)?;
         let sig_attrs = self.algorithm_attributes_for_slot(OpenPgpKeySlot::Sig);
-        if let Ok(v) = SealedKeyBlob::unseal_from_storage_cell(
-            &buf,
-            &self.master_key,
-            KeyPurpose::OpenPgpSig,
-        ) {
+        if let Ok(v) =
+            SealedKeyBlob::unseal_from_storage_cell(&buf, &self.master_key, KeyPurpose::OpenPgpSig)
+        {
             let sl = v.as_slice();
             if sl.len() == 32 {
                 let mut arr = [0u8; 32];
@@ -284,14 +280,11 @@ where
                 }
             }
         }
-        self.key_storage
-            .read(SEALED_DEC_OFFSET as u64, &mut buf)?;
+        self.key_storage.read(SEALED_DEC_OFFSET as u64, &mut buf)?;
         let dec_attrs = self.algorithm_attributes_for_slot(OpenPgpKeySlot::Dec);
-        if let Ok(v) = SealedKeyBlob::unseal_from_storage_cell(
-            &buf,
-            &self.master_key,
-            KeyPurpose::OpenPgpDec,
-        ) {
+        if let Ok(v) =
+            SealedKeyBlob::unseal_from_storage_cell(&buf, &self.master_key, KeyPurpose::OpenPgpDec)
+        {
             let sl = v.as_slice();
             if sl.len() == 32 {
                 match &dec_attrs {
@@ -311,14 +304,11 @@ where
                 }
             }
         }
-        self.key_storage
-            .read(SEALED_AUT_OFFSET as u64, &mut buf)?;
+        self.key_storage.read(SEALED_AUT_OFFSET as u64, &mut buf)?;
         let aut_attrs = self.algorithm_attributes_for_slot(OpenPgpKeySlot::Aut);
-        if let Ok(v) = SealedKeyBlob::unseal_from_storage_cell(
-            &buf,
-            &self.master_key,
-            KeyPurpose::OpenPgpAut,
-        ) {
+        if let Ok(v) =
+            SealedKeyBlob::unseal_from_storage_cell(&buf, &self.master_key, KeyPurpose::OpenPgpAut)
+        {
             let sl = v.as_slice();
             if sl.len() == 32 {
                 let mut arr = [0u8; 32];
@@ -353,9 +343,7 @@ where
             KeyPurpose::OpenPgpDec => SEALED_DEC_OFFSET as u64,
             KeyPurpose::OpenPgpAut => SEALED_AUT_OFFSET as u64,
             _ => {
-                return Err(OpenPgpBackendError::Status(
-                    StatusWord::IncorrectParameters,
-                ));
+                return Err(OpenPgpBackendError::Status(StatusWord::IncorrectParameters));
             }
         };
         let mut cell = [0u8; SEALED_BLOB_BYTES];
@@ -457,7 +445,8 @@ where
     }
 }
 
-impl<S, Sp, Sk, T, Cu, Ca, Zu, Za> OpenPgpAudit for OpenPgpVaultBackend<S, Sp, Sk, T, Cu, Ca, Zu, Za>
+impl<S, Sp, Sk, T, Cu, Ca, Zu, Za> OpenPgpAudit
+    for OpenPgpVaultBackend<S, Sp, Sk, T, Cu, Ca, Zu, Za>
 where
     S: VaultStorage,
     Sp: VaultStorage,
@@ -473,7 +462,8 @@ where
     }
 }
 
-impl<S, Sp, Sk, T, Cu, Ca, Zu, Za> OpenPgpBackend for OpenPgpVaultBackend<S, Sp, Sk, T, Cu, Ca, Zu, Za>
+impl<S, Sp, Sk, T, Cu, Ca, Zu, Za> OpenPgpBackend
+    for OpenPgpVaultBackend<S, Sp, Sk, T, Cu, Ca, Zu, Za>
 where
     S: VaultStorage,
     Sp: VaultStorage,
@@ -600,10 +590,9 @@ where
 
     fn pso_sign_hash(&mut self, hash: &[u8]) -> Result<Vec<u8, 512>, OpenPgpBackendError> {
         self.ensure_not_terminated()?;
-        let sk = self
-            .sig_key
-            .as_ref()
-            .ok_or(OpenPgpBackendError::Status(StatusWord::ReferenceDataNotFound))?;
+        let sk = self.sig_key.as_ref().ok_or(OpenPgpBackendError::Status(
+            StatusWord::ReferenceDataNotFound,
+        ))?;
         let sig = sk
             .sign_handshake_sha256_prehash(hash, &mut self.trng)
             .map_err(|_| OpenPgpBackendError::Status(StatusWord::ExecutionError))?;
@@ -617,7 +606,9 @@ where
 
     fn pso_decipher(&mut self, _data: &[u8]) -> Result<Vec<u8, 512>, OpenPgpBackendError> {
         self.ensure_not_terminated()?;
-        Err(OpenPgpBackendError::Status(StatusWord::ReferenceDataNotFound))
+        Err(OpenPgpBackendError::Status(
+            StatusWord::ReferenceDataNotFound,
+        ))
     }
 
     fn ecdh_dec(
@@ -629,13 +620,11 @@ where
         if purpose != KeyPurpose::OpenPgpDec {
             return Err(OpenPgpBackendError::Status(StatusWord::IncorrectParameters));
         }
-        let sk = self
-            .dec_key
-            .as_ref()
-            .ok_or(OpenPgpBackendError::Status(StatusWord::ReferenceDataNotFound))?;
-        let pk = BrainpoolPublicKey::from_sec1(peer_public_key).map_err(|_| {
-            OpenPgpBackendError::Status(StatusWord::IncorrectParameters)
-        })?;
+        let sk = self.dec_key.as_ref().ok_or(OpenPgpBackendError::Status(
+            StatusWord::ReferenceDataNotFound,
+        ))?;
+        let pk = BrainpoolPublicKey::from_sec1(peer_public_key)
+            .map_err(|_| OpenPgpBackendError::Status(StatusWord::IncorrectParameters))?;
         let sec = sk
             .diffie_hellman(&pk)
             .map_err(|_| OpenPgpBackendError::Status(StatusWord::ExecutionError))?;
@@ -670,7 +659,9 @@ where
             KeyPurpose::OpenPgpAut => self.aut_ed25519.as_ref(),
             _ => None,
         }
-        .ok_or(OpenPgpBackendError::Status(StatusWord::ReferenceDataNotFound))?;
+        .ok_or(OpenPgpBackendError::Status(
+            StatusWord::ReferenceDataNotFound,
+        ))?;
         let sig = sk.sign(message);
         let mut out = Vec::new();
         for b in sig.to_bytes() {
@@ -692,10 +683,9 @@ where
         if peer_public_key.len() != 32 {
             return Err(OpenPgpBackendError::Status(StatusWord::IncorrectParameters));
         }
-        let secret = self
-            .dec_x25519
-            .as_ref()
-            .ok_or(OpenPgpBackendError::Status(StatusWord::ReferenceDataNotFound))?;
+        let secret = self.dec_x25519.as_ref().ok_or(OpenPgpBackendError::Status(
+            StatusWord::ReferenceDataNotFound,
+        ))?;
         let mut pk_arr = [0u8; 32];
         pk_arr.copy_from_slice(peer_public_key);
         let peer = X25519PublicKey::from(pk_arr);
@@ -708,7 +698,10 @@ where
         Ok(out)
     }
 
-    fn internal_authenticate(&mut self, challenge: &[u8]) -> Result<Vec<u8, 512>, OpenPgpBackendError> {
+    fn internal_authenticate(
+        &mut self,
+        challenge: &[u8],
+    ) -> Result<Vec<u8, 512>, OpenPgpBackendError> {
         self.ensure_not_terminated()?;
         let attrs = self.algorithm_attributes_for_slot(OpenPgpKeySlot::Aut);
         if let AlgorithmAttributes::EdDsa { curve_oid } = &attrs {
@@ -716,21 +709,21 @@ where
                 let sk = self
                     .aut_ed25519
                     .as_ref()
-                    .ok_or(OpenPgpBackendError::Status(StatusWord::ReferenceDataNotFound))?;
+                    .ok_or(OpenPgpBackendError::Status(
+                        StatusWord::ReferenceDataNotFound,
+                    ))?;
                 let sig = sk.sign(challenge);
                 let mut out = Vec::new();
                 for b in sig.to_bytes() {
-                    out.push(b).map_err(|_| {
-                        OpenPgpBackendError::Status(StatusWord::ExecutionError)
-                    })?;
+                    out.push(b)
+                        .map_err(|_| OpenPgpBackendError::Status(StatusWord::ExecutionError))?;
                 }
                 return Ok(out);
             }
         }
-        let sk = self
-            .aut_key
-            .as_ref()
-            .ok_or(OpenPgpBackendError::Status(StatusWord::ReferenceDataNotFound))?;
+        let sk = self.aut_key.as_ref().ok_or(OpenPgpBackendError::Status(
+            StatusWord::ReferenceDataNotFound,
+        ))?;
         let sig = sk
             .sign_handshake_sha256_prehash(challenge, &mut self.trng)
             .map_err(|_| OpenPgpBackendError::Status(StatusWord::ExecutionError))?;
@@ -756,11 +749,9 @@ where
                     AlgorithmAttributes::EdDsa { curve_oid }
                         if curve_oid.as_slice() == curve_oids::ED25519 =>
                     {
-                        let vk = self
-                            .sig_ed25519
-                            .as_ref()
-                            .map(|k| k.verifying_key())
-                            .ok_or(OpenPgpBackendError::Status(StatusWord::ReferenceDataNotFound))?;
+                        let vk = self.sig_ed25519.as_ref().map(|k| k.verifying_key()).ok_or(
+                            OpenPgpBackendError::Status(StatusWord::ReferenceDataNotFound),
+                        )?;
                         let mut out = Vec::new();
                         for b in vk.as_bytes() {
                             out.push(*b).map_err(|_| {
@@ -770,11 +761,9 @@ where
                         Ok(out)
                     }
                     AlgorithmAttributes::Ecdsa { .. } => {
-                        let vk = self
-                            .sig_key
-                            .as_ref()
-                            .map(|k| k.verifying_key())
-                            .ok_or(OpenPgpBackendError::Status(StatusWord::ReferenceDataNotFound))?;
+                        let vk = self.sig_key.as_ref().map(|k| k.verifying_key()).ok_or(
+                            OpenPgpBackendError::Status(StatusWord::ReferenceDataNotFound),
+                        )?;
                         let sec1 = vk.to_sec1_uncompressed();
                         let mut out = Vec::new();
                         for b in sec1 {
@@ -784,17 +773,17 @@ where
                         }
                         Ok(out)
                     }
-                    _ => Err(OpenPgpBackendError::Status(StatusWord::ReferenceDataNotFound)),
+                    _ => Err(OpenPgpBackendError::Status(
+                        StatusWord::ReferenceDataNotFound,
+                    )),
                 },
                 OpenPgpKeySlot::Aut => match &attrs {
                     AlgorithmAttributes::EdDsa { curve_oid }
                         if curve_oid.as_slice() == curve_oids::ED25519 =>
                     {
-                        let vk = self
-                            .aut_ed25519
-                            .as_ref()
-                            .map(|k| k.verifying_key())
-                            .ok_or(OpenPgpBackendError::Status(StatusWord::ReferenceDataNotFound))?;
+                        let vk = self.aut_ed25519.as_ref().map(|k| k.verifying_key()).ok_or(
+                            OpenPgpBackendError::Status(StatusWord::ReferenceDataNotFound),
+                        )?;
                         let mut out = Vec::new();
                         for b in vk.as_bytes() {
                             out.push(*b).map_err(|_| {
@@ -804,11 +793,9 @@ where
                         Ok(out)
                     }
                     AlgorithmAttributes::Ecdsa { .. } => {
-                        let vk = self
-                            .aut_key
-                            .as_ref()
-                            .map(|k| k.verifying_key())
-                            .ok_or(OpenPgpBackendError::Status(StatusWord::ReferenceDataNotFound))?;
+                        let vk = self.aut_key.as_ref().map(|k| k.verifying_key()).ok_or(
+                            OpenPgpBackendError::Status(StatusWord::ReferenceDataNotFound),
+                        )?;
                         let sec1 = vk.to_sec1_uncompressed();
                         let mut out = Vec::new();
                         for b in sec1 {
@@ -818,17 +805,17 @@ where
                         }
                         Ok(out)
                     }
-                    _ => Err(OpenPgpBackendError::Status(StatusWord::ReferenceDataNotFound)),
+                    _ => Err(OpenPgpBackendError::Status(
+                        StatusWord::ReferenceDataNotFound,
+                    )),
                 },
                 OpenPgpKeySlot::Dec => match &attrs {
                     AlgorithmAttributes::Ecdh { curve_oid }
                         if curve_oid.as_slice() == curve_oids::CURVE25519 =>
                     {
-                        let pk = self
-                            .dec_x25519
-                            .as_ref()
-                            .map(X25519PublicKey::from)
-                            .ok_or(OpenPgpBackendError::Status(StatusWord::ReferenceDataNotFound))?;
+                        let pk = self.dec_x25519.as_ref().map(X25519PublicKey::from).ok_or(
+                            OpenPgpBackendError::Status(StatusWord::ReferenceDataNotFound),
+                        )?;
                         let mut out = Vec::new();
                         for b in pk.as_bytes() {
                             out.push(*b).map_err(|_| {
@@ -842,7 +829,9 @@ where
                             .dec_key
                             .as_ref()
                             .and_then(|k| k.public_key().ok())
-                            .ok_or(OpenPgpBackendError::Status(StatusWord::ReferenceDataNotFound))?;
+                            .ok_or(OpenPgpBackendError::Status(
+                                StatusWord::ReferenceDataNotFound,
+                            ))?;
                         let sec1 = pk.to_sec1_uncompressed();
                         let mut out = Vec::new();
                         for b in sec1 {
@@ -852,7 +841,9 @@ where
                         }
                         Ok(out)
                     }
-                    _ => Err(OpenPgpBackendError::Status(StatusWord::ReferenceDataNotFound)),
+                    _ => Err(OpenPgpBackendError::Status(
+                        StatusWord::ReferenceDataNotFound,
+                    )),
                 },
             };
         }
@@ -871,9 +862,8 @@ where
                     self.sig_ed25519 = Some(signing_key);
                     let mut out = Vec::new();
                     for b in verifying_key.as_bytes() {
-                        out.push(*b).map_err(|_| {
-                            OpenPgpBackendError::Status(StatusWord::ExecutionError)
-                        })?;
+                        out.push(*b)
+                            .map_err(|_| OpenPgpBackendError::Status(StatusWord::ExecutionError))?;
                     }
                     Ok(out)
                 }
@@ -888,13 +878,14 @@ where
                     let sec1 = vk.to_sec1_uncompressed();
                     let mut out = Vec::new();
                     for b in sec1 {
-                        out.push(b).map_err(|_| {
-                            OpenPgpBackendError::Status(StatusWord::ExecutionError)
-                        })?;
+                        out.push(b)
+                            .map_err(|_| OpenPgpBackendError::Status(StatusWord::ExecutionError))?;
                     }
                     Ok(out)
                 }
-                _ => Err(OpenPgpBackendError::Status(StatusWord::ConditionsNotSatisfied)),
+                _ => Err(OpenPgpBackendError::Status(
+                    StatusWord::ConditionsNotSatisfied,
+                )),
             },
             OpenPgpKeySlot::Aut => match &attrs {
                 AlgorithmAttributes::EdDsa { curve_oid }
@@ -907,9 +898,8 @@ where
                     self.aut_ed25519 = Some(signing_key);
                     let mut out = Vec::new();
                     for b in verifying_key.as_bytes() {
-                        out.push(*b).map_err(|_| {
-                            OpenPgpBackendError::Status(StatusWord::ExecutionError)
-                        })?;
+                        out.push(*b)
+                            .map_err(|_| OpenPgpBackendError::Status(StatusWord::ExecutionError))?;
                     }
                     Ok(out)
                 }
@@ -924,13 +914,14 @@ where
                     let sec1 = vk.to_sec1_uncompressed();
                     let mut out = Vec::new();
                     for b in sec1 {
-                        out.push(b).map_err(|_| {
-                            OpenPgpBackendError::Status(StatusWord::ExecutionError)
-                        })?;
+                        out.push(b)
+                            .map_err(|_| OpenPgpBackendError::Status(StatusWord::ExecutionError))?;
                     }
                     Ok(out)
                 }
-                _ => Err(OpenPgpBackendError::Status(StatusWord::ConditionsNotSatisfied)),
+                _ => Err(OpenPgpBackendError::Status(
+                    StatusWord::ConditionsNotSatisfied,
+                )),
             },
             OpenPgpKeySlot::Dec => match &attrs {
                 AlgorithmAttributes::Ecdh { curve_oid }
@@ -943,9 +934,8 @@ where
                     self.dec_x25519 = Some(secret);
                     let mut out = Vec::new();
                     for b in public.as_bytes() {
-                        out.push(*b).map_err(|_| {
-                            OpenPgpBackendError::Status(StatusWord::ExecutionError)
-                        })?;
+                        out.push(*b)
+                            .map_err(|_| OpenPgpBackendError::Status(StatusWord::ExecutionError))?;
                     }
                     Ok(out)
                 }
@@ -956,19 +946,23 @@ where
                     self.persist_private_key(KeyPurpose::OpenPgpDec, scalar.as_slice())?;
                     self.dec_x25519 = None;
                     self.dec_key = Some(sk);
-                    let vk = self.dec_key.as_ref().unwrap().public_key().map_err(|_| {
-                        OpenPgpBackendError::Status(StatusWord::ExecutionError)
-                    })?;
+                    let vk = self
+                        .dec_key
+                        .as_ref()
+                        .unwrap()
+                        .public_key()
+                        .map_err(|_| OpenPgpBackendError::Status(StatusWord::ExecutionError))?;
                     let sec1 = vk.to_sec1_uncompressed();
                     let mut out = Vec::new();
                     for b in sec1 {
-                        out.push(b).map_err(|_| {
-                            OpenPgpBackendError::Status(StatusWord::ExecutionError)
-                        })?;
+                        out.push(b)
+                            .map_err(|_| OpenPgpBackendError::Status(StatusWord::ExecutionError))?;
                     }
                     Ok(out)
                 }
-                _ => Err(OpenPgpBackendError::Status(StatusWord::ConditionsNotSatisfied)),
+                _ => Err(OpenPgpBackendError::Status(
+                    StatusWord::ConditionsNotSatisfied,
+                )),
             },
         }
     }
@@ -997,16 +991,16 @@ where
 mod tests {
     use super::*;
     use crate::openpgp::aid::build_aid;
-    use crate::openpgp::dispatch::handle_apdu;
-    use crate::openpgp::dos::{curve_oids, AlgorithmAttributes};
     use crate::openpgp::apdu::CommandApdu;
+    use crate::openpgp::dispatch::handle_apdu;
+    use crate::openpgp::do_store::DoStore;
+    use crate::openpgp::dos::{curve_oids, AlgorithmAttributes};
     use crate::openpgp::state::CardState;
     use crate::openpgp::DO_STORE_REGION_BYTES;
-    use crate::openpgp::do_store::DoStore;
     use galdr_core::fake_hal::{FakeMonotonicCounter, FakeTrng, FakeVaultStorage};
     use galdr_core::VaultStorage;
-    use pin_policy::PinPolicyConfig;
     use galdr_vault::brainpool::BrainpoolScalar;
+    use pin_policy::PinPolicyConfig;
 
     #[derive(Default)]
     struct Z;
@@ -1015,7 +1009,14 @@ mod tests {
         fn trigger_zeroisation(&mut self) {}
     }
 
-    fn apdu_hex(cla: u8, ins: u8, p1: u8, p2: u8, data: &[u8], le: Option<u8>) -> std::vec::Vec<u8> {
+    fn apdu_hex(
+        cla: u8,
+        ins: u8,
+        p1: u8,
+        p2: u8,
+        data: &[u8],
+        le: Option<u8>,
+    ) -> std::vec::Vec<u8> {
         let mut v = vec![cla, ins, p1, p2];
         if !data.is_empty() {
             assert!(data.len() <= 255);
@@ -1055,10 +1056,14 @@ mod tests {
         }
         .to_bytes()
         .unwrap();
-        let c2 = AlgorithmAttributes::Ecdh { curve_oid: oid.clone() }
+        let c2 = AlgorithmAttributes::Ecdh {
+            curve_oid: oid.clone(),
+        }
+        .to_bytes()
+        .unwrap();
+        let c3 = AlgorithmAttributes::Ecdsa { curve_oid: oid }
             .to_bytes()
             .unwrap();
-        let c3 = AlgorithmAttributes::Ecdsa { curve_oid: oid }.to_bytes().unwrap();
         let _ = do_store.write(0xC1, c1.as_slice());
         let _ = do_store.write(0xC2, c2.as_slice());
         let _ = do_store.write(0xC3, c3.as_slice());
@@ -1129,7 +1134,11 @@ mod tests {
         let peer_sk = BrainpoolScalar::generate(&mut trng).expect("peer");
         let peer_pk = peer_sk.public_key().expect("pk");
         let card_pk = b.dec_key.as_ref().unwrap().public_key().expect("card pk");
-        let expected = peer_sk.diffie_hellman(&card_pk).expect("dh").as_bytes().to_vec();
+        let expected = peer_sk
+            .diffie_hellman(&card_pk)
+            .expect("dh")
+            .as_bytes()
+            .to_vec();
         let raw = apdu_hex(
             0x00,
             0x2A,

@@ -4,7 +4,6 @@ use ephemeral_session::{
     EphemeralSessionError, InitiatorSession, LongTermCert, ResponderSession, SessionCurve,
 };
 use galdr_core::fake_hal::{FakeTrng, FakeVaultStorage};
-use subtle::ConstantTimeEq;
 use galdr_vault::brainpool384::BrainpoolP384SigningKey;
 use galdr_vault::brainpool512::BrainpoolP512SigningKey;
 use galdr_vault::ecdsa_brainpool::BrainpoolSigningKey;
@@ -12,6 +11,7 @@ use galdr_vault::rsa_vault::KeySlot;
 use galdr_vault::session_long_term_signing::{
     vault_store_session_long_term_signing_key, SessionLongTermSigningKey,
 };
+use subtle::ConstantTimeEq;
 
 const VAULT_SIZE: usize = 0x120_000;
 
@@ -63,14 +63,10 @@ fn assert_keys_equal(a: &ephemeral_session::SessionKeys, b: &ephemeral_session::
             .ct_eq(b.payload_key_r2i.as_slice())
     ));
     assert!(bool::from(
-        a.gdss_mask_key
-            .as_slice()
-            .ct_eq(b.gdss_mask_key.as_slice())
+        a.gdss_mask_key.as_slice().ct_eq(b.gdss_mask_key.as_slice())
     ));
     assert!(bool::from(
-        a.gdss_sync_key
-            .as_slice()
-            .ct_eq(b.gdss_sync_key.as_slice())
+        a.gdss_sync_key.as_slice().ct_eq(b.gdss_sync_key.as_slice())
     ));
     assert!(bool::from(
         a.gdss_timing_key
@@ -109,17 +105,10 @@ fn full_handshake_p256() {
         .init(curve, &KeySlot(0), &mut trng, &mut storage)
         .expect("init");
     let mut trng2 = FakeTrng::from_seed(0xD0);
-    let (resp_msg, r_keys) = ResponderSession::respond(
-        &init_msg,
-        &KeySlot(1),
-        &cert_i,
-        &mut trng2,
-        &mut storage,
-    )
-    .expect("respond");
-    let i_keys = initiator
-        .complete(&resp_msg, &cert_r)
-        .expect("complete");
+    let (resp_msg, r_keys) =
+        ResponderSession::respond(&init_msg, &KeySlot(1), &cert_i, &mut trng2, &mut storage)
+            .expect("respond");
+    let i_keys = initiator.complete(&resp_msg, &cert_r).expect("complete");
     assert_keys_equal(&i_keys, &r_keys);
 }
 
@@ -158,17 +147,10 @@ fn test_full_handshake_brainpool384r1() {
         .init(curve, &KeySlot(0), &mut trng, &mut storage)
         .expect("init");
     let mut trng2 = FakeTrng::from_seed(0xD1);
-    let (resp_msg, r_keys) = ResponderSession::respond(
-        &init_msg,
-        &KeySlot(1),
-        &cert_i,
-        &mut trng2,
-        &mut storage,
-    )
-    .expect("respond");
-    let i_keys = initiator
-        .complete(&resp_msg, &cert_r)
-        .expect("complete");
+    let (resp_msg, r_keys) =
+        ResponderSession::respond(&init_msg, &KeySlot(1), &cert_i, &mut trng2, &mut storage)
+            .expect("respond");
+    let i_keys = initiator.complete(&resp_msg, &cert_r).expect("complete");
     assert_keys_equal(&i_keys, &r_keys);
 }
 
@@ -202,17 +184,10 @@ fn test_full_handshake_brainpool512r1() {
         .init(curve, &KeySlot(0), &mut trng, &mut storage)
         .expect("init");
     let mut trng2 = FakeTrng::from_seed(0xD2);
-    let (resp_msg, r_keys) = ResponderSession::respond(
-        &init_msg,
-        &KeySlot(1),
-        &cert_i,
-        &mut trng2,
-        &mut storage,
-    )
-    .expect("respond");
-    let i_keys = initiator
-        .complete(&resp_msg, &cert_r)
-        .expect("complete");
+    let (resp_msg, r_keys) =
+        ResponderSession::respond(&init_msg, &KeySlot(1), &cert_i, &mut trng2, &mut storage)
+            .expect("respond");
+    let i_keys = initiator.complete(&resp_msg, &cert_r).expect("complete");
     assert_keys_equal(&i_keys, &r_keys);
 }
 
@@ -257,17 +232,10 @@ fn test_session_keys_differ_across_sessions() {
             )
             .expect("init");
         let mut trng2 = FakeTrng::from_seed(resp_seed);
-        let (resp_msg, r_keys) = ResponderSession::respond(
-            &init_msg,
-            &KeySlot(1),
-            &cert_i,
-            &mut trng2,
-            &mut storage,
-        )
-        .expect("respond");
-        let i_keys = initiator
-            .complete(&resp_msg, &cert_r)
-            .expect("complete");
+        let (resp_msg, r_keys) =
+            ResponderSession::respond(&init_msg, &KeySlot(1), &cert_i, &mut trng2, &mut storage)
+                .expect("respond");
+        let i_keys = initiator.complete(&resp_msg, &cert_r).expect("complete");
         (i_keys, r_keys)
     };
     let (k1a, k1b) = run(0xF0, 0xF1);
@@ -314,14 +282,9 @@ fn test_session_nonreusable() {
         )
         .expect("init");
     let mut trng2 = FakeTrng::from_seed(0xD0);
-    let (resp_msg, _) = ResponderSession::respond(
-        &init_msg,
-        &KeySlot(1),
-        &cert_i,
-        &mut trng2,
-        &mut storage,
-    )
-    .expect("respond");
+    let (resp_msg, _) =
+        ResponderSession::respond(&init_msg, &KeySlot(1), &cert_i, &mut trng2, &mut storage)
+            .expect("respond");
     let _ = initiator.complete(&resp_msg, &cert_r).expect("complete");
     let r2 = initiator.complete(&resp_msg, &cert_r);
     assert!(matches!(
@@ -366,13 +329,7 @@ fn test_tampered_init_signature() {
         *b ^= 0xFF;
     }
     let mut trng2 = FakeTrng::from_seed(0xD0);
-    let r = ResponderSession::respond(
-        &init_msg,
-        &KeySlot(1),
-        &cert_i,
-        &mut trng2,
-        &mut storage,
-    );
+    let r = ResponderSession::respond(&init_msg, &KeySlot(1), &cert_i, &mut trng2, &mut storage);
     assert!(matches!(
         r,
         Err(EphemeralSessionError::InvalidPeerSignature)
@@ -420,10 +377,7 @@ fn test_wrong_long_term_key() {
         &mut trng2,
         &mut storage,
     );
-    assert!(matches!(
-        r,
-        Err(EphemeralSessionError::FingerprintMismatch)
-    ));
+    assert!(matches!(r, Err(EphemeralSessionError::FingerprintMismatch)));
 }
 
 #[test]
@@ -462,13 +416,7 @@ fn test_tampered_ephemeral_key() {
         *b ^= 0x01;
     }
     let mut trng2 = FakeTrng::from_seed(0xD0);
-    let r = ResponderSession::respond(
-        &init_msg,
-        &KeySlot(1),
-        &cert_i,
-        &mut trng2,
-        &mut storage,
-    );
+    let r = ResponderSession::respond(&init_msg, &KeySlot(1), &cert_i, &mut trng2, &mut storage);
     assert!(matches!(
         r,
         Err(EphemeralSessionError::InvalidPeerSignature)
@@ -509,13 +457,7 @@ fn test_curve_mismatch() {
         .expect("init");
     init_msg.curve = SessionCurve::BrainpoolP384r1;
     let mut trng2 = FakeTrng::from_seed(0xD0);
-    let r = ResponderSession::respond(
-        &init_msg,
-        &KeySlot(1),
-        &cert_i,
-        &mut trng2,
-        &mut storage,
-    );
+    let r = ResponderSession::respond(&init_msg, &KeySlot(1), &cert_i, &mut trng2, &mut storage);
     assert!(matches!(
         r,
         Err(EphemeralSessionError::InvalidPeerSignature)
@@ -556,14 +498,9 @@ fn test_response_initiator_epk_binding() {
         )
         .expect("init");
     let mut trng2 = FakeTrng::from_seed(0xD0);
-    let (resp_msg, _) = ResponderSession::respond(
-        &init_a,
-        &KeySlot(1),
-        &cert_i,
-        &mut trng2,
-        &mut storage,
-    )
-    .expect("respond");
+    let (resp_msg, _) =
+        ResponderSession::respond(&init_a, &KeySlot(1), &cert_i, &mut trng2, &mut storage)
+            .expect("respond");
     let mut trng3 = FakeTrng::from_seed(0xC0 + 1);
     let mut initiator_b = InitiatorSession::new();
     let _ = initiator_b
@@ -615,14 +552,9 @@ fn test_as_gdss_keys_lengths_and_distinct() {
         )
         .expect("init");
     let mut trng2 = FakeTrng::from_seed(0xD0);
-    let (resp_msg, keys) = ResponderSession::respond(
-        &init_msg,
-        &KeySlot(1),
-        &cert_i,
-        &mut trng2,
-        &mut storage,
-    )
-    .expect("respond");
+    let (resp_msg, keys) =
+        ResponderSession::respond(&init_msg, &KeySlot(1), &cert_i, &mut trng2, &mut storage)
+            .expect("respond");
     let _ = initiator.complete(&resp_msg, &cert_r).expect("complete");
     let (a, b, c, d) = keys.as_gdss_keys();
     assert_eq!(a.len(), 32);

@@ -3,7 +3,7 @@
 use serde_json::Value;
 
 use crate::rsa_keys::{
-    Pkcs1v15, RsaOaepCiphertext, RsaPkcs1Signature, RsaPrivateKey, RsaPublicKey, RsaPssSignature,
+    Pkcs1v15, RsaOaepCiphertext, RsaPkcs1Signature, RsaPrivateKey, RsaPssSignature, RsaPublicKey,
 };
 
 fn run_oaep_group(group: &Value) -> Result<(), String> {
@@ -30,10 +30,7 @@ fn run_oaep_group(group: &Value) -> Result<(), String> {
             .and_then(|v| v.as_str())
             .ok_or_else(|| format!("tc {tc} msg"))?;
         let msg = hex::decode(msg_hex).map_err(|e| e.to_string())?;
-        let label_hex = t
-            .get("label")
-            .and_then(|v| v.as_str())
-            .unwrap_or("");
+        let label_hex = t.get("label").and_then(|v| v.as_str()).unwrap_or("");
         let label = hex::decode(label_hex).map_err(|e| e.to_string())?;
         if !label.is_empty() && core::str::from_utf8(&label).is_err() {
             continue;
@@ -233,7 +230,11 @@ fn run_pkcs1_group(group: &Value) -> Result<(), String> {
 }
 
 fn wycheproof_path(name: &str) -> String {
-    format!("{}/tests/data/wycheproof/{}", env!("CARGO_MANIFEST_DIR"), name)
+    format!(
+        "{}/tests/data/wycheproof/{}",
+        env!("CARGO_MANIFEST_DIR"),
+        name
+    )
 }
 
 fn run_pss_group_sha256_file(name: &str) -> Result<(), String> {

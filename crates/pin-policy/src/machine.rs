@@ -126,7 +126,9 @@ impl<C: MonotonicCounter, Z: ZeroisationTrigger> PinPolicyMachine<C, Z> {
             return Ok(PinOutcome::Success);
         }
         self.state = PinState::LockedIdle;
-        Ok(PinOutcome::Failed { attempts_used: count })
+        Ok(PinOutcome::Failed {
+            attempts_used: count,
+        })
     }
 
     pub fn into_inner(self) -> (PinPolicyConfig, PinState, C, Z) {

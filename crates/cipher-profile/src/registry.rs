@@ -183,7 +183,9 @@ mod tests {
     fn registry_user_profile() {
         let mut r = ProfileRegistry::with_builtins();
         let b = tr(CipherProfileBuilder::new("user-one"));
-        let b = tr(b.curve(SessionCurve::BrainpoolP256r1).layer(CipherLayer::Aes256Gcm));
+        let b = tr(b
+            .curve(SessionCurve::BrainpoolP256r1)
+            .layer(CipherLayer::Aes256Gcm));
         let u = tr(b.build());
         tr(r.register(u));
         assert!(r.get("user-one").is_some());
@@ -194,7 +196,9 @@ mod tests {
     fn registry_duplicate_name() {
         let mut r = ProfileRegistry::with_builtins();
         let b = tr(CipherProfileBuilder::new("standard"));
-        let b = tr(b.curve(SessionCurve::BrainpoolP256r1).layer(CipherLayer::Aes256Gcm));
+        let b = tr(b
+            .curve(SessionCurve::BrainpoolP256r1)
+            .layer(CipherLayer::Aes256Gcm));
         let u = tr(b.build());
         let e = r.register(u);
         assert_eq!(e, Err(CipherProfileError::InvalidProfileName));
@@ -211,7 +215,9 @@ mod tests {
     fn registry_remove_user() {
         let mut r = ProfileRegistry::with_builtins();
         let b = tr(CipherProfileBuilder::new("tmp-user"));
-        let b = tr(b.curve(SessionCurve::BrainpoolP256r1).layer(CipherLayer::Aes256Gcm));
+        let b = tr(b
+            .curve(SessionCurve::BrainpoolP256r1)
+            .layer(CipherLayer::Aes256Gcm));
         let u = tr(b.build());
         tr(r.register(u));
         tr(r.remove("tmp-user"));
@@ -226,12 +232,16 @@ mod tests {
         ];
         for name in NAMES {
             let b = tr(CipherProfileBuilder::new(name));
-            let b = tr(b.curve(SessionCurve::BrainpoolP256r1).layer(CipherLayer::Aes256Gcm));
+            let b = tr(b
+                .curve(SessionCurve::BrainpoolP256r1)
+                .layer(CipherLayer::Aes256Gcm));
             let p = tr(b.build());
             tr(r.register(p));
         }
         let b = tr(CipherProfileBuilder::new("overflow"));
-        let b = tr(b.curve(SessionCurve::BrainpoolP256r1).layer(CipherLayer::Aes256Gcm));
+        let b = tr(b
+            .curve(SessionCurve::BrainpoolP256r1)
+            .layer(CipherLayer::Aes256Gcm));
         let extra = tr(b.build());
         let e = r.register(extra);
         assert_eq!(e, Err(CipherProfileError::RegistryFull));

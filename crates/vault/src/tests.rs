@@ -6,7 +6,7 @@ use crate::session::VaultSessionState;
 use hkdf::Hkdf;
 use proptest::prelude::*;
 use sha2::{Sha256, Sha512};
-use static_assertions::{assert_not_impl_all, assert_impl_all};
+use static_assertions::{assert_impl_all, assert_not_impl_all};
 use subtle::ConstantTimeEq;
 use zeroize::Zeroize;
 
@@ -88,7 +88,8 @@ fn hkdf_sha256_rsa_key_wrap_distinct_from_serpent_storage() {
     let mut b = [0u8; 32];
     let hk = Hkdf::<Sha256>::new(Some(b"salt"), b"ikm");
     hk.expand(KeyPurpose::RsaKeyWrap.info(), &mut a).unwrap();
-    hk.expand(KeyPurpose::SerpentStorage.info(), &mut b).unwrap();
+    hk.expand(KeyPurpose::SerpentStorage.info(), &mut b)
+        .unwrap();
     assert_ne!(a, b);
 }
 
@@ -97,8 +98,10 @@ fn hkdf_sha256_twofish_distinct_from_serpent_storage() {
     let mut a = [0u8; 32];
     let mut b = [0u8; 32];
     let hk = Hkdf::<Sha256>::new(Some(b"salt"), b"ikm");
-    hk.expand(KeyPurpose::TwofishStorage.info(), &mut a).unwrap();
-    hk.expand(KeyPurpose::SerpentStorage.info(), &mut b).unwrap();
+    hk.expand(KeyPurpose::TwofishStorage.info(), &mut a)
+        .unwrap();
+    hk.expand(KeyPurpose::SerpentStorage.info(), &mut b)
+        .unwrap();
     assert_ne!(a, b);
 }
 
@@ -113,7 +116,8 @@ fn hkdf_sha512_session_long_term_sign_distinct_from_ephemeral_prk_and_others() {
         .unwrap();
     hk.expand(KeyPurpose::EphemeralSessionPrk.info(), &mut b)
         .unwrap();
-    hk.expand(KeyPurpose::OpenPgpSigning.info(), &mut c).unwrap();
+    hk.expand(KeyPurpose::OpenPgpSigning.info(), &mut c)
+        .unwrap();
     hk.expand(KeyPurpose::UsbSession.info(), &mut d).unwrap();
     assert_ne!(a, b);
     assert_ne!(a, c);
@@ -146,14 +150,6 @@ fn shamir_share_buffers_zeroised_after_reconstruct_todo() {
     let mut share_b = [7u8; 32];
     share_a.zeroize();
     share_b.zeroize();
-    assert!(bool::from(
-        share_a
-            .as_slice()
-            .ct_eq(&[0u8; 32])
-    ));
-    assert!(bool::from(
-        share_b
-            .as_slice()
-            .ct_eq(&[0u8; 32])
-    ));
+    assert!(bool::from(share_a.as_slice().ct_eq(&[0u8; 32])));
+    assert!(bool::from(share_b.as_slice().ct_eq(&[0u8; 32])));
 }

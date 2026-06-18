@@ -89,9 +89,10 @@ fn test_profile_add_custom() {
         ])
         .assert()
         .success()
-        .stdout(predicate::str::contains("chacha20poly1305").or(predicate::str::contains(
-            "ChaCha20-Poly1305",
-        )));
+        .stdout(
+            predicate::str::contains("chacha20poly1305")
+                .or(predicate::str::contains("ChaCha20-Poly1305")),
+        );
 }
 
 #[test]
@@ -213,6 +214,12 @@ fn db_with_alice_group(db_path: &std::path::Path) {
         department: None,
         role: None,
         note: None,
+        dmr_id: None,
+        radio_affiliation: None,
+        street: None,
+        country: None,
+        postal_code: None,
+        region: None,
     };
     let id = contacts::contact_add(&mut db, nc).expect("add");
     contacts::contact_upsert_key(
@@ -374,7 +381,8 @@ AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
         ])
         .assert()
         .failure()
-        .stderr(predicate::str::contains("insufficient shares").or(predicate::str::contains(
-            "device not connected",
-        )));
+        .stderr(
+            predicate::str::contains("insufficient shares")
+                .or(predicate::str::contains("device not connected")),
+        );
 }

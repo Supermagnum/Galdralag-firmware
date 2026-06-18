@@ -16,6 +16,12 @@ fn group_create_add_remove_delete() {
             department: None,
             role: None,
             note: None,
+            dmr_id: None,
+            radio_affiliation: None,
+            street: None,
+            country: None,
+            postal_code: None,
+            region: None,
         },
     )
     .expect("a");

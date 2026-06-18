@@ -3,11 +3,11 @@
 //! **Security role:** software group law on VexRiscv until PKE hardware binding is wired; domain
 //! parameters are fixed by `bp256::BrainpoolP256r1` (RFC 5639).
 
-use bp256::BrainpoolP256r1;
-use elliptic_curve::ecdh::diffie_hellman;
 use bp256::elliptic_curve::pkcs8::DecodePublicKey;
 use bp256::elliptic_curve::sec1::{FromSec1Point, Sec1Point, ToSec1Point};
 use bp256::elliptic_curve::{PublicKey, SecretKey};
+use bp256::BrainpoolP256r1;
+use elliptic_curve::ecdh::diffie_hellman;
 use galdr_core::hal::HardwareTrng;
 use subtle::ConstantTimeEq;
 use zeroize::{Zeroize, ZeroizeOnDrop};
@@ -40,8 +40,7 @@ impl BrainpoolScalar {
     pub fn generate<T: HardwareTrng>(trng: &mut T) -> Result<Self, BrainpoolError> {
         for _ in 0..SCALAR_SAMPLE_TRIES {
             let mut raw = [0u8; 32];
-            trng
-                .try_fill_bytes(&mut raw)
+            trng.try_fill_bytes(&mut raw)
                 .map_err(|_| BrainpoolError::TrngFailure)?;
             if let Ok(sk) = SecretKey::<BrainpoolP256r1>::from_slice(&raw) {
                 raw.zeroize();
@@ -82,7 +81,8 @@ impl BrainpoolScalar {
 
     /// Deserialize a scalar from raw secret key bytes (interoperability and test vectors).
     pub fn from_secret_key_bytes_for_test(bytes: &[u8]) -> Result<Self, BrainpoolError> {
-        let sk = SecretKey::<BrainpoolP256r1>::from_slice(bytes).map_err(|_| BrainpoolError::InvalidScalar)?;
+        let sk = SecretKey::<BrainpoolP256r1>::from_slice(bytes)
+            .map_err(|_| BrainpoolError::InvalidScalar)?;
         let fb = sk.to_bytes();
         let mut arr = [0u8; 32];
         arr.copy_from_slice(fb.as_slice());
@@ -158,13 +158,11 @@ mod tests {
 
     /// RFC 5639 generator in uncompressed SEC1 (hex: 04 || Gx || Gy).
     const G_SEC1: [u8; 65] = [
-        0x04,
-        0x8b, 0xd2, 0xae, 0xb9, 0xcb, 0x7e, 0x57, 0xcb, 0x2c, 0x4b, 0x48, 0x2f, 0xfc, 0x81,
+        0x04, 0x8b, 0xd2, 0xae, 0xb9, 0xcb, 0x7e, 0x57, 0xcb, 0x2c, 0x4b, 0x48, 0x2f, 0xfc, 0x81,
         0xb7, 0xaf, 0xb9, 0xde, 0x27, 0xe1, 0xe3, 0xbd, 0x23, 0xc2, 0x3a, 0x44, 0x53, 0xbd, 0x9a,
-        0xce, 0x32, 0x62,
-        0x54, 0x7e, 0xf8, 0x35, 0xc3, 0xda, 0xc4, 0xfd, 0x97, 0xf8, 0x46, 0x1a, 0x14, 0x61,
-        0x1d, 0xc9, 0xc2, 0x77, 0x45, 0x13, 0x2d, 0xed, 0x8e, 0x54, 0x5c, 0x1d, 0x54, 0xc7,
-        0x2f, 0x04, 0x69, 0x97,
+        0xce, 0x32, 0x62, 0x54, 0x7e, 0xf8, 0x35, 0xc3, 0xda, 0xc4, 0xfd, 0x97, 0xf8, 0x46, 0x1a,
+        0x14, 0x61, 0x1d, 0xc9, 0xc2, 0x77, 0x45, 0x13, 0x2d, 0xed, 0x8e, 0x54, 0x5c, 0x1d, 0x54,
+        0xc7, 0x2f, 0x04, 0x69, 0x97,
     ];
 
     #[test]

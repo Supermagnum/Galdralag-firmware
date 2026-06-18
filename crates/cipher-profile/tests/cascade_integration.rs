@@ -1,8 +1,8 @@
 //! Cascade encrypt/decrypt integration checks (built-in profiles).
 
 use cipher_profile::{
-    cascade_decrypt, cascade_encrypt, layer_key_info, layer_nonce_info, CipherLayer,
-    CipherProfile, CipherProfileBuilder, CipherProfileError, ProfileRegistry,
+    cascade_decrypt, cascade_encrypt, layer_key_info, layer_nonce_info, CipherLayer, CipherProfile,
+    CipherProfileBuilder, CipherProfileError, ProfileRegistry,
 };
 use ephemeral_session::SessionCurve;
 use subtle::ConstantTimeEq;
@@ -77,11 +77,7 @@ fn cascade_hkdf_info_symmetric_encrypt_vs_decrypt_per_layer() {
         let profile = tr(reg.get(profile_name).ok_or("missing builtin"));
         let enc = hkdf_infos_encrypt_order(profile);
         let dec_walk = hkdf_infos_decrypt_walk_order(profile);
-        assert_eq!(
-            enc.len(),
-            dec_walk.len(),
-            "profile {profile_name}"
-        );
+        assert_eq!(enc.len(), dec_walk.len(), "profile {profile_name}");
         let n = enc.len();
         for i in 0..n {
             assert_eq!(

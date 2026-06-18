@@ -1,8 +1,8 @@
 //! Full PIN policy integration tests (parser boundary, counter ordering, threshold, challenge path).
 
 use galdr_core::fake_hal::FakeMonotonicCounter;
-use galdr_core::{MonotonicCounter, VaultStorage};
 use galdr_core::GaldrError;
+use galdr_core::{MonotonicCounter, VaultStorage};
 use pin_policy::{
     parse_challenge_passphrase, parse_unlock_pin, pin_compare, PinOutcome, PinParseError,
     PinPolicyConfig, PinPolicyMachine, PinState, ZeroisationTrigger,
@@ -38,9 +38,7 @@ fn pin_length_5_accepted() {
     );
     m.enter_locked_idle();
     let pin = parsed.unwrap().as_bytes();
-    let r = m
-        .submit_attempt(|| pin_compare(pin, pin))
-        .unwrap();
+    let r = m.submit_attempt(|| pin_compare(pin, pin)).unwrap();
     assert_eq!(r, PinOutcome::Success);
 }
 
@@ -70,9 +68,7 @@ fn counter_incremented_before_compare_wrong_pin() {
         FlagZ(false),
     );
     m.enter_locked_idle();
-    let r = m
-        .submit_attempt(|| Choice::from(0u8))
-        .unwrap();
+    let r = m.submit_attempt(|| Choice::from(0u8)).unwrap();
     assert_eq!(r, PinOutcome::Failed { attempts_used: 1 });
     let (_, _, c, _) = m.into_inner();
     assert_eq!(c.read().unwrap(), 1);
@@ -86,9 +82,7 @@ fn correct_pin_no_counter_increment() {
         FlagZ(false),
     );
     m.enter_locked_idle();
-    let r = m
-        .submit_attempt(|| Choice::from(1u8))
-        .unwrap();
+    let r = m.submit_attempt(|| Choice::from(1u8)).unwrap();
     assert_eq!(r, PinOutcome::Success);
     let (_, _, c, _) = m.into_inner();
     assert_eq!(c.read().unwrap(), 0);
@@ -145,7 +139,9 @@ impl galdr_core::hal::MonotonicCounter for RramPersistedCounter {
 
 #[test]
 fn counter_incremented_on_rram_flush_failure() {
-    let storage = Rc::new(RefCell::new(galdr_core::fake_hal::FakeVaultStorage::new(256)));
+    let storage = Rc::new(RefCell::new(galdr_core::fake_hal::FakeVaultStorage::new(
+        256,
+    )));
     storage.borrow_mut().write(0, &0u32.to_le_bytes()).unwrap();
 
     let ctr = RramPersistedCounter::new(Rc::clone(&storage), 0);
@@ -177,11 +173,7 @@ fn counter_incremented_on_rram_flush_failure() {
 #[test]
 fn pin_threshold_minus_one_no_zeroise() {
     let z = FlagZ(false);
-    let mut m = PinPolicyMachine::new(
-        PinPolicyConfig::default(),
-        FakeMonotonicCounter::new(2),
-        z,
-    );
+    let mut m = PinPolicyMachine::new(PinPolicyConfig::default(), FakeMonotonicCounter::new(2), z);
     m.enter_locked_idle();
     let r = m.submit_attempt(|| Choice::from(0u8)).unwrap();
     assert_eq!(r, PinOutcome::Failed { attempts_used: 3 });
@@ -192,11 +184,7 @@ fn pin_threshold_minus_one_no_zeroise() {
 #[test]
 fn pin_at_threshold_zeroise_triggered() {
     let z = FlagZ(false);
-    let mut m = PinPolicyMachine::new(
-        PinPolicyConfig::default(),
-        FakeMonotonicCounter::new(3),
-        z,
-    );
+    let mut m = PinPolicyMachine::new(PinPolicyConfig::default(), FakeMonotonicCounter::new(3), z);
     m.enter_locked_idle();
     let r = m.submit_attempt(|| Choice::from(0u8)).unwrap();
     assert_eq!(r, PinOutcome::Breach);
@@ -208,11 +196,7 @@ fn pin_at_threshold_zeroise_triggered() {
 #[test]
 fn pin_correct_at_threshold_minus_one() {
     let z = FlagZ(false);
-    let mut m = PinPolicyMachine::new(
-        PinPolicyConfig::default(),
-        FakeMonotonicCounter::new(2),
-        z,
-    );
+    let mut m = PinPolicyMachine::new(PinPolicyConfig::default(), FakeMonotonicCounter::new(2), z);
     m.enter_locked_idle();
     let r = m.submit_attempt(|| Choice::from(1u8)).unwrap();
     assert_eq!(r, PinOutcome::Success);
@@ -224,7 +208,10 @@ fn pin_correct_at_threshold_minus_one() {
 #[test]
 fn challenge_response_4_char_rejected() {
     let c = FakeMonotonicCounter::new(0);
-    assert_eq!(parse_challenge_passphrase("1234"), Err(PinParseError::TooShort));
+    assert_eq!(
+        parse_challenge_passphrase("1234"),
+        Err(PinParseError::TooShort)
+    );
     assert_eq!(c.read().unwrap(), 0);
 }
 

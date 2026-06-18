@@ -1,10 +1,10 @@
 //! One-shot host tool: emit `serpent_vectors.json` for vault KAT tests (RustCrypto `serpent` ECB).
 
+use serde_json::json;
 use serpent::cipher::array::Array;
 use serpent::cipher::consts::U16;
 use serpent::cipher::{BlockCipherEncrypt, KeyInit};
 use serpent::Serpent;
-use serde_json::json;
 
 fn ecb_encrypt(key: &[u8], pt: &[u8; 16]) -> Result<[u8; 16], serpent::cipher::InvalidLength> {
     let s = Serpent::new_from_slice(key)?;

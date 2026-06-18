@@ -5,10 +5,11 @@
 //! (e.g. from ephemeral ECDH per CESS).
 
 use crate::GaldraError;
-use cess::{assemble_mode_a_outer_plaintext, open_mode_a_outer, parse_mode_a_outer_plaintext, seal_mode_a_outer};
-use cipher_profile::{
-    cascade_decrypt, cascade_encrypt, CascadeCiphertext, CipherProfile,
+use cess::{
+    assemble_mode_a_outer_plaintext, open_mode_a_outer, parse_mode_a_outer_plaintext,
+    seal_mode_a_outer,
 };
+use cipher_profile::{cascade_decrypt, cascade_encrypt, CascadeCiphertext, CipherProfile};
 use rand::RngCore;
 
 const MAGIC: &[u8; 8] = b"GALDRACP";
@@ -28,7 +29,9 @@ pub fn build_cipher_aad(profile_name: &str, sender_fingerprint_hex: &str, ts_uni
 fn serialize_cascade_ct(ct: &CascadeCiphertext) -> Result<Vec<u8>, GaldraError> {
     let name = ct.profile_name.as_str().as_bytes();
     if name.len() > 64 {
-        return Err(GaldraError::CipherProfile("profile name too long".to_string()));
+        return Err(GaldraError::CipherProfile(
+            "profile name too long".to_string(),
+        ));
     }
     let mut out = Vec::new();
     out.push(name.len() as u8);
@@ -36,7 +39,9 @@ fn serialize_cascade_ct(ct: &CascadeCiphertext) -> Result<Vec<u8>, GaldraError> 
     let body = ct.ciphertext.as_slice();
     let len = body.len();
     if len > 65536 {
-        return Err(GaldraError::CipherProfile("ciphertext too large".to_string()));
+        return Err(GaldraError::CipherProfile(
+            "ciphertext too large".to_string(),
+        ));
     }
     out.extend_from_slice(&(len as u32).to_be_bytes());
     out.extend_from_slice(body);
@@ -45,18 +50,24 @@ fn serialize_cascade_ct(ct: &CascadeCiphertext) -> Result<Vec<u8>, GaldraError> 
 
 fn deserialize_cascade_ct(data: &[u8]) -> Result<CascadeCiphertext, GaldraError> {
     if data.is_empty() {
-        return Err(GaldraError::CipherProfile("truncated cascade blob".to_string()));
+        return Err(GaldraError::CipherProfile(
+            "truncated cascade blob".to_string(),
+        ));
     }
     let nl = data[0] as usize;
     if data.len() < 1 + nl + 4 {
-        return Err(GaldraError::CipherProfile("truncated cascade blob".to_string()));
+        return Err(GaldraError::CipherProfile(
+            "truncated cascade blob".to_string(),
+        ));
     }
     let name_bytes = &data[1..1 + nl];
     let name_str = core::str::from_utf8(name_bytes)
         .map_err(|_| GaldraError::CipherProfile("invalid profile name utf8".to_string()))?;
     let mut i = 1 + nl;
     if data.len() < i + 4 {
-        return Err(GaldraError::CipherProfile("truncated cascade length".to_string()));
+        return Err(GaldraError::CipherProfile(
+            "truncated cascade length".to_string(),
+        ));
     }
     let cl = u32::from_be_bytes(
         data[i..i + 4]
@@ -65,7 +76,9 @@ fn deserialize_cascade_ct(data: &[u8]) -> Result<CascadeCiphertext, GaldraError>
     ) as usize;
     i += 4;
     if data.len() < i + cl {
-        return Err(GaldraError::CipherProfile("truncated cascade body".to_string()));
+        return Err(GaldraError::CipherProfile(
+            "truncated cascade body".to_string(),
+        ));
     }
     let ct_body = &data[i..i + cl];
     let mut profile_name = heapless::String::new();
@@ -132,10 +145,14 @@ pub fn open_plaintext_after_openpgp(
     let ver = inner[i];
     i += 1;
     if ver != VERSION {
-        return Err(GaldraError::CipherProfile(format!("unsupported version {ver}")));
+        return Err(GaldraError::CipherProfile(format!(
+            "unsupported version {ver}"
+        )));
     }
     if inner.len() < i + 8 {
-        return Err(GaldraError::CipherProfile("truncated timestamp".to_string()));
+        return Err(GaldraError::CipherProfile(
+            "truncated timestamp".to_string(),
+        ));
     }
     let ts_unix = u64::from_be_bytes(
         inner[i..i + 8]
@@ -149,7 +166,9 @@ pub fn open_plaintext_after_openpgp(
     let fpl = inner[i] as usize;
     i += 1;
     if inner.len() < i + fpl {
-        return Err(GaldraError::CipherProfile("truncated fingerprint".to_string()));
+        return Err(GaldraError::CipherProfile(
+            "truncated fingerprint".to_string(),
+        ));
     }
     let sender_fp = &inner[i..i + fpl];
     let sender_fp_str = core::str::from_utf8(sender_fp)
@@ -162,7 +181,9 @@ pub fn open_plaintext_after_openpgp(
     prk.copy_from_slice(&inner[i..i + 32]);
     i += 32;
     if inner.len() < i + 4 {
-        return Err(GaldraError::CipherProfile("truncated cascade len".to_string()));
+        return Err(GaldraError::CipherProfile(
+            "truncated cascade len".to_string(),
+        ));
     }
     let cbl = u32::from_be_bytes(
         inner[i..i + 4]
@@ -171,13 +192,14 @@ pub fn open_plaintext_after_openpgp(
     ) as usize;
     i += 4;
     if inner.len() < i + cbl {
-        return Err(GaldraError::CipherProfile("truncated cascade blob".to_string()));
+        return Err(GaldraError::CipherProfile(
+            "truncated cascade blob".to_string(),
+        ));
     }
     let cascade_raw = &inner[i..i + cbl];
     let cascade = deserialize_cascade_ct(cascade_raw)?;
     let pname = cascade.profile_name.as_str().to_string();
-    let profile = get_profile(&pname)
-        .ok_or_else(|| GaldraError::ProfileNotFound(pname.clone()))?;
+    let profile = get_profile(&pname).ok_or_else(|| GaldraError::ProfileNotFound(pname.clone()))?;
     let aad = build_cipher_aad(profile.name(), sender_fp_str, ts_unix);
     let plain = cascade_decrypt(&profile, &prk, &aad, &cascade)
         .map_err(|e| GaldraError::CipherProfile(format!("{e:?}")))?;
@@ -200,8 +222,7 @@ pub fn parse_hex_fixed<const N: usize>(label: &str, s: &str) -> Result<[u8; N], 
         )));
     }
     let mut out = [0u8; N];
-    hex::decode_to_slice(s, &mut out)
-        .map_err(|e| GaldraError::Config(format!("{label}: {e}")))?;
+    hex::decode_to_slice(s, &mut out).map_err(|e| GaldraError::Config(format!("{label}: {e}")))?;
     Ok(out)
 }
 
@@ -220,24 +241,20 @@ pub fn wrap_inner_with_cess_mode_a(
             "no CESS registry suite_id for profile '{profile_name}' (Mode A supports built-in profiles only)"
         ))
     })?;
-    let outer_plain = assemble_mode_a_outer_plaintext(suite_id, inner_galdra).map_err(|e| {
-        GaldraError::CipherProfile(format!("cess outer plaintext: {e}"))
-    })?;
-    seal_mode_a_outer(k_outer, nonce, &outer_plain).map_err(|e| {
-        GaldraError::CipherProfile(format!("cess Mode A seal: {e}"))
-    })
+    let outer_plain = assemble_mode_a_outer_plaintext(suite_id, inner_galdra)
+        .map_err(|e| GaldraError::CipherProfile(format!("cess outer plaintext: {e}")))?;
+    seal_mode_a_outer(k_outer, nonce, &outer_plain)
+        .map_err(|e| GaldraError::CipherProfile(format!("cess Mode A seal: {e}")))
 }
 
 fn open_cess_mode_a_outer_to_inner_blob(
     wire: &[u8],
     k_outer: &[u8; 32],
 ) -> Result<Vec<u8>, GaldraError> {
-    let plain = open_mode_a_outer(k_outer, wire).map_err(|e| {
-        GaldraError::CipherProfile(format!("cess Mode A open: {e}"))
-    })?;
-    let (_suite_id, inner) = parse_mode_a_outer_plaintext(&plain).map_err(|e| {
-        GaldraError::CipherProfile(format!("cess outer plaintext: {e}"))
-    })?;
+    let plain = open_mode_a_outer(k_outer, wire)
+        .map_err(|e| GaldraError::CipherProfile(format!("cess Mode A open: {e}")))?;
+    let (_suite_id, inner) = parse_mode_a_outer_plaintext(&plain)
+        .map_err(|e| GaldraError::CipherProfile(format!("cess outer plaintext: {e}")))?;
     Ok(inner.to_vec())
 }
 
@@ -257,7 +274,8 @@ pub fn open_plaintext_from_openpgp_literal(
         let blob = open_cess_mode_a_outer_to_inner_blob(inner, k)?;
         if !is_cipher_profile_envelope(&blob) {
             return Err(GaldraError::CipherProfile(
-                "CESS outer decrypted but inner is not a Galdra cipher-profile envelope".to_string(),
+                "CESS outer decrypted but inner is not a Galdra cipher-profile envelope"
+                    .to_string(),
             ));
         }
         return open_plaintext_after_openpgp(&blob, get_profile);

@@ -4,9 +4,7 @@
 //! The host cannot change it without authenticated provisioning.
 
 use galdr_core::hal::VaultStorage;
-use pin_policy::{
-    PinPolicyConfig, MAX_PROVISIONED_PIN_ATTEMPTS, MIN_PROVISIONED_PIN_ATTEMPTS,
-};
+use pin_policy::{PinPolicyConfig, MAX_PROVISIONED_PIN_ATTEMPTS, MIN_PROVISIONED_PIN_ATTEMPTS};
 
 /// Magic and version for the on-device policy blob.
 const VAULT_PIN_POLICY_MAGIC: &[u8; 4] = b"GPPL";

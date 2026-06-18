@@ -9,11 +9,11 @@ mod response;
 pub mod usb_class;
 
 pub use command::{parse_pc_to_rdr, CcidError, PcToRdr};
-pub use usb_class::CcidClass;
 pub use response::{
     atr_openpgp_profile, rdr_to_pc_data_block, rdr_to_pc_parameters, rdr_to_pc_slot_status,
     CcidStatus, RDR_TO_PC_DATA_BLOCK, RDR_TO_PC_PARAMETERS, RDR_TO_PC_SLOT_STATUS,
 };
+pub use usb_class::CcidClass;
 
 /// USB device class: interface defined (composite device).
 pub const USB_DEVICE_CLASS: u8 = 0x00;

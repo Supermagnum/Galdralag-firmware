@@ -14,11 +14,11 @@ use rsa::pss::{Pss, VerifyingKey};
 use rsa::sha2::{Digest, Sha256, Sha512};
 use rsa::signature::Verifier;
 use rsa::traits::PublicKeyParts;
-use rsa::{Oaep, RsaPrivateKey as RsaPrivInner, RsaPublicKey as RsaPubInner};
 use rsa::{
     pkcs8::{DecodePrivateKey, DecodePublicKey, EncodePrivateKey, EncodePublicKey},
     pss::Signature as PssSignatureInner,
 };
+use rsa::{Oaep, RsaPrivateKey as RsaPrivInner, RsaPublicKey as RsaPubInner};
 use zeroize::Zeroize;
 
 /// Minimum RSA modulus size accepted by this API (bits).
@@ -150,9 +150,7 @@ impl RsaOaepCiphertext {
     /// Test/fuzz helper: build from untrusted bytes without validating length.
     #[doc(hidden)]
     pub fn from_bytes_fuzz(data: &[u8]) -> Self {
-        Self {
-            buf: data.to_vec(),
-        }
+        Self { buf: data.to_vec() }
     }
 }
 
@@ -164,9 +162,7 @@ impl RsaPssSignature {
 
     #[doc(hidden)]
     pub fn from_bytes_fuzz(data: &[u8]) -> Self {
-        Self {
-            buf: data.to_vec(),
-        }
+        Self { buf: data.to_vec() }
     }
 
     #[cfg(test)]
@@ -185,9 +181,7 @@ impl RsaPkcs1Signature {
 
     #[doc(hidden)]
     pub fn from_bytes_fuzz(data: &[u8]) -> Self {
-        Self {
-            buf: data.to_vec(),
-        }
+        Self { buf: data.to_vec() }
     }
 }
 
@@ -411,8 +405,8 @@ impl RsaPublicKey {
         use rsa::pkcs1v15::Signature as SigPkcs1;
         use rsa::pkcs1v15::VerifyingKey as VkPkcs1;
         let vk = VkPkcs1::<Sha256>::new(self.inner.clone());
-        let sig = SigPkcs1::try_from(signature.as_slice())
-            .map_err(|_| RsaError::VerificationFailed)?;
+        let sig =
+            SigPkcs1::try_from(signature.as_slice()).map_err(|_| RsaError::VerificationFailed)?;
         vk.verify(message, &sig)
             .map_err(|_| RsaError::VerificationFailed)
     }
@@ -482,7 +476,10 @@ mod tests {
         let k = RsaPrivateKey::generate(&mut trng, 2048)?;
         let der = k.to_pkcs8_der()?;
         let k2 = RsaPrivateKey::from_pkcs8_der(der.as_slice())?;
-        assert_eq!(k.public_key().to_spki_der()?, k2.public_key().to_spki_der()?);
+        assert_eq!(
+            k.public_key().to_spki_der()?,
+            k2.public_key().to_spki_der()?
+        );
         Ok(())
     }
 

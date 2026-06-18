@@ -8,7 +8,9 @@
 pub enum ZeroisePhase {
     Idle,
     /// Multi-pass pass index (opaque).
-    InProgress { pass: u8 },
+    InProgress {
+        pass: u8,
+    },
 }
 
 /// Boot-visible state for interrupted zeroisation.
@@ -16,7 +18,9 @@ pub enum ZeroisePhase {
 pub enum ZeroiseBootState {
     Clean,
     /// Must continue zeroisation before exposing USB or vault unlock.
-    ResumeRequired { phase: ZeroisePhase },
+    ResumeRequired {
+        phase: ZeroisePhase,
+    },
 }
 
 impl ZeroiseBootState {

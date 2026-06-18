@@ -41,12 +41,16 @@ fn purpose_wire_id(purpose: KeyPurpose) -> Result<u8, SealedKeyError> {
     }
 }
 
-fn derive_wrapping_key(master_key: &[u8; 32], purpose_byte: u8) -> Result<[u8; 32], SealedKeyError> {
+fn derive_wrapping_key(
+    master_key: &[u8; 32],
+    purpose_byte: u8,
+) -> Result<[u8; 32], SealedKeyError> {
     let mut info = Vec::<u8, 64>::new();
     for b in WRAP_INFO_PREFIX {
         info.push(*b).map_err(|_| SealedKeyError::StorageError)?;
     }
-    info.push(purpose_byte).map_err(|_| SealedKeyError::StorageError)?;
+    info.push(purpose_byte)
+        .map_err(|_| SealedKeyError::StorageError)?;
     let hk = Hkdf::<Sha256>::new(Some(&[]), master_key);
     let mut okm = [0u8; 32];
     hk.expand(info.as_slice(), &mut okm)
@@ -56,7 +60,8 @@ fn derive_wrapping_key(master_key: &[u8; 32], purpose_byte: u8) -> Result<[u8; 3
 
 fn build_aad(purpose_byte: u8, nonce: &[u8; 12]) -> Result<Vec<u8, 13>, SealedKeyError> {
     let mut a = Vec::<u8, 13>::new();
-    a.push(purpose_byte).map_err(|_| SealedKeyError::StorageError)?;
+    a.push(purpose_byte)
+        .map_err(|_| SealedKeyError::StorageError)?;
     for b in nonce {
         a.push(*b).map_err(|_| SealedKeyError::StorageError)?;
     }
@@ -76,8 +81,7 @@ impl SealedKeyBlob {
         }
         let purpose_byte = purpose_wire_id(purpose)?;
         let mut nonce = [0u8; 12];
-        trng
-            .try_fill_bytes(&mut nonce)
+        trng.try_fill_bytes(&mut nonce)
             .map_err(|_| SealedKeyError::TrngError)?;
         let aad = build_aad(purpose_byte, &nonce)?;
         let wrapping_key = derive_wrapping_key(master_key, purpose_byte)?;
@@ -96,7 +100,8 @@ impl SealedKeyBlob {
             return Err(SealedKeyError::StorageError);
         }
         let mut out = Vec::<u8, 93>::new();
-        out.push(purpose_byte).map_err(|_| SealedKeyError::StorageError)?;
+        out.push(purpose_byte)
+            .map_err(|_| SealedKeyError::StorageError)?;
         for b in nonce {
             out.push(b).map_err(|_| SealedKeyError::StorageError)?;
         }
@@ -220,8 +225,8 @@ mod tests {
     fn seal_unseal_roundtrip() {
         let mut trng = FakeTrng::from_seed(0xC0DE);
         let scalar = [0x3Bu8; 32];
-        let blob = SealedKeyBlob::seal(&MASTER, KeyPurpose::OpenPgpSig, &scalar, &mut trng)
-            .expect("seal");
+        let blob =
+            SealedKeyBlob::seal(&MASTER, KeyPurpose::OpenPgpSig, &scalar, &mut trng).expect("seal");
         let out = blob
             .unseal(&MASTER, KeyPurpose::OpenPgpSig)
             .expect("unseal");
@@ -233,8 +238,8 @@ mod tests {
         let mut trng = FakeTrng::from_seed(0x512);
         let mut scalar = [0x5Au8; 64];
         scalar[0] = 0x01;
-        let blob = SealedKeyBlob::seal(&MASTER, KeyPurpose::OpenPgpDec, &scalar, &mut trng)
-            .expect("seal");
+        let blob =
+            SealedKeyBlob::seal(&MASTER, KeyPurpose::OpenPgpDec, &scalar, &mut trng).expect("seal");
         let out = blob
             .unseal(&MASTER, KeyPurpose::OpenPgpDec)
             .expect("unseal");
@@ -245,8 +250,8 @@ mod tests {
     fn tamper_tag() {
         let mut trng = FakeTrng::from_seed(1);
         let scalar = [0x22u8; 32];
-        let blob = SealedKeyBlob::seal(&MASTER, KeyPurpose::OpenPgpAut, &scalar, &mut trng)
-            .expect("seal");
+        let blob =
+            SealedKeyBlob::seal(&MASTER, KeyPurpose::OpenPgpAut, &scalar, &mut trng).expect("seal");
         let mut raw = alloc::vec::Vec::from(blob.as_slice());
         let last = raw.len().saturating_sub(1);
         raw[last] ^= 0x01;
@@ -263,8 +268,8 @@ mod tests {
     fn tamper_purpose() {
         let mut trng = FakeTrng::from_seed(2);
         let scalar = [0x11u8; 32];
-        let blob = SealedKeyBlob::seal(&MASTER, KeyPurpose::OpenPgpSig, &scalar, &mut trng)
-            .expect("seal");
+        let blob =
+            SealedKeyBlob::seal(&MASTER, KeyPurpose::OpenPgpSig, &scalar, &mut trng).expect("seal");
         let r = blob.unseal(&MASTER, KeyPurpose::OpenPgpDec);
         assert_eq!(r, Err(SealedKeyError::PurposeMismatch));
     }
@@ -272,11 +277,7 @@ mod tests {
     #[test]
     fn empty_cell() {
         let cell = [0u8; SEALED_BLOB_BYTES];
-        let r = SealedKeyBlob::unseal_from_storage_cell(
-            &cell,
-            &MASTER,
-            KeyPurpose::OpenPgpSig,
-        );
+        let r = SealedKeyBlob::unseal_from_storage_cell(&cell, &MASTER, KeyPurpose::OpenPgpSig);
         assert_eq!(r, Err(SealedKeyError::AuthenticationFailed));
     }
 }

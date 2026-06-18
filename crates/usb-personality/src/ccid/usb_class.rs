@@ -147,7 +147,6 @@ impl<'a, B: UsbBus, D: OpenPgpDispatch> CcidClass<'a, B, D> {
             protocol: CcidProtocolState::new(dispatch),
         }
     }
-
 }
 
 #[cfg(test)]
@@ -162,7 +161,10 @@ impl<D: OpenPgpDispatch> CcidProtocolState<D> {
 }
 
 impl<'a, B: UsbBus, D: OpenPgpDispatch> UsbClass<B> for CcidClass<'a, B, D> {
-    fn get_configuration_descriptors(&self, writer: &mut usb_device::descriptor::DescriptorWriter) -> UsbResult<()> {
+    fn get_configuration_descriptors(
+        &self,
+        writer: &mut usb_device::descriptor::DescriptorWriter,
+    ) -> UsbResult<()> {
         writer.interface(
             self.iface,
             super::USB_INTERFACE_CLASS_CCID,
@@ -252,7 +254,9 @@ mod tests {
 
     #[test]
     fn single_packet_dispatch() {
-        let apdu = [0x00u8, 0xA4, 0x04, 0x00, 0x06, 0xD2, 0x76, 0x00, 0x01, 0x24, 0x01];
+        let apdu = [
+            0x00u8, 0xA4, 0x04, 0x00, 0x06, 0xD2, 0x76, 0x00, 0x01, 0x24, 0x01,
+        ];
         let mut m = Vec::<u8, CCID_WIRE_BUF_SIZE>::new();
         let h = hdr(0x6F, apdu.len() as u32, 0, 1, 0, 0, 0);
         m.extend_from_slice(&h).unwrap();
@@ -291,7 +295,9 @@ mod tests {
         assert_eq!(p.rx_len(), 0);
         assert_eq!(p.dispatch_mut().reset_calls, 1);
 
-        let apdu = [0x00u8, 0xA4, 0x04, 0x00, 0x06, 0xD2, 0x76, 0x00, 0x01, 0x24, 0x01];
+        let apdu = [
+            0x00u8, 0xA4, 0x04, 0x00, 0x06, 0xD2, 0x76, 0x00, 0x01, 0x24, 0x01,
+        ];
         let mut m = Vec::<u8, CCID_WIRE_BUF_SIZE>::new();
         let h = hdr(0x6F, apdu.len() as u32, 0, 1, 0, 0, 0);
         m.extend_from_slice(&h).unwrap();

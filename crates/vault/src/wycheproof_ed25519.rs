@@ -12,9 +12,7 @@ fn wycheproof_ed25519_json() {
     let root: serde_json::Value = serde_json::from_str(data).expect("wycheproof Ed25519 JSON");
     let groups = root["testGroups"].as_array().expect("testGroups");
     for group in groups {
-        let pk_hex = group["publicKey"]["pk"]
-            .as_str()
-            .expect("publicKey.pk");
+        let pk_hex = group["publicKey"]["pk"].as_str().expect("publicKey.pk");
         let pk_bytes = hex_decode_tc(0, "pk", pk_hex);
         assert_eq!(pk_bytes.len(), 32, "public key length");
         let mut pk_arr = [0u8; 32];

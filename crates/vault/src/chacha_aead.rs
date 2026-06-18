@@ -296,24 +296,27 @@ mod tests {
     /// RFC 8439 section 2.8.2 AAD example (combined ciphertext + tag from test vector).
     #[test]
     fn rfc8439_section_2_8_2_known_answer() -> Result<(), ChaChaError> {
-        let key_bytes = hex::decode(
-            "808182838485868788898a8b8c8d8e8f909192939495969798999a9b9c9d9e9f",
-        )
-        .map_err(|_| ChaChaError::InvalidLength)?;
+        let key_bytes =
+            hex::decode("808182838485868788898a8b8c8d8e8f909192939495969798999a9b9c9d9e9f")
+                .map_err(|_| ChaChaError::InvalidLength)?;
         let mut key_arr = [0u8; 32];
         key_arr.copy_from_slice(&key_bytes);
         let key = ChaChaKey(key_arr);
         let mut nb = [0u8; 12];
-        nb.copy_from_slice(&hex::decode("070000004041424344454647").map_err(|_| ChaChaError::InvalidLength)?);
+        nb.copy_from_slice(
+            &hex::decode("070000004041424344454647").map_err(|_| ChaChaError::InvalidLength)?,
+        );
         let nonce = ChaChaNonce::from_bytes_for_test(nb);
-        let aad = hex::decode("50515253c0c1c2c3c4c5c6c7").map_err(|_| ChaChaError::InvalidLength)?;
+        let aad =
+            hex::decode("50515253c0c1c2c3c4c5c6c7").map_err(|_| ChaChaError::InvalidLength)?;
         let plaintext = b"Ladies and Gentlemen of the class of '99: If I could offer you only one tip for the future, sunscreen would be it.";
         let ct = chacha_encrypt(&key, &nonce, &aad, plaintext)?;
         let expected_ct = hex::decode(
             "d31a8d34648e60db7b86afbc53ef7ec2a4aded51296e08fea9e2b5a736ee62d63dbea45e8ca9671282fafb69da92728b1a71de0a9e060b2905d6a5b67ecd3b3692ddbd7f2d778b8c9803aee328091b58fab324e4fad675945585808b4831d7bc3ff4def08e4b7a9de576d26586cec64b6116",
         )
         .map_err(|_| ChaChaError::InvalidLength)?;
-        let expected_tag = hex::decode("1ae10b594f09e26a7e902ecbd0600691").map_err(|_| ChaChaError::InvalidLength)?;
+        let expected_tag = hex::decode("1ae10b594f09e26a7e902ecbd0600691")
+            .map_err(|_| ChaChaError::InvalidLength)?;
         let mut exp = heapless::Vec::<u8, MAX_CHACHA_CIPHERTEXT>::new();
         for b in expected_ct.iter().chain(expected_tag.iter()) {
             exp.push(*b).map_err(|_| ChaChaError::InvalidLength)?;

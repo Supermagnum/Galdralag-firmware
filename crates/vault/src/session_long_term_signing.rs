@@ -41,9 +41,8 @@ pub enum SessionLongTermSigningVaultError {
 }
 
 fn slot_offset(slot: &KeySlot) -> u64 {
-    SESSION_LT_REGION_BASE.saturating_add(
-        u64::from(slot.0).saturating_mul(SESSION_LT_SLOT_BYTES as u64),
-    )
+    SESSION_LT_REGION_BASE
+        .saturating_add(u64::from(slot.0).saturating_mul(SESSION_LT_SLOT_BYTES as u64))
 }
 
 /// Store a plaintext signing key scalar at `slot` (tests / provisioning only unless wrapped upstream).

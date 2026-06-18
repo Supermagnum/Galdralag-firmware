@@ -26,13 +26,7 @@ fn main() {
         }
         Some("test-session") => {
             let st = Command::new("cargo")
-                .args([
-                    "test",
-                    "-p",
-                    "ephemeral-session",
-                    "--",
-                    "--test-threads=1",
-                ])
+                .args(["test", "-p", "ephemeral-session", "--", "--test-threads=1"])
                 .stdin(Stdio::inherit())
                 .stdout(Stdio::inherit())
                 .stderr(Stdio::inherit())
@@ -120,9 +114,7 @@ fn main() {
             std::process::exit(code);
         }
         Some("fuzz") => {
-            let name = a
-                .next()
-                .unwrap_or_else(|| "chacha_roundtrip".to_string());
+            let name = a.next().unwrap_or_else(|| "chacha_roundtrip".to_string());
             let duration_secs = a.next().and_then(|s| s.parse::<u64>().ok()).unwrap_or(60);
             run_fuzz_target(fuzz_bin_name(&name), duration_secs);
         }
@@ -170,7 +162,9 @@ fn main() {
                     "test-openpgp: gpg is available. Full OpenPGP/CCID interoperability requires a USB CCID device and host pcscd; see docs/OPENPGP_CARD.md."
                 );
             } else {
-                eprintln!("test-openpgp: gpg not found on PATH; skipping host interoperability checks.");
+                eprintln!(
+                    "test-openpgp: gpg not found on PATH; skipping host interoperability checks."
+                );
             }
             std::process::exit(0);
         }
@@ -267,7 +261,10 @@ fn main() {
                         std::process::exit(s.code().unwrap_or(1));
                     }
                     Err(e) => {
-                        eprintln!("build-and-register: failed to spawn `cargo` in {}: {e}", xc.display());
+                        eprintln!(
+                            "build-and-register: failed to spawn `cargo` in {}: {e}",
+                            xc.display()
+                        );
                         std::process::exit(1);
                     }
                 }
@@ -345,8 +342,12 @@ fn canonical_galdralag_elf_path(release: bool) -> Result<PathBuf, String> {
             elf.display()
         ));
     }
-    std::fs::canonicalize(&elf)
-        .map_err(|e| format!("print-galdralag-xous-cratespec: canonicalize {}: {e}", elf.display()))
+    std::fs::canonicalize(&elf).map_err(|e| {
+        format!(
+            "print-galdralag-xous-cratespec: canonicalize {}: {e}",
+            elf.display()
+        )
+    })
 }
 
 /// `[release|debug]`, then any of `--xous-core PATH` (once) and/or `--extra-flags` (must be last; consumes remainder).
@@ -441,14 +442,7 @@ fn run_fuzz_target(bin: &str, max_total_time_secs: u64) {
     let max_time = format!("-max_total_time={}", max_total_time_secs);
     let st = Command::new("rustup")
         .args([
-            "run",
-            "nightly",
-            "cargo",
-            "fuzz",
-            "run",
-            bin,
-            "--",
-            &max_time,
+            "run", "nightly", "cargo", "fuzz", "run", bin, "--", &max_time,
         ])
         .current_dir(&fuzz_dir)
         .stdin(Stdio::inherit())
