@@ -4,6 +4,50 @@ Hardware: Baochip-1x (Dabao evaluation board)
 Firmware: Galdralag (`ccid-openpgp` feature, `usb-bao1x`)  
 Prerequisites: `pcscd`, `gpg` (GnuPG 2.x), `pcsc-tools`, Nitrokey attached with existing keys
 
+This plan assumes the board already runs a **bootable Xous** image that includes **`ccid-openpgp`** / **`usb-bao1x`**. If you still need to program the chip, start with **Flash firmware** and **Sign firmware** below.
+
+---
+
+## Flash firmware (Dabao / Baochip-1x)
+
+Programming is platform-defined. For **eval hardware**, follow the **dabao** board repo ([baochip/dabao](https://github.com/baochip/dabao)) and silicon/integration notes ([Supermagnum/Baochip-1x-firmware](https://github.com/Supermagnum/Baochip-1x-firmware)).
+
+### UF2 via boot1 (usual Xous path)
+
+Authoritative steps and pin names are in **[Getting Started with Baochip Targets](https://github.com/betrusted-io/xous-core/blob/dev/README-baochip.md)** (`README-baochip.md` in **xous-core**). Summary:
+
+1. **Build or obtain** three UF2 artifacts **`loader.uf2`**, **`xous.uf2`**, and **`apps.uf2`** from an **in-tree** `cargo xtask ...` build for your target (e.g. `dabao`). Paths are under `target/riscv32imac-unknown-xous-elf/release/` (or the **none**-elf variant your recipe uses); see upstream for the exact `xtask` invocation.
+2. **Hold `PROG`** (button closest to the USB connector on **dabao**) **while** connecting USB so the device enumerates as a mass-storage volume labelled **`BAOCHIP`**. If your board revision uses a different switch label (e.g. **SW2**), match the **dabao** schematic.
+3. Copy **`loader.uf2`**, **`xous.uf2`**, and **`apps.uf2`** onto the volume. For a **first** full programming, keep all three at the **same revision**. Later, if loader and kernel are unchanged, many workflows only replace **`apps.uf2`**.
+4. Run **`sync`** or cleanly **unmount/eject** the volume so writes complete.
+5. Press **`PROG`** again to exit the bootloader and run the flashed image.
+
+**Committing staged UF2 without the physical boot button:** After the three files are on **`BAOCHIP`**, you can press the physical **boot** button **or** type **`boot`** on the **boot1** USB serial console (**1 000 000 baud**, 8N1). The console session drops when the device reboots; that is expected. This is separate from **PROG** + power-up for mass-storage mode. Details: [Flashing](../README.md#flashing) in the repo README.
+
+**Bootloader-only updates** (e.g. `boot1-alt` then `boot1`) use the **`ALTCHIP`** flow documented in `README-baochip.md`; follow that section exactly when updating **boot1**.
+
+### Relation to this repository
+
+- **`cargo run -p xtask -- build-fw`** here builds **library** crates for `riscv32imac-unknown-none-elf`; it does **not** emit a single ready-to-flash system UF2 by itself.
+- A full token image is produced in your **xous-core** checkout when you build the **`dabao`** (or product) target with **`ccid-openpgp`** enabled as required for this test plan.
+- To register **`galdralag-service`** artifacts with **baosec** after you have a build: **`cargo run -p xtask -- build-and-register release`** (see [services/galdralag/README.md](../services/galdralag/README.md)).
+
+---
+
+## Sign firmware (Ed25519, boot0 / boot1)
+
+Shippable **Baochip-1x** stages carry **Ed25519** signatures and a **key manifest** inside the image. **boot0** (ROM) verifies **boot1** before it runs; downstream UF2 application loading continues that signed-chain model. Full security-model text: [README-baochip.md security model](https://github.com/betrusted-io/xous-core/blob/dev/README-baochip.md#security-model).
+
+**What operators usually do**
+
+- Use an **in-tree** **`cargo xtask`** build in **[betrusted-io/xous-core](https://github.com/betrusted-io/xous-core)** so signing and header layout match what the ROM and **boot1** expect. The build pipeline embeds signatures in the firmware blob; you do not normally attach a separate OpenPGP **`.asc`** file next to a **`.uf2`** unless your distribution tooling explicitly defines that format.
+- For **lab / developer** images, parts ship with a **developer** key slot whose public half is published under **`devkey/`** in xous-core ([`devkey/README.md`](https://github.com/betrusted-io/xous-core/blob/dev/devkey/README.md)). The corresponding private key is intentionally public for development; using it triggers **developer** device handling (factory secrets cleared per upstream policy). **Do not** treat developer-signed images as shipping candidates.
+- **Production** signing uses **code deployment** / **beta** (or your **third-party**) keys burned or manifested for your lot; those private keys are **not** in this repo. Coordinate key roles with Baochip / your supply process.
+
+**GnuPG / OpenPGP**
+
+Host **GnuPG** with an **Ed25519** signing subkey can still be part of a **release process** (checksum manifests, tarball signing, CI attestation). The on-chip verifier, however, checks **Ed25519** over the **Baochip image layout**, not OpenPGP packets. Conceptual overview: [Signed firmware (Ed25519, boot0)](../README.md#signed-firmware-ed25519-boot0).
+
 ---
 
 ## 0. Pre-flight

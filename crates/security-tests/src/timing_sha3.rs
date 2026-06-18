@@ -4,7 +4,7 @@
 // fixed-length inputs processed in a single absorption block. Each harness
 // compares two RNG-filled 64-byte blocks (not zeros vs random) so the
 // classes differ only by which fixed block is hashed.
-// Threshold: |t| > 4.5 (200,000 samples per harness; larger N reduces host jitter).
+// Threshold: |t| > 4.5 (see DUDECT_SAMPLES_SHA3 in dudect_stats — larger N reduces host jitter).
 //
 // Operational note: baseline only; less critical than AEAD/ECDH timing paths.
 

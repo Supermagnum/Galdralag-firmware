@@ -20,8 +20,8 @@ MAINTENANCE CONTRACT FOR THIS FILE
 
 | Field | Value |
 |---|---|
-| Date (UTC) | 2026-05-06T01:20:00Z |
-| Commit | `0cbbbc3` |
+| Date (UTC) | 2026-05-17T01:30:22Z |
+| Commit | `853bffd15fc0a8e08fae06de8b8d797b9bf3ef03` |
 | xtask version | 0.1.0 |
 | Flags | `--no-fuzz` (fuzz matrix run separately; see Section 6) |
 | Host | x86_64-unknown-linux-gnu |
@@ -35,43 +35,30 @@ MAINTENANCE CONTRACT FOR THIS FILE
 |------|---------|--------|
 | Firmware check (default) | `cargo run -p xtask -- check-fw` | PASS |
 | Firmware check (pq-signatures) | `cargo run -p xtask -- check-fw --features pq-signatures` | PASS |
-| Unit tests (workspace) | `cargo test --workspace --exclude xtask --exclude galdrad` | PASS (667 passed, 0 failed, 20 ignored) |
-| Wycheproof vectors | `cargo test -p vault wycheproof` | PASS |
-| RFC vectors | `cargo test -p vault rfc_vectors` | PASS |
-| BSI Brainpool vectors | `cargo test -p vault bsi_brainpool` | PASS — ECDH + ECDSA, all three curves |
-| NIST CAVP subset | `cargo test -p vault nist_cavp` | PASS |
-| KAT vectors | `cargo test -p vault kat_vectors` | PASS — BLAKE3 (35 vectors, all modes), Camellia-256 RFC 3713 ECB, Serpent smoke, Twofish smoke |
-| Key lifecycle | `cargo test -p vault key_lifecycle` | PASS |
+| Unit tests (workspace) | `cargo test --workspace --exclude xtask` | PASS (667 passed, 0 failed, 20 ignored) |
+| Wycheproof vectors | `cargo test -p galdr-vault wycheproof` | PASS |
+| RFC vectors | `cargo test -p galdr-vault rfc_vectors` | PASS |
+| BSI Brainpool vectors | `cargo test -p galdr-vault bsi_brainpool` | PASS |
+| NIST CAVP subset | `cargo test -p galdr-vault nist_cavp` | PASS |
+| KAT vectors | `cargo test -p galdr-vault kat_vectors` | PASS |
+| Key lifecycle | `cargo test -p galdr-vault key_lifecycle` | PASS |
 | PIN lifecycle | `cargo test -p pin-policy pin_lifecycle` | PASS |
 | OpenPGP / CCID | `cargo test -p usb-personality` | PASS |
 | Biometric crates (mocks) | `cargo test -p biometric-api -p biometric-vault -p biometric-fingervein --features test-hal -p biometric-sweet --features test-hal` | PASS |
 | Zeroisation simulation | (see Section 7) | PASS |
 | Timing (dudect) | `cargo run -p xtask -- timing-test` | PASS (33/33) |
-| Cargo-fuzz (14 targets, 30 s in test-all) | (see Section 6) | PASS |
+| Cargo-fuzz (13 targets, 30 s in test-all) | (see Section 6) | PASS |
 
 ---
 
 ## 1. Unit tests
 
-**Command:** `cargo test --workspace --exclude xtask --exclude galdrad`  
+**Command:** `cargo test --workspace --exclude xtask`  
 **Result:** 667 passed, 0 failed, 20 ignored
 
-`galdrad` is excluded because its `utoipa-swagger-ui` build step downloads assets
-at compile time and fails in offline environments; this is a pre-existing issue
-unrelated to the test logic.
-
 Round-trip tests (encrypt/decrypt, seal/open, sign/verify,
-split/recover) are included in the total and are not reported separately.
-
-**Changes relative to previous run (+31 passing, +2 ignored):**
-- `galdra-core-host`: +25 new passing tests for `ephemeral_offers` (unit tests
-  inside the module: store/get, mark_consumed, revoke, expiry checks, audit logging,
-  migration, JSON serialisation).
-- `galdra-core-host/tests/ephemeral_offers.rs`: +13 new passing integration tests
-  (public API surface: store, get, expiry, consumed, revoke, list, audit, not-found).
-- `galdra/tests/cli_epk.rs`: +4 new passing CLI tests (`epk status` with empty DB,
-  JSON mode, `epk expire` without/with `--confirm`); +2 ignored (`epk generate` and
-  `epk import` require `gpg` in PATH with a test keyring).
+split/recover) are included in the 667 total and are not reported
+separately.
 
 ---
 
@@ -121,46 +108,13 @@ Source: `crates/vault/tests/twofish_vectors.json`
 
 | Asset | Runner |
 |-------|--------|
-| `crates/vault/tests/data/` | `cargo test -p vault wycheproof` |
+| `crates/vault/tests/data/` | `cargo test -p galdr-vault wycheproof` |
 | `tests/data/wycheproof/` | same |
 | `crates/vault/tests/rfc_vectors/` | `vault/tests/rfc_vectors.rs` |
 | `crates/vault/tests/bsi_vectors/` | `vault/tests/bsi_brainpool.rs` |
 | `crates/vault/tests/nist_cavp_vectors/` | `vault/tests/nist_cavp.rs` |
-| `crates/vault/tests/blake3_vectors.json` | `crates/vault/tests/kat_vectors.rs` (`kat_blake3_from_json`) |
-| `crates/vault/tests/twofish_vectors.json` | `cargo test -p vault twofish_vectors_json_kat` (`twofish_vectors_json_kat` in `crates/vault/src/twofish_cipher.rs`) |
-
-### 2.5 BLAKE3 known-answer tests
-
-Vector file: `crates/vault/tests/blake3_vectors.json`  
-Source: upstream `test_vectors/test_vectors.json` (BLAKE3 reference repository).  
-Runner: `kat_blake3_from_json` in `crates/vault/tests/kat_vectors.rs`.
-
-| Mode | API | Vectors | Input lengths |
-|------|-----|---------|---------------|
-| Hash | `blake3::hash` | 35 | 0–102400 bytes (all official lengths) |
-| Keyed-hash | `blake3::keyed_hash` | 35 | same — key `"whats the Elvish word for friend"` |
-| Derive-key | `blake3::derive_key` | 35 | same — context `"BLAKE3 2019-12-27 16:29:52 test vectors context"` |
-
-Message construction: repeating byte sequence 0, 1, …, 250, 0, 1, … for each `input_len`.  
-Expected outputs are the first 32 bytes of the upstream extended-output fields (`hash`, `keyed_hash`, `derive_key`).  
-Chunk-boundary lengths covered: 63/64/65, 127/128/129, 1023/1024/1025, through 8192/8193, 16384, 31744, 102400.
-
-### 2.6 BSI TR-03111 Brainpool vectors
-
-Vector files: `crates/vault/tests/bsi_vectors/tr03111_brainpool{256,384,512}r1.json`  
-Runner: `crates/vault/tests/bsi_brainpool.rs`  
-Document version referenced in JSON: **BSI TR-03111 v2.10** (current as of this run).
-
-| Curve | ECDH rows | ECDSA sign rows | ECDSA verify rows | Status |
-|-------|-----------|-----------------|-------------------|--------|
-| BrainpoolP256r1 | 1 | 1 | 2 (accept + reject) | PASS |
-| BrainpoolP384r1 | 1 | 1 | 2 (accept + reject) | PASS |
-| BrainpoolP512r1 | 1 | 1 | 2 (accept + reject) | PASS |
-
-ECDH provenance: P256 cross-checked with Python `cryptography`; P384 and P512 from Wycheproof tcId 1.  
-ECDSA provenance: project-owned KATs; DER signatures from vault RFC 6979 (`FakeTrng` seeds documented in `bsi_brainpool.rs`); independently verified with Python `cryptography` `verify()`.  
-Hash per curve: SHA-256 (P256), SHA-384 (P384), SHA-512 (P512).  
-ECDSA reject row: valid DER with last byte toggled (`^ 0x55`); runner asserts `Err(InvalidSignature)`.
+| `crates/vault/tests/blake3_vectors.json` (and related KAT JSON) | `crates/vault/tests/kat_vectors.rs` |
+| `crates/vault/tests/twofish_vectors.json` | `cargo test -p galdr-vault twofish_vectors_json_kat` (`twofish_vectors_json_kat` in `crates/vault/src/twofish_cipher.rs`) |
 
 ---
 
@@ -179,39 +133,39 @@ ECDSA reject row: valid DER with last byte toggled (`^ 0x55`); runner asserts `E
 
 | Harness | Samples | t-stat | Status | Notes |
 |---------|---------|--------|--------|-------|
-| `timing_subtle_eq_u256` | 100000 | +1.766 | PASS |  |
-| `timing_chacha_tag_check` | 100000 | -1.608 | PASS |  |
-| `timing_aes_gcm_tag_check` | 100000 | +0.821 | PASS |  |
-| `timing_hmac_verify` | 100000 | -2.198 | PASS |  |
-| `timing_hkdf_derive` | 100000 | +2.452 | PASS |  |
-| `timing_ed25519_verify` | 100000 | +1.779 | PASS |  |
-| `timing_x25519_ecdh` | 100000 | +1.335 | PASS |  |
-| `timing_brainpool256_scalar_mult` | 5000 | -1.626 | PASS |  |
-| `timing_brainpool384_scalar_mult` | 5000 | +1.708 | PASS |  |
-| `timing_brainpool512_scalar_mult` | 15000 | -2.496 | PASS |  |
-| `timing_ephemeral_ecdh` | 10000 | -1.799 | PASS |  |
-| `timing_signature_verify` | 10000 | +1.955 | PASS |  |
-| `timing_fingerprint_lookup` | 100000 | -1.546 | PASS | Null pairing — same absent fingerprint both classes |
-| `timing_shamir_recover` | 100000 | +2.701 | PASS |  |
-| `timing_camellia_tag_check` | 100000 | -2.394 | PASS |  |
-| `timing_serpent_tag_check` | 100000 | -1.674 | PASS |  |
-| `timing_twofish_tag_check` | 100000 | -1.425 | PASS |  |
-| `timing_cascade_auth_failure` | 100000 | +1.544 | PASS | Null pairing — identical tampered ciphertext per class |
-| `timing_cascade_inner_vs_outer_failure` | 100000 | +1.995 | PASS | Null pairing — identical inner tamper per class |
-| `timing_pin_compare` | 100000 | +1.455 | PASS |  |
-| `timing_rsa_oaep_decrypt` | 100000 | +1.114 | PASS |  |
-| `timing_rsa_pss_verify` | 100000 | -1.925 | PASS |  |
-| `timing_pbkdf2` | 100000 | -1.699 | PASS | PBKDF2-HMAC-SHA256; two 16-byte passwords |
-| `timing_sha256` | 100000 | -1.490 | PASS |  |
-| `timing_sha512` | 100000 | +2.138 | PASS |  |
-| `timing_sha3_256` | 200000 | -2.797 | PASS |  |
-| `timing_sha3_512` | 200000 | -4.329 | PASS |  |
-| `timing_blake2b` | 100000 | +2.475 | PASS |  |
-| `timing_blake2s` | 100000 | -2.221 | PASS |  |
-| `timing_blake3` | 100000 | -1.760 | PASS | Single-chunk 64-byte message |
-| `dudect_session_token_verify_constant_time` | 100000 | +2.048 | PASS | Constant-time compare harness |
-| `dudect_template_decrypt_constant_time` | 100000 | -1.688 | PASS | Null pairing — decrypt good blob both classes |
-| `dudect_signature_verify_constant_time` | 100000 | +1.531 | PASS | Constant-time limb compare harness |
+| `timing_subtle_eq_u256` | 100000 | +1.753 | PASS |  |
+| `timing_chacha_tag_check` | 100000 | -2.670 | PASS |  |
+| `timing_aes_gcm_tag_check` | 100000 | +2.273 | PASS |  |
+| `timing_hmac_verify` | 100000 | +1.807 | PASS |  |
+| `timing_hkdf_derive` | 100000 | -1.236 | PASS |  |
+| `timing_ed25519_verify` | 100000 | -1.280 | PASS |  |
+| `timing_x25519_ecdh` | 100000 | -2.119 | PASS |  |
+| `timing_brainpool256_scalar_mult` | 5000 | -2.157 | PASS |  |
+| `timing_brainpool384_scalar_mult` | 5000 | +1.180 | PASS |  |
+| `timing_brainpool512_scalar_mult` | 15000 | -2.181 | PASS |  |
+| `timing_ephemeral_ecdh` | 10000 | +0.793 | PASS |  |
+| `timing_signature_verify` | 10000 | -1.500 | PASS |  |
+| `timing_fingerprint_lookup` | 100000 | -1.467 | PASS | Null pairing — same absent fingerprint both classes |
+| `timing_shamir_recover` | 100000 | -1.660 | PASS |  |
+| `timing_camellia_tag_check` | 100000 | -1.717 | PASS |  |
+| `timing_serpent_tag_check` | 100000 | +1.609 | PASS |  |
+| `timing_twofish_tag_check` | 100000 | +1.545 | PASS |  |
+| `timing_cascade_auth_failure` | 100000 | -1.376 | PASS | Null pairing — identical tampered ciphertext per class |
+| `timing_cascade_inner_vs_outer_failure` | 100000 | +1.224 | PASS | Null pairing — identical inner tamper per class |
+| `timing_pin_compare` | 100000 | +1.747 | PASS |  |
+| `timing_rsa_oaep_decrypt` | 100000 | -1.849 | PASS |  |
+| `timing_rsa_pss_verify` | 100000 | +1.999 | PASS |  |
+| `timing_pbkdf2` | 100000 | +2.048 | PASS | PBKDF2-HMAC-SHA256; two 16-byte passwords |
+| `timing_sha256` | 100000 | +2.192 | PASS |  |
+| `timing_sha512` | 100000 | +2.783 | PASS |  |
+| `timing_sha3_256` | 350000 | +2.334 | PASS |  |
+| `timing_sha3_512` | 350000 | +1.525 | PASS |  |
+| `timing_blake2b` | 100000 | -2.831 | PASS |  |
+| `timing_blake2s` | 100000 | -1.867 | PASS |  |
+| `timing_blake3` | 100000 | -0.715 | PASS | Single-chunk 64-byte message |
+| `dudect_session_token_verify_constant_time` | 100000 | -1.881 | PASS | Constant-time compare harness |
+| `dudect_template_decrypt_constant_time` | 100000 | +2.090 | PASS | Null pairing — decrypt good blob both classes |
+| `dudect_signature_verify_constant_time` | 100000 | +1.455 | PASS | Constant-time limb compare harness |
 
 **Not yet wired** (printed `[MISSING]` by `dudect_galdr`):
 challenge-response HMAC, PSRAM tag check, XMSS verify, LMS verify.
@@ -250,7 +204,6 @@ rustup run nightly cargo fuzz run <target> \
 | `shamir_split_recover` | 0 | Fixed `data.len() >= 8` guard |
 | `brainpool384_ecdh` | 0 | |
 | `brainpool512_ecdh` | 0 | |
-| `camellia_aead` | 0 | 29,463 exec/s; 3.5M runs in 121 s |
 | `serpent_aead` | 0 | |
 | `twofish_aead` | 0 | |
 | `rsa_oaep_decrypt` | 0 | |
@@ -259,7 +212,6 @@ rustup run nightly cargo fuzz run <target> \
 | `fuzz_ephemeral_handshake` | 0 | |
 | `fuzz_cipher_profile` | 0 | |
 | `openpgp_dispatch` | 0 | See long run below |
-| `biometric_dispatch` | 0 | Fuzzes `biometric_api::signed_match_from_bytes` and host validation path |
 
 **test-all:** Skipped: run without --no-fuzz to execute all fuzz targets (30s each). 
 

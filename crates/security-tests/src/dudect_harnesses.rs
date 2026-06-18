@@ -555,39 +555,37 @@ fn bench_timing_shamir_recover() -> CtSummary {
         pool.push((v1, v2));
     }
     assert!(
-        !pool.is_empty(),
-        "shamir bench: failed to build share pool for dudect"
+        pool.len() >= 2,
+        "shamir bench: need at least two share pairs for a symmetric dudect pair (see timing_sha3 pattern)"
     );
 
-    let lv1 = hex::decode("a6324ddd0b3647733489473d941c599875aa1bd42f53a3ce6f82d37dad39a7d2")
-        .expect("left share 1 hex");
-    let lv2 = hex::decode("6457a992255fbdd55b3abd49000b8118d97c05806d956eb4ed2c8ec97241668c")
-        .expect("left share 2 hex");
-    let left_a: [u8; 32] = lv1
-        .as_slice()
-        .try_into()
-        .expect("left share 1 must be 32 bytes");
-    let left_b: [u8; 32] = lv2
-        .as_slice()
-        .try_into()
-        .expect("left share 2 must be 32 bytes");
+    // Two fixed valid 2-of-2 pairs; class assignment is random. This matches `timing_sha3_*`
+    // (two fixed 64-byte blocks, not "one fixed vs mixture of random"), avoiding a systematic
+    // mean shift from repeated identical work (left) vs changing intermediates (right).
+    let (class0_a, class0_b) = pool[0];
+    let (class1_a, class1_b) = pool[1];
 
     let n = samples_for_harness("timing_shamir_recover");
     let mut rng = StdRng::seed_from_u64(0x5348414D);
     let mut runner = CtRunner::default();
-    for i in 0..n {
-        let left = rng.gen_bool(0.5);
-        let c = if left { Class::Left } else { Class::Right };
-        if left {
-            let a = left_a;
-            let b = left_b;
+    for _ in 0..n {
+        let use_first = rng.gen_bool(0.5);
+        let c = if use_first {
+            Class::Left
+        } else {
+            Class::Right
+        };
+        if use_first {
+            let a = class0_a;
+            let b = class0_b;
             runner.run_one(c, move || {
                 let s1 = ShamirShare::try_from_index_value(1, &a).expect("s1");
                 let s2 = ShamirShare::try_from_index_value(2, &b).expect("s2");
                 let _ = shamir_recover(&[s1, s2], 2);
             });
         } else {
-            let (a, b) = pool[i % pool.len()];
+            let a = class1_a;
+            let b = class1_b;
             runner.run_one(c, move || {
                 let s1 = ShamirShare::try_from_index_value(1, &a).expect("s1");
                 let s2 = ShamirShare::try_from_index_value(2, &b).expect("s2");

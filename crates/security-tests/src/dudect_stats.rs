@@ -201,7 +201,8 @@ pub const DUDECT_SAMPLES: usize = 100_000;
 pub const DUDECT_SAMPLES_PBKDF2: usize = 100_000;
 
 /// SHA-3 (Keccak): host noise can push |t| slightly past 4.5 at 100k; larger N tightens the estimate.
-pub const DUDECT_SAMPLES_SHA3: usize = 200_000;
+/// Slightly higher than default: Keccak rounds are fast and host jitter can borderline-cross |t|>4.5 at 200k.
+pub const DUDECT_SAMPLES_SHA3: usize = 350_000;
 
 /// Brainpool P512 ECDH: 100k samples would take excessive wall time. Same Welch threshold; lower N
 /// reduces statistical power slightly.

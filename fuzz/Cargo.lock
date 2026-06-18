@@ -268,13 +268,13 @@ dependencies = [
  "chacha20poly1305",
  "ephemeral-session",
  "galdr-core",
+ "galdr-vault",
  "heapless",
  "hex",
  "hkdf 0.12.4",
  "serde_json",
  "sha2 0.10.9",
  "subtle",
- "vault",
  "zeroize",
 ]
 
@@ -555,12 +555,12 @@ version = "0.1.0"
 dependencies = [
  "cess",
  "galdr-core",
+ "galdr-vault",
  "heapless",
  "hkdf 0.12.4",
  "hmac 0.12.1",
  "sha2 0.10.9",
  "subtle",
- "vault",
  "zeroize",
 ]
 
@@ -592,6 +592,36 @@ version = "0.1.0"
 dependencies = [
  "rand_core 0.6.4",
  "subtle",
+ "zeroize",
+]
+
+[[package]]
+name = "galdr-vault"
+version = "0.1.0"
+dependencies = [
+ "aead",
+ "aes-gcm",
+ "bp256",
+ "bp384",
+ "bp512",
+ "camellia",
+ "chacha20poly1305",
+ "ecdsa",
+ "elliptic-curve 0.14.0-rc.29",
+ "ff",
+ "galdr-core",
+ "heapless",
+ "hkdf 0.12.4",
+ "hmac 0.12.1",
+ "pin-policy",
+ "rand_core 0.6.4",
+ "rsa",
+ "serpent",
+ "sha2 0.10.9",
+ "signature 3.0.0-rc.10",
+ "subtle",
+ "twofish",
+ "vsss-rs",
  "zeroize",
 ]
 
@@ -1344,44 +1374,14 @@ version = "0.1.0"
 dependencies = [
  "ed25519-dalek",
  "galdr-core",
+ "galdr-vault",
  "heapless",
  "pin-policy",
  "rand_core 0.6.4",
  "sha1",
  "sha2 0.10.9",
  "usb-device",
- "vault",
  "x25519-dalek",
- "zeroize",
-]
-
-[[package]]
-name = "vault"
-version = "0.1.0"
-dependencies = [
- "aead",
- "aes-gcm",
- "bp256",
- "bp384",
- "bp512",
- "camellia",
- "chacha20poly1305",
- "ecdsa",
- "elliptic-curve 0.14.0-rc.29",
- "ff",
- "galdr-core",
- "heapless",
- "hkdf 0.12.4",
- "hmac 0.12.1",
- "pin-policy",
- "rand_core 0.6.4",
- "rsa",
- "serpent",
- "sha2 0.10.9",
- "signature 3.0.0-rc.10",
- "subtle",
- "twofish",
- "vsss-rs",
  "zeroize",
 ]
 
@@ -1394,11 +1394,11 @@ dependencies = [
  "ed25519-dalek",
  "ephemeral-session",
  "galdr-core",
+ "galdr-vault",
  "libfuzzer-sys",
  "pin-policy",
  "rand_core 0.6.4",
  "usb-personality",
- "vault",
  "x25519-dalek",
 ]
 

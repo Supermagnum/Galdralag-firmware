@@ -125,14 +125,14 @@
     "t": 2.41217896841921
   },
   "timing_sha3_256": {
-    "samples": 200000,
+    "samples": 350000,
     "status": "PASS",
-    "t": -2.448885297352838
+    "t": 2.33369
   },
   "timing_sha3_512": {
-    "samples": 200000,
+    "samples": 350000,
     "status": "PASS",
-    "t": 1.802161229294311
+    "t": 1.52541
   },
   "timing_sha512": {
     "samples": 100000,
@@ -142,7 +142,7 @@
   "timing_shamir_recover": {
     "samples": 100000,
     "status": "PASS",
-    "t": 2.108144867085723
+    "t": -1.65956
   },
   "timing_signature_verify": {
     "samples": 10000,
