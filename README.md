@@ -331,6 +331,7 @@ was only known to those who understood.
 |----------|-------------|
 | [Hardware/kicad-files-usb/](Hardware/kicad-files-usb/) | **USB dongle** KiCad project `dabao_v3c` (no micro-SD); gerbers, BOM, production outputs; complements [USB_DONGLE_PCB.md](docs/USB_DONGLE_PCB.md) |
 | [Hardware/kicad-sd-card/](Hardware/kicad-sd-card/) | **USB dongle** KiCad project `dabao_v3c_sdcard` (micro-SD holder); gerbers, BOM, pinout under [docs/pinout](Hardware/kicad-sd-card/docs/pinout/README.md); complements [USB_DONGLE_PCB.md](docs/USB_DONGLE_PCB.md) |
+| [docs/CODE_MAP.md](docs/CODE_MAP.md) | Workspace **function and module index** (per-file `pub fn` / types with line anchors) |
 | [docs/API_REFERENCE.md](docs/API_REFERENCE.md) | Code map + **annex** for IETF/I-D/GnuPG/Sequoia: Shamir GF(256) construction, GALDRA SHARE armour, ephemeral ECDH wire format, HKDF labels, preimages; `galdrad` routes; rustdoc hints |
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | High-level firmware architecture and major subsystems |
 | [docs/AUDIT_LOG.md](docs/AUDIT_LOG.md) | Profile audit records (`cipher-profile`), OpenPGP `OpenPgpAudit` hook; **no** append-only RRAM log implemented yet |
