@@ -87,7 +87,7 @@ Therefore this repository is **not** a drop-in **CESS-CORE** implementation for 
 3. **Wire-up** — `verify_*_toml` for the new file, `verify_all_crypto_vectors(...)`, `main.rs` TOML parse list, and **`cargo test`** coverage analogous to `runner/tests/kat_vectors.rs`.
 4. **Relationship to `bulk_aead.toml`** — Either deprecate overlapping cascade examples in favour of the profile-driven schema, or document that `bulk_aead` remains a **primitive composition** KAT (explicit keys, Poly1305 outer) and is **orthogonal** to registry inner-cascade profile KATs.
 
-Until then, **independent** checks for `intermediate_before_outer_hex` / `expected_ciphertext_hex` remain **`cipher-profile`** integration tests, **`cascade-kat-gen`**, and **`scripts/verify_cascade_kats.py`** in this tree—not **`cess-runner`**.
+Until then, **independent** checks for `intermediate_before_outer_hex` / `expected_ciphertext_hex` remain **`cipher-profile`** integration tests, **`cascade-kat-gen`**, and **`scripts/verify_cascade_kats.py`** in this tree—not **`cess-runner`**. The Python script additionally verifies the **trailing 32-byte Serpent EtM HMAC-SHA256** on the outer blob (MAC key = second half of HKDF-BLAKE3-64 with `cess_inner_cascade_etm64_info` for the outer Serpent layer; HMAC input `aad || nonce || body` per `vault` `serpent_cipher.rs`). That tag check lives here because **`cess_runner`** has no equivalent vector or primitive hook for this profile-shaped cascade; upstream would need the module and schema described above to host the same assertion.
 
 ---
 

@@ -49,7 +49,9 @@ fn parse_dudect_stdout(stdout: &str) -> DudectReport {
                 i += 1;
                 continue;
             }
-            if rest.starts_with("timing_") && !rest.contains("Running") {
+            let is_harness_line = (rest.starts_with("timing_") || rest.starts_with("dudect_"))
+                && !rest.contains("Running");
+            if is_harness_line {
                 let mut samples = 0u64;
                 let mut t_stat = 0.0f64;
                 let mut j = i + 1;
@@ -136,6 +138,11 @@ fn dudect_compact_note(name: &str) -> &'static str {
         "timing_cascade_inner_vs_outer_failure" => "Null pairing — identical inner tamper per class",
         "timing_pbkdf2" => "PBKDF2-HMAC-SHA256; two 16-byte passwords",
         "timing_blake3" => "Single-chunk 64-byte message",
+        "dudect_template_decrypt_constant_time" => {
+            "Null pairing — decrypt good blob both classes"
+        }
+        "dudect_session_token_verify_constant_time" => "Constant-time compare harness",
+        "dudect_signature_verify_constant_time" => "Constant-time limb compare harness",
         _ => "",
     }
 }

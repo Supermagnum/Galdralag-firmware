@@ -17,8 +17,12 @@ Layout (see crates/cipher-profile/src/cascade.rs):
 standard (0x0001): full ciphertext recomputed with HKDF-BLAKE3 + ChaCha20-Poly1305.
 
 conservative / conservative-shamir / high-assurance: recomputes intermediate_before_outer_hex
-from IKM and plaintext (inner ChaCha with empty AAD + inter-layer MAC). Verifies outer
-blob length matches Serpent EtM framing; does not recompute Serpent.
+from IKM and plaintext (inner ChaCha with empty AAD + inter-layer MAC). Verifies the trailing
+32-byte Serpent EtM tag: HMAC-SHA256(MAC key, aad || nonce_16 || body) per
+crates/vault/src/serpent_cipher.rs, where MAC key is the trailing 32 bytes of HKDF-BLAKE3
+expand-to-64 with info = cess_inner_cascade_etm64_info (outer layer index, '-serpent256' tail;
+see crates/cess/src/inner_info.rs and encrypt_layer_cess for Serpent256 in cascade.rs).
+Serpent-CTR keystream over the 112-byte body is not recomputed here.
 """
 
 from __future__ import annotations
@@ -71,6 +75,57 @@ def cess_blake3_integrity_info(suite_id: int) -> bytes:
 
 def cess_blake3_integrity_gap_info(suite_id: int, after_layer_index: int) -> bytes:
     return f"cess-blake3-integrity-{_hex_u16_be(suite_id)}-gap-l{after_layer_index}".encode()
+
+
+def cess_inner_layer_index_suffix(layer_index: int) -> bytes:
+    """Match crates/cess/src/inner_info.rs push_layer_index (decimal layer index)."""
+    out = bytearray(b"-l")
+    li = layer_index
+    if li < 10:
+        out.append(ord("0") + li)
+    elif li < 100:
+        out.append(ord("0") + li // 10)
+        out.append(ord("0") + li % 10)
+    else:
+        out.append(ord("0") + li // 100)
+        out.append(ord("0") + (li // 10) % 10)
+        out.append(ord("0") + li % 10)
+    return bytes(out)
+
+
+def cess_inner_cascade_etm64_info_serpent256(suite_id: int, layer_index: int) -> bytes:
+    """cess_inner_cascade_etm64_info(..., Serpent256) in crates/cess/src/inner_info.rs."""
+    return (
+        b"cess-inner-"
+        + _hex_u16_be(suite_id).encode("ascii")
+        + cess_inner_layer_index_suffix(layer_index)
+        + b"-serpent256"
+    )
+
+
+def serpent_etm_hmac_sha256_tag(mac_key32: bytes, aad: bytes, nonce16: bytes, body: bytes) -> bytes:
+    from cryptography.hazmat.primitives import hashes, hmac
+
+    h = hmac.HMAC(mac_key32, hashes.SHA256())
+    h.update(aad)
+    h.update(nonce16)
+    h.update(body)
+    return h.finalize()
+
+
+def outer_serpent_etm_mac_key_and_nonce(ikm: bytes, suite_id: int, outer_layer_index: int) -> tuple[bytes, bytes]:
+    """
+    Serpent outer layer: 64-byte HKDF-BLAKE3 OKM from cess_inner_cascade_etm64_info;
+    SerpentKey::from_okm64 uses okm[0:32] cipher, okm[32:64] MAC (vault serpent_cipher.rs).
+    Nonce: first 16 bytes of HKDF-BLAKE3(..., cess_inner_cascade_layer_nonce_info, 32).
+    """
+    etm = cess_inner_cascade_etm64_info_serpent256(suite_id, outer_layer_index)
+    okm64 = hkdf_blake3(ikm, b"", etm, 64)
+    mac_key = okm64[32:64]
+    n_inf = cess_inner_cascade_layer_nonce_info(suite_id, outer_layer_index)
+    n_okm = hkdf_blake3(ikm, b"", n_inf, 32)
+    nonce16 = n_okm[:16]
+    return mac_key, nonce16
 
 
 def normalize_hmac_key(key: bytes) -> bytearray:
@@ -240,11 +295,35 @@ def verify_row(
             f"bytes [{len(inner_ct)}:{len(inner_ct) + INTER_LAYER_MAC_LEN}) are inter-layer MAC"
         )
 
+        outer_layer_idx = 1
+        body = expected_outer[: len(expected_outer) - SERPENT_ETM_TAG_LEN]
+        tag_commit = expected_outer[len(expected_outer) - SERPENT_ETM_TAG_LEN :]
+        try:
+            mac_key, nonce16 = outer_serpent_etm_mac_key_and_nonce(ikm, suite_id, outer_layer_idx)
+            tag_calc = serpent_etm_hmac_sha256_tag(mac_key, aad, nonce16, body)
+        except Exception as e:
+            ok = False
+            independent.append(f"FAIL: outer Serpent EtM HMAC recompute raised: {e}")
+            return ok, independent, structural
+        if tag_calc != tag_commit:
+            ok = False
+            independent.append(
+                "FAIL: outer Serpent EtM HMAC-SHA256 tag mismatch "
+                f"(expected {tag_commit.hex()}, got {tag_calc.hex()})"
+            )
+        else:
+            etm_inf = cess_inner_cascade_etm64_info_serpent256(suite_id, outer_layer_idx)
+            independent.append(
+                "OK: Outer HMAC-SHA256 tag: independently verified "
+                f"(HMAC-SHA256(key=okm64[32:64], msg=aad||nonce16||body); "
+                f"okm64=HKDF-BLAKE3(ikm, info={etm_inf!r}); "
+                f"nonce16=HKDF-BLAKE3(ikm, info={cess_inner_cascade_layer_nonce_info(suite_id, outer_layer_idx)!r})[:16]; "
+                "cryptography.hazmat.primitives.hmac; matches crates/vault/src/serpent_cipher.rs compute_tag)"
+            )
+
         structural.append(
-            f"NOT independently verified: outer Serpent-256 EtM ({len(expected_outer)} B): "
-            f"body [{0}:{len(expected_outer) - SERPENT_ETM_TAG_LEN}) and "
-            f"HMAC-SHA256 tag [{len(expected_outer) - SERPENT_ETM_TAG_LEN}:] "
-            f"({SERPENT_ETM_TAG_LEN} B per crates/vault/src/serpent_cipher.rs)"
+            "NOT independently verified: Serpent-256 CTR keystream over the 112-byte body "
+            "(body bytes match fixture only implicitly via HMAC binding)"
         )
         return ok, independent, structural
 
@@ -308,10 +387,13 @@ def main() -> int:
         print()
 
     print(
-        "Auditor note: for two-layer rows, 'externally verified' in this script means Python "
-        "recomputed the intermediate blob and ChaCha/MAC sub-steps from the fixture inputs and "
-        "CESS info labels; the Serpent outer layer is length-checked only. The full outer "
-        "ciphertext remains locked by Rust integration tests (cascade_cess_kat.rs)."
+        "Auditor note: for two-layer rows, this script independently recomputes "
+        "intermediate_before_outer_hex (inner ChaCha + inter-layer HMAC-BLAKE3), verifies the "
+        "outer 32-byte Serpent EtM tag as HMAC-SHA256 over aad||nonce||body with MAC key and "
+        "nonce derived like cipher-profile (HKDF-BLAKE3 info from cess inner_info + vault EtM), "
+        "and does not re-run Serpent-CTR. Full outer bytes remain cross-checked by Rust "
+        "(cascade_cess_kat.rs). These checks are not duplicated in the upstream CESS cess_runner "
+        "(see docs/CESS_CONFORMANCE.md gap section)."
     )
     return 1 if any_fail else 0
 
