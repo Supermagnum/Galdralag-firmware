@@ -64,6 +64,7 @@ https://www.crowdsupply.com/baochip/dabao/updates/our-campaign-has-launched
 - [Standards process: Shamir and ephemeral key exchange](#standards-process-shamir-and-ephemeral-key-exchange)
   - [CESS (related open standard)](#cess-related-open-standard)
 - [Sequoia PGP (if this repository is unresponsive)](#sequoia-pgp-if-this-repository-is-unresponsive)
+- [Platform support (Linux only)](#platform-support-linux-only)
 - [Build, install, and uninstall](#build-install-and-uninstall)
   - [Compile firmware](#compile-firmware)
   - [Flashing](#flashing)
@@ -808,6 +809,43 @@ If **maintainers of this GitHub repository** do not answer issues, pull requests
 The [Contribute](https://sequoia-pgp.org/contribute/) page describes licensing (LGPL 2.0 or later for most projects), the Developer Certificate of Origin, and that **larger commercial features** may require prior agreement and long-term maintenance arrangements — read that page before investing significant effort.
 
 Its also wort keeping a eye on https://autocrypt2.org/#/
+
+---
+
+## Platform support (Linux only)
+
+**This codebase and relevant apps will not be compiled for macOS or Windows.** The host tools (`galdra`, `galdrad`, `galdra-gtk`) and supporting tooling target **Linux**. This is a deliberate decision based on the project's threat model and the auditability requirements stated throughout this document.
+
+### Why not Windows
+
+- Microsoft has a close relationship with the NSA and other intelligence agencies (revealed in part by the Snowden leaks).
+- The `_NSAKEY` variable discovered in Windows NT in 1999 caused significant controversy. Microsoft stated it was a backup key; this was never fully proven either way.
+- Windows telemetry sends a significant amount of data back to Microsoft, with limited user control.
+- Closed source means you cannot verify what the operating system is actually doing.
+
+Suspected but unproven:
+
+- Deliberate hidden access points for government agencies.
+- Data collection beyond what is disclosed in privacy policies.
+
+### Why Linux
+
+- **Open source.** The code is publicly auditable; vulnerabilities are spotted and patched by a global community.
+- **Extreme configurability.** A Linux system can be hardened far beyond what macOS allows (SELinux, AppArmor, custom kernels, and similar).
+- **Minimal attack surface.** Server distributions in particular can be stripped to bare essentials.
+- **No vendor lock-in.** No mandatory telemetry or hidden services baked in.
+- **Dominant in servers.** Battle-hardened in the most hostile environments on the internet.
+
+### Ubuntu and derivatives
+
+- All packages in the `main`, `restricted`, `universe`, and `multiverse` repositories are signed by Canonical's GPG key.
+- Snap packages go through Canonical's store with additional sandboxing and signature checks.
+- Security updates come from `security.ubuntu.com`, which is also signed.
+- Ubuntu supports Secure Boot, so even the bootloader is verified on modern hardware.
+
+### Linux caveat
+
+Package managers are generally safe, but third-party `.deb` / `.rpm` / AppImage installs can be unsafe. Prefer signed packages from trusted repositories, and verify signatures before installing anything obtained outside them.
 
 ---
 
