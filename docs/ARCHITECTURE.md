@@ -1,16 +1,26 @@
 # Galdr / Galdralag firmware architecture (Baochip-1x, Xous)
 
+> **Status: design target — not current isolation.** Sections 1–6 below describe the intended
+> multi-process Xous layout (`vaultd`, `pind`, `usbd`, counter driver). **Today's firmware does not
+> run those as separate Xous servers.** On Xous, `galdralag-service` statically links `galdr-vault`,
+> `pin-policy`, and `usb-personality` (via `baochip-openpgp`) in **one process** and talks to
+> `usb-bao1x` over IPC for CCID transport only. See [Current implementation](#current-implementation-xous)
+> and [docs/CRATE_DEPENDENCIES.md](CRATE_DEPENDENCIES.md). Do not treat cross-process vault/USB/PIN
+> boundaries as an active security property until the IPC servers exist.
+
 This document specifies a Rust/Xous firmware architecture for the **Baochip-1x** SoC (see also the
-[upstream Baochip-1x design README](https://github.com/Supermagnum/Baochip-1x-firmware)): a RISC-V application-class core, on-chip **RRAM** for durable secrets, a **USB 2.0 device** controller, and a **tamper-aware monotonic attempt counter** block. It is a design artifact only; implementation lives in the workspace crates.
+[upstream Baochip-1x design README](https://github.com/Supermagnum/Baochip-1x-firmware)): a RISC-V application-class core, on-chip **RRAM** for durable secrets, a **USB 2.0 device** controller, and a **tamper-aware monotonic attempt counter** block. It is a **design artifact**; much of the cryptographic and policy logic is implemented as **library crates** composed in-process today.
 
 ## 1. Threat model (summary)
 
 - **Physical attacker** may probe or power-cycle; RRAM retains data across power loss unless explicitly erased.
 - **Host-attached USB** must not read vault key material; only approved personalities expose agreed endpoints and descriptors.
 - **Brute force** on PIN must be bounded by hardware-backed monotonic counting, not software-only state.
-- **Cross-process leakage** is mitigated by Xous server boundaries and capability-based IPC; each server holds minimal authority.
+- **Cross-process leakage (design goal)** — intended mitigation via separate Xous servers and capability-based IPC, each holding minimal authority. **Not enforced today** (see status note above); current code relies on library boundaries, sealing, and PIN policy inside `galdralag-service`.
 
-## 2. Process isolation boundaries (Xous)
+## 2. Process isolation boundaries (Xous) — design target
+
+The table describes the **target** decomposition. Crate names in parentheses map to library code that exists today but is **not** spawned as separate processes yet.
 
 | Xous server (process) | Owns | Talks to | Must not |
 |----------------------|------|----------|----------|
@@ -19,9 +29,26 @@ This document specifies a Rust/Xous firmware architecture for the **Baochip-1x**
 | **usbd** (`usb-personality`) | Descriptor tables, endpoint routing, active personality | vaultd (which blobs may be exposed under personality), host via USB IP | Derive keys; read RRAM directly |
 | **counter-hal** (driver, may be merged with pind initially) | MMIO to monotonic counter IP | pind | User-visible policy |
 
-**Capabilities**: Each client holds a Xous `CID` to the server it calls. vaultd issues **opaque key handles** (indices or capability tokens) to usbd for session crypto; raw IKM never crosses the boundary.
+**Capabilities (design)**: Each client holds a Xous `CID` to the server it calls. vaultd issues **opaque key handles** (indices or capability tokens) to usbd for session crypto; raw IKM never crosses the boundary. **Not implemented** as inter-process handles today — backends hold keys in the same address space as the CCID dispatcher.
 
-**Trust boundary**: Host USB stack is untrusted. Only usbd translates USB-level requests into IPC that vaultd can accept or reject based on active personality and vault policy.
+**Trust boundary (design)**: Host USB stack is untrusted. Only usbd translates USB-level requests into IPC that vaultd can accept or reject based on active personality and vault policy. **Today:** APDU dispatch and vault access are direct method calls inside `galdralag-service`; the only Xous IPC on the hot path is to **`usb-bao1x`** (CCID frame I/O).
+
+## Current implementation (Xous)
+
+What ships in-tree for BaoSec / `baosec` images today:
+
+| Artifact | Role |
+|----------|------|
+| **`galdralag-service`** (`services/galdralag`) | Single Xous process: PDDB PIN bridge, `open_or_provision_backend`, `OpenPgpCcidDispatcher` + `BaochipVaultBackend` |
+| **`galdr-vault`**, **`pin-policy`**, **`usb-personality`** | Library crates **linked into** `galdralag-service` (and host tests), not separate `baosec` processes |
+| **`baochip-openpgp`** | Xous-only glue: RRAM windows, vault open/provision, `PinPolicyMachine` wired into the OpenPGP backend |
+| **`usb-bao1x`** (xous-core) | Separate Xous process: USB device stack; CCID bytes via `_Xous USB device driver_` IPC |
+| **`vault::VaultService`** | Stub only (`VaultRequest::dispatch` → `NotImplemented`); no `vaultd` server loop |
+| **`usb_personality::set_personality_stub`** | Stub only; no `usbd` server loop |
+
+**Evidence:** `services/galdralag/src/main.rs` constructs `OpenPgpCcidDispatcher::new(backend)` and calls `dispatcher.handle_ccid(...)` in-process; CCID uses `xous::send_message` / `Buffer::lend_mut` only to `usb_conn` from `usb_bao_ipc::SERVER_NAME_USB_DEVICE`. No `xous::create_server` in `crates/vault`, `crates/pin-policy`, or `crates/usb-personality`.
+
+**Named IPC messages in section 3–5** (`VaultOpenSession`, `PinSubmit`, `UsbSetPersonality`, …) appear **only as prose** in this document. The closest code is `VaultRequest` in `crates/vault/src/service.rs` (subset, stub, no Xous wiring). `galdr-core` documents the gap explicitly: `todo!("wire vaultd / pind / usbd Xous servers")` in `scaffold_todos.rs`.
 
 ## 3. RRAM vault layout
 
@@ -41,7 +68,7 @@ RRAM is modeled as a linear, byte-addressable store with **wear and retention** 
 - **Sealed blobs** use AEAD (crate-selected; not implemented in scaffolding). Each blob has an explicit **key purpose** fed into HKDF domain separation (see vault KDF module).
 - **Atomic updates**: writes use **slot replacement + generation bump** in header to avoid torn metadata (implementation-specific journaling may wrap this).
 
-**vaultd interface (IPC messages, conceptual)**
+**vaultd interface (IPC messages, conceptual — not wired)**
 
 - `VaultOpenSession { client_id } -> SessionId`
 - `VaultSeal { session, slot, plaintext, aad } -> Result<(), VaultError>`
@@ -74,7 +101,7 @@ RRAM is modeled as a linear, byte-addressable store with **wear and retention** 
 - Ensures **every guess consumes an attempt** even if software compare is skipped, faulted, or attacked with glitching between compare and persist.
 - Prevents “free” retries if verification crashes after a correct guess but before counter update (here counter already moved).
 
-**pind interface**
+**pind interface (conceptual — not wired)**
 
 - `PinSubmit { pin_blob } -> Result<PinOutcome, PinError>` — internally performs increment-then-verify ordering.
 - `PinGetState -> PinStateView` (coarse, for UI).
@@ -90,7 +117,7 @@ RRAM is modeled as a linear, byte-addressable store with **wear and retention** 
 - **PersonalitySelected { id }** — configured but not yet visible on bus (optional).
 - **PersonalityActive { id }** — host sees this device class and endpoints.
 
-**usbd interface**
+**usbd interface (conceptual — not wired)**
 
 - `UsbSetPersonality { id, auth_token } -> Result<(), UsbError>` — `auth_token` proves caller is allowed (e.g. post-unlock capability).
 - `UsbGetActive -> PersonalityId`
@@ -128,11 +155,13 @@ All paths end in `vaultd::VaultZeroise` (or equivalent) which:
 | Crate | Role |
 |-------|------|
 | `galdr-core` | HAL traits, shared errors, `test-hal` fakes |
-| `vault` | vaultd logic, RRAM layout types, HKDF derivation API, sensitive buffer types |
-| `pin-policy` | state machine, `MonotonicCounter` trait, zeroisation hook |
-| `usb-personality` | personality tables and switching API stubs |
+| `vault` | Vault logic, RRAM layout types, HKDF derivation API, sensitive buffer types; **`VaultService` IPC stub** |
+| `pin-policy` | State machine, `MonotonicCounter` trait, zeroisation hook (used in-process by OpenPGP backends) |
+| `usb-personality` | OpenPGP/CCID dispatch and backend traits (used in-process by `galdralag-service`) |
+| `baochip-openpgp` | Xous RRAM + vault open path for OpenPGP |
+| `services/galdralag` | **`galdralag-service`** Xous binary composing the above |
 | `host-tools` | host-side utilities (std), flashing, manifest / verification stubs |
-| `xtask` | build orchestration for `riscv32imac-unknown-none-elf` |
+| `xtask` | build orchestration for `riscv32imac-unknown-none-elf` and `galdralag-service` registration |
 
 ## 8. Feature flags (algorithm profiles)
 
@@ -160,4 +189,4 @@ Default for scaffolding: **no** crypto beyond HKDF tests in dev; stubs return `U
 
 ---
 
-*Revision: 0.1 — aligned with repository scaffolding; update when SoC TRM is available.*
+*Revision: 0.2 — documents design target vs current single-process `galdralag-service` composition; update when vaultd/pind/usbd IPC ships or SoC TRM is available.*

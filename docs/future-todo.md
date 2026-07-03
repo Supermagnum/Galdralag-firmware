@@ -94,6 +94,16 @@ Run in this order on first hardware:
 
 ---
 
+### Xous multi-server IPC (`vaultd` / `pind` / `usbd`)
+
+**Status:** Design in [ARCHITECTURE.md](ARCHITECTURE.md); **not implemented**. Today `galdralag-service` links `galdr-vault`, `pin-policy`, and `usb-personality` in one process.
+
+**When to implement:** After Baochip bring-up stabilises CCID and vault open paths; replace `VaultService::dispatch` stub and `set_personality_stub` with real `xous::create_server` loops and the message types listed in ARCHITECTURE sections 3–5.
+
+**Code markers:** `crates/vault/src/service.rs` (stub), `crates/usb-personality/src/lib.rs` (`set_personality_stub`), `galdr-core/src/scaffold_todos.rs` (`todo!` contract test).
+
+---
+
 ### Host OpenPGP PC/SC vendor filter (`galdra device status`)
 
 **Status:** Documented; implementation blocked on hardware and manufacturer ID assignment.

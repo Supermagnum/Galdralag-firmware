@@ -1,6 +1,6 @@
 # Crate dependencies and workspace layout
 
-This document explains which **Rust crates come from upstream** (unchanged third-party libraries), which **crates this project created**, and **how they depend on each other**. For per-function navigation, see [CODE_MAP.md](CODE_MAP.md). For protocol behaviour and Xous process boundaries, see [ARCHITECTURE.md](ARCHITECTURE.md).
+This document explains which **Rust crates come from upstream** (unchanged third-party libraries), which **crates this project created**, and **how they depend on each other**. For per-function navigation, see [CODE_MAP.md](CODE_MAP.md). For the **intended** Xous multi-server layout and **current** single-process `galdralag-service` composition, see [ARCHITECTURE.md](ARCHITECTURE.md#current-implementation-xous).
 
 **Policy:** Cryptographic **primitives** (AES, ChaCha, SHA, ECDH, and similar) are **not** reimplemented in this repository. Firmware and host code call **audited workspace dependencies** from crates.io (mostly RustCrypto). Project crates own **policy, layout, protocols, USB/OpenPGP dispatch, and HAL glue**.
 
@@ -171,7 +171,7 @@ These are excluded from the workspace lockfile because they depend on **xous-cor
 
 ### Layer 4 — Xous integration
 
-- **`galdralag-service`** (`services/galdralag`) waits for **`usb-bao1x`** PDDB provisioning, calls **`baochip-openpgp`** to open/provision the vault, then runs **`usb-personality`**'s CCID dispatcher against the Xous USB IPC server.
+- **`galdralag-service`** (`services/galdralag`) waits for **`usb-bao1x`** PDDB provisioning, calls **`baochip-openpgp`** to open/provision the vault, then runs **`usb-personality`**'s CCID dispatcher against the Xous USB IPC server. **All three security domains (vault, PIN policy, OpenPGP/CCID dispatch) are statically linked in this one process** — not separate `vaultd` / `pind` / `usbd` servers. The only Xous IPC on the CCID hot path is to **`_Xous USB device driver_`** (`usb-bao1x`).
 
 ### Layer 5 — Host stack
 
@@ -184,7 +184,7 @@ These are excluded from the workspace lockfile because they depend on **xous-cor
 | Flow | Crate chain |
 |------|-------------|
 | GnuPG sign on token | Host `gpg` → CCID → **`usb-personality`** → **`galdr-vault`** (sealed SIG key) → upstream ECDSA/Ed25519 |
-| Wrong PIN | **`usb-personality`** → **`pin-policy`** → **`galdr-core`** zeroise hook → RRAM wipe in **`baochip-openpgp`** |
+| Wrong PIN | **`usb-personality`** → **`pin-policy`** (in-process) → **`galdr-core`** zeroise hook → RRAM wipe in **`baochip-openpgp`** |
 | Galdra encrypt with profile | **`galdra`** → **`galdra-core-host`** → **`cipher-profile`** → **`ephemeral-session`** + **`cess`** + **`galdr-vault`** |
 | First-boot PIN | Host **`galdralag-provision`** → Xous PDDB → **`galdralag-service`** → **`baochip-openpgp`** provision slots |
 
@@ -206,6 +206,6 @@ These are excluded from the workspace lockfile because they depend on **xous-cor
 |----------|----------|
 | [CODE_MAP.md](CODE_MAP.md) | Per-file function and type index |
 | [dev-ref.md](dev-ref.md) | HAL traits, security invariants, test surface |
-| [ARCHITECTURE.md](ARCHITECTURE.md) | Xous servers, RRAM regions, PIN FSM |
+| [ARCHITECTURE.md](ARCHITECTURE.md) | Intended Xous servers, current `galdralag-service` topology, RRAM regions, PIN FSM |
 | [API_REFERENCE.md](API_REFERENCE.md) | Public API annex (Shamir, ephemeral session, HKDF labels) |
 | [README.md](../README.md) | Workspace table and cryptographic dependency policy |
