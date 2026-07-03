@@ -14,6 +14,7 @@ pub mod encrypt;
 pub mod ephemeral_offers;
 pub mod error;
 pub mod galdra_fingerprint;
+pub mod openpgp_card_attrs;
 pub mod openpgp_pcsc;
 pub mod groups;
 pub mod keyserver;

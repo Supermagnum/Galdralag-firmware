@@ -592,6 +592,15 @@ where
 
     fn put_do(&mut self, tag: u16, value: &[u8]) -> Result<(), OpenPgpBackendError> {
         self.ensure_not_terminated()?;
+        if matches!(tag, 0xC1 | 0xC2 | 0xC3) {
+            if let Ok(attrs) = AlgorithmAttributes::parse(value) {
+                if attrs.uses_removed_curve() {
+                    return Err(OpenPgpBackendError::Status(
+                        super::error::StatusWord::IncorrectParameters,
+                    ));
+                }
+            }
+        }
         self.do_store
             .write(tag, value)
             .map_err(|_| OpenPgpBackendError::Status(StatusWord::ExecutionError))

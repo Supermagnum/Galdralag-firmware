@@ -13,7 +13,8 @@ key agreement and the Shamir configuration for long-term key recovery.
 | `standard` | BP256r1 | ChaCha20-Poly1305 | none | General use |
 | `conservative` | BP256r1 | ChaCha20-Poly1305 then Serpent-256 (matches CESS `suite_id` **0x0003**) | none | NSA-independent cascade |
 | `conservative-shamir` | BP256r1 | Same cascade as `conservative` | 3/5 | Team deployments |
-| `high-assurance` | BP512r1 | ChaCha20-Poly1305 then Serpent-256 (matches CESS `suite_id` **0x0012**) | 3/5 | Strong cascade + P512 |
+
+**Removed (not downgraded):** The former `high-assurance` built-in profile (ChaCha/Serpent cascade on BrainpoolP512r1, CESS suite id `0x0012`) and in-tree P-512 support were removed because the project-authored `bp512` curve packaging was unaudited and misdocumented as upstream RustCrypto code. See [CHANGELOG.md](../CHANGELOG.md). Ciphertext produced under `high-assurance` is not readable with current firmware. No replacement profile uses that name.
 
 ## Defining a custom profile
 

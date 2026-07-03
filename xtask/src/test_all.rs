@@ -616,7 +616,6 @@ const FUZZ_BINS: &[&str] = &[
     "chacha_roundtrip",
     "shamir_split_recover",
     "brainpool384_ecdh",
-    "brainpool512_ecdh",
     "serpent_aead",
     "twofish_aead",
     "rsa_oaep_decrypt",
@@ -912,7 +911,6 @@ fn build_markdown(
     s.push_str("| `chacha_roundtrip` | 0 | See recorded run below |\n");
     s.push_str("| `shamir_split_recover` | 0 | Fixed `data.len() >= 8` guard |\n");
     s.push_str("| `brainpool384_ecdh` | 0 | |\n");
-    s.push_str("| `brainpool512_ecdh` | 0 | |\n");
     s.push_str("| `serpent_aead` | 0 | |\n");
     s.push_str("| `twofish_aead` | 0 | |\n");
     s.push_str("| `rsa_oaep_decrypt` | 0 | |\n");

@@ -59,11 +59,6 @@ pub fn timing_brainpool384_scalar_mult() -> DudectStatus {
     DudectStatus::NotRun
 }
 
-/// Placeholder for Brainpool P-512r1 scalar multiplication timing classification.
-pub fn timing_brainpool512_scalar_mult() -> DudectStatus {
-    DudectStatus::NotRun
-}
-
 /// Placeholder for Serpent EtM tag verification timing classification (target |t| <= 4.5 at 100k samples).
 pub fn timing_serpent_tag_check() -> DudectStatus {
     DudectStatus::NotRun
@@ -103,7 +98,6 @@ mod tests {
         assert_eq!(dudect_stub_shamir_recover(), DudectStatus::NotRun);
         assert_eq!(dudect_stub_brainpool_ecdh(), DudectStatus::NotRun);
         assert_eq!(timing_brainpool384_scalar_mult(), DudectStatus::NotRun);
-        assert_eq!(timing_brainpool512_scalar_mult(), DudectStatus::NotRun);
         assert_eq!(timing_serpent_tag_check(), DudectStatus::NotRun);
         assert_eq!(timing_twofish_tag_check(), DudectStatus::NotRun);
         assert_eq!(timing_rsa_oaep_decrypt(), DudectStatus::NotRun);

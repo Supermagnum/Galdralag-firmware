@@ -2,6 +2,7 @@
 
 use alloc::vec::Vec;
 use core::fmt;
+use galdr_core::legacy_removed::{self, MSG_CIPHERTEXT_HIGH_ASSURANCE};
 
 /// Validated non-reserved 16-bit cipher suite identifier (CESS §8.5, §14.2).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -26,6 +27,8 @@ impl SuiteId {
 pub enum CessWireError {
     /// `suite_id == 0` is reserved (CESS §14.2).
     ReservedSuiteId,
+    /// Retired Galdralag profile (`high-assurance` / `0x0012`); listed in CESS but not operational.
+    RemovedHighAssuranceSuite,
     /// `suite_id` is not listed in the CESS algorithm registry lookup table.
     UnlistedSuiteId,
     /// Parsed buffer too short to contain a 16-bit suite id.
@@ -36,6 +39,7 @@ impl fmt::Display for CessWireError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             CessWireError::ReservedSuiteId => write!(f, "suite_id 0x0000 is reserved"),
+            CessWireError::RemovedHighAssuranceSuite => write!(f, "{MSG_CIPHERTEXT_HIGH_ASSURANCE}"),
             CessWireError::UnlistedSuiteId => write!(
                 f,
                 "suite_id is not listed in the CESS algorithm registry lookup table"
@@ -51,6 +55,9 @@ pub fn assemble_mode_a_outer_plaintext(
     inner_blob: &[u8],
 ) -> Result<Vec<u8>, CessWireError> {
     let _ = SuiteId::new(suite_id)?;
+    if legacy_removed::is_retired_suite_id(suite_id) {
+        return Err(CessWireError::RemovedHighAssuranceSuite);
+    }
     if !super::registry_ids::is_listed_suite_id(suite_id) {
         return Err(CessWireError::UnlistedSuiteId);
     }
@@ -68,6 +75,9 @@ pub fn parse_mode_a_outer_plaintext(buf: &[u8]) -> Result<(u16, &[u8]), CessWire
     }
     let suite_id = u16::from_be_bytes([buf[0], buf[1]]);
     let _ = SuiteId::new(suite_id)?;
+    if legacy_removed::is_retired_suite_id(suite_id) {
+        return Err(CessWireError::RemovedHighAssuranceSuite);
+    }
     if !super::registry_ids::is_listed_suite_id(suite_id) {
         return Err(CessWireError::UnlistedSuiteId);
     }
@@ -77,6 +87,24 @@ pub fn parse_mode_a_outer_plaintext(buf: &[u8]) -> Result<(u16, &[u8]), CessWire
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn retired_high_assurance_suite_id_rejected() {
+        assert_eq!(
+            assemble_mode_a_outer_plaintext(legacy_removed::CESS_SUITE_ID_HIGH_ASSURANCE, b"x")
+                .unwrap_err(),
+            CessWireError::RemovedHighAssuranceSuite
+        );
+        let buf = [
+            (legacy_removed::CESS_SUITE_ID_HIGH_ASSURANCE >> 8) as u8,
+            legacy_removed::CESS_SUITE_ID_HIGH_ASSURANCE as u8,
+            0xAB,
+        ];
+        assert_eq!(
+            parse_mode_a_outer_plaintext(&buf).unwrap_err(),
+            CessWireError::RemovedHighAssuranceSuite
+        );
+    }
 
     #[test]
     fn unlisted_suite_id_rejected_assemble() {
@@ -103,6 +131,9 @@ mod tests {
     fn listed_ids_roundtrip() {
         for &(low, high) in crate::registry_ids::LISTED_SUITE_ID_RANGES {
             for id in low..=high {
+                if legacy_removed::is_retired_suite_id(id) {
+                    continue;
+                }
                 let packed = assemble_mode_a_outer_plaintext(id, b"payload").unwrap();
                 let (got, inner) = parse_mode_a_outer_plaintext(&packed).unwrap();
                 assert_eq!(got, id);

@@ -7,13 +7,35 @@
 use crate::GaldraError;
 use cess::{
     assemble_mode_a_outer_plaintext, open_mode_a_outer, parse_mode_a_outer_plaintext,
-    seal_mode_a_outer,
+    seal_mode_a_outer, CessWireError,
 };
-use cipher_profile::{cascade_decrypt, cascade_encrypt, CascadeCiphertext, CipherProfile};
+use cipher_profile::{cascade_decrypt, cascade_encrypt, CascadeCiphertext, CipherProfile, CipherProfileError};
+use galdr_core::legacy_removed::{self, MSG_CIPHERTEXT_HIGH_ASSURANCE, PROFILE_NAME_HIGH_ASSURANCE};
 use rand::RngCore;
 
 const MAGIC: &[u8; 8] = b"GALDRACP";
 const VERSION: u8 = 1;
+
+fn map_cipher_profile_err(e: CipherProfileError) -> GaldraError {
+    match e {
+        CipherProfileError::RemovedHighAssuranceProfile => {
+            GaldraError::RemovedLegacyCrypto(MSG_CIPHERTEXT_HIGH_ASSURANCE.to_string())
+        }
+        CipherProfileError::RemovedBrainpoolP512Curve => {
+            GaldraError::RemovedLegacyCrypto(legacy_removed::MSG_SESSION_CURVE_P512.to_string())
+        }
+        other => GaldraError::CipherProfile(format!("{other:?}")),
+    }
+}
+
+fn map_cess_wire_err(e: CessWireError) -> GaldraError {
+    match e {
+        CessWireError::RemovedHighAssuranceSuite => {
+            GaldraError::RemovedLegacyCrypto(MSG_CIPHERTEXT_HIGH_ASSURANCE.to_string())
+        }
+        other => GaldraError::CipherProfile(format!("cess outer plaintext: {other}")),
+    }
+}
 
 /// Build AAD for cascade operations (must match encrypt and decrypt).
 pub fn build_cipher_aad(profile_name: &str, sender_fingerprint_hex: &str, ts_unix: u64) -> Vec<u8> {
@@ -198,11 +220,16 @@ pub fn open_plaintext_after_openpgp(
     }
     let cascade_raw = &inner[i..i + cbl];
     let cascade = deserialize_cascade_ct(cascade_raw)?;
-    let pname = cascade.profile_name.as_str().to_string();
+    let pname = cascade.profile_name.as_str();
+    if pname == PROFILE_NAME_HIGH_ASSURANCE {
+        return Err(GaldraError::RemovedLegacyCrypto(
+            MSG_CIPHERTEXT_HIGH_ASSURANCE.to_string(),
+        ));
+    }
+    let pname = pname.to_string();
     let profile = get_profile(&pname).ok_or_else(|| GaldraError::ProfileNotFound(pname.clone()))?;
     let aad = build_cipher_aad(profile.name(), sender_fp_str, ts_unix);
-    let plain = cascade_decrypt(&profile, &prk, &aad, &cascade)
-        .map_err(|e| GaldraError::CipherProfile(format!("{e:?}")))?;
+    let plain = cascade_decrypt(&profile, &prk, &aad, &cascade).map_err(map_cipher_profile_err)?;
     Ok((plain.as_bytes().to_vec(), pname))
 }
 
@@ -253,8 +280,7 @@ fn open_cess_mode_a_outer_to_inner_blob(
 ) -> Result<Vec<u8>, GaldraError> {
     let plain = open_mode_a_outer(k_outer, wire)
         .map_err(|e| GaldraError::CipherProfile(format!("cess Mode A open: {e}")))?;
-    let (_suite_id, inner) = parse_mode_a_outer_plaintext(&plain)
-        .map_err(|e| GaldraError::CipherProfile(format!("cess outer plaintext: {e}")))?;
+    let (_suite_id, inner) = parse_mode_a_outer_plaintext(&plain).map_err(map_cess_wire_err)?;
     Ok(inner.to_vec())
 }
 
@@ -295,5 +321,43 @@ mod cess_wrap_tests {
         let wire = wrap_inner_with_cess_mode_a(inner, "standard", &k_outer, &nonce).expect("wrap");
         let back = super::open_cess_mode_a_outer_to_inner_blob(&wire, &k_outer).expect("open");
         assert_eq!(back.as_slice(), inner.as_slice());
+    }
+
+    #[test]
+    fn high_assurance_profile_name_in_blob_rejected() {
+        let name = PROFILE_NAME_HIGH_ASSURANCE.as_bytes();
+        let mut cascade_bytes = Vec::new();
+        cascade_bytes.push(name.len() as u8);
+        cascade_bytes.extend_from_slice(name);
+        cascade_bytes.extend_from_slice(&0u32.to_be_bytes());
+        let mut inner = Vec::new();
+        inner.extend_from_slice(b"GALDRACP");
+        inner.push(1);
+        inner.extend_from_slice(&0u64.to_be_bytes());
+        inner.push(0);
+        inner.extend_from_slice(&[0u8; 32]);
+        inner.extend_from_slice(&(cascade_bytes.len() as u32).to_be_bytes());
+        inner.extend_from_slice(&cascade_bytes);
+        let err = open_plaintext_after_openpgp(&inner, |_| None).unwrap_err();
+        assert!(matches!(err, GaldraError::RemovedLegacyCrypto(_)));
+        assert_eq!(
+            err.to_string(),
+            MSG_CIPHERTEXT_HIGH_ASSURANCE.to_string()
+        );
+    }
+
+    #[test]
+    fn cess_suite_id_high_assurance_rejected_on_open() {
+        let k_outer = [9u8; 32];
+        let nonce = [1u8; 12];
+        let inner = b"GALDRACPfake";
+        let plain =
+            assemble_mode_a_outer_plaintext(legacy_removed::CESS_SUITE_ID_HIGH_ASSURANCE, inner)
+                .unwrap_err();
+        assert!(matches!(
+            plain,
+            CessWireError::RemovedHighAssuranceSuite
+        ));
+        let _ = (k_outer, nonce);
     }
 }

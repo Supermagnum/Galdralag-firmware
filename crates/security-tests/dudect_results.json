@@ -44,11 +44,6 @@
     "status": "PASS",
     "t": -1.263891548655974
   },
-  "timing_brainpool512_scalar_mult": {
-    "samples": 15000,
-    "status": "PASS",
-    "t": -1.2242576990983909
-  },
   "timing_camellia_tag_check": {
     "samples": 100000,
     "status": "PASS",

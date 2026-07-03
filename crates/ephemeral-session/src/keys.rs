@@ -8,16 +8,14 @@ use galdr_vault::brainpool::BrainpoolPublicKey;
 use galdr_vault::brainpool::BrainpoolScalar;
 use galdr_vault::brainpool384::BrainpoolP384PublicKey;
 use galdr_vault::brainpool384::BrainpoolP384Scalar;
-use galdr_vault::brainpool512::BrainpoolP512PublicKey;
-use galdr_vault::brainpool512::BrainpoolP512Scalar;
 use heapless::Vec;
 use hkdf::Hkdf;
 use hmac::{Hmac, Mac};
 use sha2::Sha256;
 use zeroize::{Zeroize, ZeroizeOnDrop, Zeroizing};
 
-/// Maximum length of a Brainpool P-512r1 ECDH shared secret (x-coordinate).
-const MAX_SHARED: usize = 64;
+/// Maximum length of a Brainpool P-384r1 ECDH shared secret (x-coordinate).
+const MAX_SHARED: usize = 48;
 
 /// An ephemeral key pair generated on the token for a single session.
 /// The private key is zeroised immediately after ECDH completes.
@@ -25,7 +23,7 @@ const MAX_SHARED: usize = 64;
 pub struct EphemeralKeyPair {
     curve: SessionCurve,
     /// The ephemeral public key in uncompressed SEC1 form.
-    public_key: Vec<u8, 129>,
+    public_key: Vec<u8, 97>,
     /// The ephemeral private scalar (only first `private_len` bytes are defined).
     private_key: Zeroizing<[u8; 64]>,
     private_len: u8,
@@ -80,26 +78,6 @@ impl EphemeralKeyPair {
                     private_len: 48,
                 })
             }
-            SessionCurve::BrainpoolP512r1 => {
-                let sk = BrainpoolP512Scalar::generate(trng)
-                    .map_err(|_| EphemeralSessionError::KeyGeneration)?;
-                let pk = sk
-                    .public_key()
-                    .map_err(|_| EphemeralSessionError::KeyGeneration)?;
-                let sec1 = pk.to_sec1_uncompressed();
-                let mut public_key = Vec::new();
-                public_key
-                    .extend_from_slice(&sec1)
-                    .map_err(|_| EphemeralSessionError::KeyGeneration)?;
-                let raw = sk.to_secret_bytes_for_test();
-                let private_key = Zeroizing::new(raw);
-                Ok(EphemeralKeyPair {
-                    curve,
-                    public_key,
-                    private_key,
-                    private_len: 64,
-                })
-            }
         }
     }
 
@@ -137,16 +115,6 @@ impl EphemeralKeyPair {
                 let s = BrainpoolP384Scalar::from_secret_key_bytes_for_test(sk)
                     .map_err(|_| EphemeralSessionError::EcdhFailed)?;
                 let peer = BrainpoolP384PublicKey::from_sec1(peer_public_key)
-                    .map_err(|_| EphemeralSessionError::InvalidPeerPublicKey)?;
-                let x = s
-                    .diffie_hellman(&peer)
-                    .map_err(|_| EphemeralSessionError::EcdhFailed)?;
-                pack_shared(x.as_bytes())?
-            }
-            SessionCurve::BrainpoolP512r1 => {
-                let s = BrainpoolP512Scalar::from_secret_key_bytes_for_test(sk)
-                    .map_err(|_| EphemeralSessionError::EcdhFailed)?;
-                let peer = BrainpoolP512PublicKey::from_sec1(peer_public_key)
                     .map_err(|_| EphemeralSessionError::InvalidPeerPublicKey)?;
                 let x = s
                     .diffie_hellman(&peer)
@@ -356,7 +324,6 @@ mod tests {
         for curve in [
             SessionCurve::BrainpoolP256r1,
             SessionCurve::BrainpoolP384r1,
-            SessionCurve::BrainpoolP512r1,
         ] {
             let mut trng = FakeTrng::from_seed(0x51);
             let kp = EphemeralKeyPair::generate(curve, &mut trng).expect("gen");

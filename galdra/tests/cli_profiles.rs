@@ -26,8 +26,7 @@ fn test_profile_list_shows_builtins() {
         .success()
         .stdout(predicate::str::contains("standard"))
         .stdout(predicate::str::contains("conservative"))
-        .stdout(predicate::str::contains("conservative-shamir"))
-        .stdout(predicate::str::contains("high-assurance"));
+        .stdout(predicate::str::contains("conservative-shamir"));
 }
 
 #[test]

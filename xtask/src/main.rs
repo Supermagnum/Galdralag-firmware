@@ -417,7 +417,6 @@ fn fuzz_bin_name(name: &str) -> &str {
         "chacha" | "chacha_roundtrip" => "chacha_roundtrip",
         "shamir" | "shamir_split_recover" => "shamir_split_recover",
         "brainpool384-ecdh" | "brainpool384_ecdh" => "brainpool384_ecdh",
-        "brainpool512-ecdh" | "brainpool512_ecdh" => "brainpool512_ecdh",
         "serpent-aead" | "serpent_aead" => "serpent_aead",
         "twofish-aead" | "twofish_aead" => "twofish_aead",
         "rsa-oaep-decrypt" | "rsa_oaep_decrypt" => "rsa_oaep_decrypt",

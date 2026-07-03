@@ -346,6 +346,7 @@ async fn remove_group_member(
 
 #[utoipa::path(get, path = "/device/status", responses((status = 200, description = "Token summary")))]
 async fn device_status() -> Result<Json<serde_json::Value>, ApiError> {
+    let openpgp = galdra_core_host::openpgp_pcsc::scan_openpgp_card_via_pcsc();
     let v = match Device::connect() {
         Ok(dev) => {
             let st = dev.status().map_err(ApiError::from)?;
@@ -356,12 +357,14 @@ async fn device_status() -> Result<Json<serde_json::Value>, ApiError> {
                 "serial": dev.serial(),
                 "status": st,
                 "info": info,
+                "openpgp_card": openpgp,
             })
         }
         Err(GaldraError::DeviceNotConnected) => serde_json::json!({
             "connected": false,
             "locked": true,
             "serial": serde_json::Value::Null,
+            "openpgp_card": openpgp,
         }),
         Err(e) => return Err(ApiError(e)),
     };

@@ -9,6 +9,7 @@ use galdra_core_host::cipher_envelope::{
 use galdra_core_host::contacts::{self, ContactFilter, Identity};
 use galdra_core_host::encrypt::{self, try_decrypt_session_key_from_cert};
 use galdra_core_host::groups;
+use galdra_core_host::openpgp_card_attrs::OpenPgpKeySlot;
 use galdra_core_host::openpgp_pcsc;
 use galdra_core_host::profiles::{self, ProfileStore};
 use galdra_core_host::sign;
@@ -133,6 +134,7 @@ pub fn run_encrypt(
     let galdra_fp: Option<GaldraFingerprint> = if cipher_profile.ephemeral_ecdh() {
         None
     } else {
+        openpgp_pcsc::preflight_openpgp_slot_via_pcsc(OpenPgpKeySlot::Sig)?;
         let pk = openpgp_pcsc::read_sig_public_key_bytes_via_pcsc()?;
         Some(GaldraFingerprint::from_public_key_bytes(&pk))
     };

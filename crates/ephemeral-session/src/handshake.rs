@@ -115,7 +115,14 @@ impl InitMessage {
             return Err(EphemeralSessionError::MalformedHandshake);
         }
         let curve =
-            SessionCurve::from_wire(bytes[1]).ok_or(EphemeralSessionError::MalformedHandshake)?;
+            SessionCurve::try_from_wire(bytes[1]).map_err(|e| match e {
+                crate::curve_select::SessionCurveWireError::RemovedBrainpoolP512 => {
+                    EphemeralSessionError::RemovedBrainpoolP512Curve
+                }
+                crate::curve_select::SessionCurveWireError::Unknown => {
+                    EphemeralSessionError::MalformedHandshake
+                }
+            })?;
         let n = bytes[2] as usize;
         let expected = curve.public_key_len();
         if n != expected {
@@ -226,7 +233,14 @@ impl ResponseMessage {
             return Err(EphemeralSessionError::MalformedHandshake);
         }
         let curve =
-            SessionCurve::from_wire(bytes[1]).ok_or(EphemeralSessionError::MalformedHandshake)?;
+            SessionCurve::try_from_wire(bytes[1]).map_err(|e| match e {
+                crate::curve_select::SessionCurveWireError::RemovedBrainpoolP512 => {
+                    EphemeralSessionError::RemovedBrainpoolP512Curve
+                }
+                crate::curve_select::SessionCurveWireError::Unknown => {
+                    EphemeralSessionError::MalformedHandshake
+                }
+            })?;
         let n = bytes[2] as usize;
         let expected = curve.public_key_len();
         if n != expected {
@@ -357,6 +371,17 @@ mod tests {
     fn parse_truncated_init_message() {
         let r = InitMessage::parse(&[1, 1, 65]);
         assert!(matches!(r, Err(EphemeralSessionError::MalformedHandshake)));
+    }
+
+    #[test]
+    fn parse_removed_p512_curve() {
+        let mut v = vec![INIT_PROTOCOL_VERSION, galdr_core::legacy_removed::SESSION_CURVE_WIRE_BRAINPOOL_P512, 65u8];
+        v.extend_from_slice(&[0u8; 65]);
+        let r = InitMessage::parse(&v);
+        assert!(matches!(
+            r,
+            Err(EphemeralSessionError::RemovedBrainpoolP512Curve)
+        ));
     }
 
     #[test]

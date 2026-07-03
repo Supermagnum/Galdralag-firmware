@@ -12,8 +12,8 @@ pub mod curve_oids {
     pub const BRAINPOOL_P256R1: &[u8] = &[0x2B, 0x24, 0x03, 0x03, 0x02, 0x08, 0x01, 0x01, 0x07];
     /// BrainpoolP384r1.
     pub const BRAINPOOL_P384R1: &[u8] = &[0x2B, 0x24, 0x03, 0x03, 0x02, 0x08, 0x01, 0x01, 0x0B];
-    /// BrainpoolP512r1.
-    pub const BRAINPOOL_P512R1: &[u8] = &[0x2B, 0x24, 0x03, 0x03, 0x02, 0x08, 0x01, 0x01, 0x0D];
+    /// BrainpoolP512r1 (retired in Galdralag; OID retained for rejection only).
+    pub const BRAINPOOL_P512R1: &[u8] = galdr_core::legacy_removed::BRAINPOOL_P512R1_OID;
     /// NIST P-256 (prime256v1).
     pub const NIST_P256: &[u8] = &[0x2A, 0x86, 0x48, 0xCE, 0x3D, 0x03, 0x01, 0x07];
     /// NIST P-384.
@@ -48,6 +48,18 @@ pub enum AlgorithmAttributes {
 }
 
 impl AlgorithmAttributes {
+    /// True when algorithm attributes name a curve retired from Galdralag (BrainpoolP512r1).
+    pub fn uses_removed_curve(&self) -> bool {
+        match self {
+            AlgorithmAttributes::Rsa { .. } => false,
+            AlgorithmAttributes::Ecdh { curve_oid }
+            | AlgorithmAttributes::Ecdsa { curve_oid }
+            | AlgorithmAttributes::EdDsa { curve_oid } => {
+                galdr_core::legacy_removed::is_brainpool_p512_oid(curve_oid.as_slice())
+            }
+        }
+    }
+
     /// Encode to OpenPGP card algorithm attributes bytes for storage in DO C1/C2/C3.
     #[allow(clippy::result_unit_err)]
     pub fn to_bytes(&self) -> Result<Vec<u8, 32>, ()> {

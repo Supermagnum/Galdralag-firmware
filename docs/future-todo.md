@@ -87,9 +87,31 @@ Hardware bring-up sequence (Q2)
 Run in this order on first hardware:
 
 - gpg --card-status — confirms CCID enumeration, AID, and key slots
+- Request / record the **FSFE/GnuPG OpenPGP card manufacturer ID** for Galdralag/Baochip when silicon is real (two-byte code for AID bytes 7-8; GET DATA tag `0x004F`). Until assigned, do not filter host PC/SC scans on USB VID `0x20A0` — that is a different namespace. See [OPENPGP_CARD.md](OPENPGP_CARD.md) and [xous-core#875](https://github.com/betrusted-io/xous-core/issues/875).
 - On first boot only (PIN verifier digests unprovisioned), run **`galdralag-provision`** from [host-tools](../crates/host-tools/) — `cargo run -p host-tools --bin galdralag-provision -- --port /dev/ttyACM0` (PINs via `--user-pin` / `--admin-pin` or **`rpassword`** prompts). The host sends **two newline-terminated lines** (user PIN, admin PIN) matching **xous-core** **`usb-bao1x`** CDC provisioning; the device records **PDDB** **`usb.ccid`** / **`OKV1`** and PIN lines, then re-enumerates for **CCID**. With **`galdralag-service`** in the image, that process bridges **PDDB** into **RRAM** for OpenPGP (see [services/galdralag/README.md](../services/galdralag/README.md)).
 - gpg --card-edit → passwd — exercises PIN change **after** you know the User and Admin PIN from provisioning (or dev-only env paths).
 - RRAM map sign-off — manual review of the authoritative Baochip-1x memory map against the layout in docs/RRAM_LAYOUT.md; gate for production
+
+---
+
+### Host OpenPGP PC/SC vendor filter (`galdra device status`)
+
+**Status:** Documented; implementation blocked on hardware and manufacturer ID assignment.
+
+**Problem:** `galdra device status` / `galdrad` `GET /device/status` scan the first PC/SC reader for any OpenPGP application and read C1/C2/C3 (stale BrainpoolP512r1 detection). Third-party OpenPGP cards in that reader can produce misleading `card_present` / stale-P512 output.
+
+**Blocked on:**
+
+1. Baochip-1x tokens in hand ([xous-core#875](https://github.com/betrusted-io/xous-core/issues/875), [HARDWARE_BRINGUP_TEST_PLAN.md](HARDWARE_BRINGUP_TEST_PLAN.md)).
+2. An **FSFE/GnuPG-registered OpenPGP manufacturer ID** for Galdralag/Baochip (not USB VID `0x20A0`). Firmware today calls `build_aid(0x20A0, serial)` in `services/galdralag` — treat as bring-up placeholder until registry assignment.
+
+**Implementation sketch (when unblocked):**
+
+- After OpenPGP SELECT in `galdra-core-host/src/openpgp_pcsc.rs` (`scan_openpgp_card_via_pcsc`), GET DATA tag `0x004F`, compare AID bytes 7-8 to the assigned ID.
+- Extend `OpenPgpCardScan` with `is_galdralag_token: bool` (or equivalent); foreign cards: `card_present: true`, skip C1/C2/C3 GET DATA, CLI line such as `OpenPGP: Card present (not a Galdralag token)`.
+- Centralize the manufacturer constant beside `crates/usb-personality/src/openpgp/aid.rs` once known.
+
+**Code marker:** `TODO(openpgp-vendor-filter)` in `openpgp_pcsc.rs`.
 
 ---
 

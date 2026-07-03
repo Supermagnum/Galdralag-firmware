@@ -26,7 +26,6 @@ pub fn curve_audit_str(c: SessionCurve) -> &'static str {
     match c {
         SessionCurve::BrainpoolP256r1 => "bp256",
         SessionCurve::BrainpoolP384r1 => "bp384",
-        SessionCurve::BrainpoolP512r1 => "bp512",
     }
 }
 

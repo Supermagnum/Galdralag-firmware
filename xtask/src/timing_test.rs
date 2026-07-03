@@ -18,7 +18,6 @@ const ALL_KNOWN: &[&str] = &[
     "timing_x25519_ecdh",
     "timing_brainpool256_scalar_mult",
     "timing_brainpool384_scalar_mult",
-    "timing_brainpool512_scalar_mult",
     "timing_ephemeral_ecdh",
     "timing_signature_verify",
     "timing_fingerprint_lookup",

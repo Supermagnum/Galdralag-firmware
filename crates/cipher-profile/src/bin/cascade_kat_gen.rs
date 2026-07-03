@@ -27,7 +27,6 @@ fn main() {
         "standard",
         "conservative",
         "conservative-shamir",
-        "high-assurance",
     ] {
         let profile = reg.get(name).expect("builtin profile");
         let suite_id = cess::suite_id_for_profile_name(name).map(|u| format!("0x{:04x}", u));

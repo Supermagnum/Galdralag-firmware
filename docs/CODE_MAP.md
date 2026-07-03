@@ -24,7 +24,6 @@ This document lists **where** Rust modules, types, and functions live in the Gal
 | `crates/galdr-core` | `galdr-core` | HAL traits, shared errors |
 | `crates/cess` | `cess` | CESS cascade encryption |
 | `crates/biometric-*` | biometric crates | Device API and backends |
-| `crates/bp512` | `bp512` | Brainpool P-512 curve |
 | `crates/baochip-openpgp` | (separate manifest) | Xous vault backend for OpenPGP |
 | `services/galdralag` | `galdralag-service` | Xous CCID main loop |
 | `galdra-core-host` | `galdra-core-host` | Host library (DB, device, crypto) |
@@ -149,30 +148,6 @@ Vault integration for biometric templates.
 - **Public types:** `const RRAM_TOTAL_BYTES`, `const BIOMETRIC_REGION_OFFSET`, `const BIOMETRIC_REGION_SIZE`, `const MAX_TEMPLATE_SIZE_BYTES`, `const MAX_ENROLLED_PERSONS`, `const SAMPLES_PER_ENROLLMENT`, `enum VaultError`, `type ZeroizingVec`
 - **Public functions:** [`encrypt_template`](crates/biometric-vault/src/lib.rs#L77), [`decrypt_template`](crates/biometric-vault/src/lib.rs#L109), [`generate_session_token`](crates/biometric-vault/src/lib.rs#L133), [`verify_session_token`](crates/biometric-vault/src/lib.rs#L151)
 - **Private functions:** `derive_slot_key` (L42), `nonce_for_plaintext` (L58), `encrypt_decrypt_roundtrip_smoke` (L176)
-
-## `bp512`
-Brainpool P-512 curve arithmetic and ECDSA.
-
-**Files:** 5 | **Public functions:** 0 | **Private functions:** 7
-
-### `crates/bp512/src/arithmetic/scalar.rs`
-- **Private functions:** `as_ref` (L39), `from_uint_unchecked` (L47), `is_high` (L53)
-
-### `crates/bp512/src/lib.rs`
-- **Modules:** `r1`
-- **Public types:** `type FieldBytes`
-- **Private functions:** `decode_field_bytes` (L46), `encode_field_bytes` (L50)
-
-### `crates/bp512/src/r1.rs`
-- **Modules:** `ecdsa`
-- **Public types:** `struct BrainpoolP512r1`, `type Sec1Point`, `type FieldBytes`, `type SecretKey`
-- **Private functions:** `decode_field_bytes` (L56), `encode_field_bytes` (L60)
-
-### `crates/bp512/src/r1/arithmetic.rs`
-- **Public types:** `type AffinePoint`, `type ProjectivePoint`, `type ScalarValue`, `type NonZeroScalar`
-
-### `crates/bp512/src/r1/ecdsa.rs`
-- **Public types:** `type Signature`, `type DerSignature`
 
 ## `cess`
 CESS cascade encryption registry and wire format.
@@ -603,7 +578,7 @@ dudect timing harnesses and statistical tests.
 
 ### `crates/security-tests/src/lib.rs`
 - **Public types:** `enum DudectStatus`
-- **Public functions:** [`run_dudect_harnesses`](crates/security-tests/src/lib.rs#L32), [`run_dudect_harnesses`](crates/security-tests/src/lib.rs#L37), [`dudect_stub_chacha_decrypt`](crates/security-tests/src/lib.rs#L43), [`dudect_stub_shamir_recover`](crates/security-tests/src/lib.rs#L48), [`dudect_stub_brainpool_ecdh`](crates/security-tests/src/lib.rs#L53), [`timing_brainpool384_scalar_mult`](crates/security-tests/src/lib.rs#L58), [`timing_brainpool512_scalar_mult`](crates/security-tests/src/lib.rs#L63), [`timing_serpent_tag_check`](crates/security-tests/src/lib.rs#L68), [`timing_twofish_tag_check`](crates/security-tests/src/lib.rs#L73), [`timing_rsa_oaep_decrypt`](crates/security-tests/src/lib.rs#L78), [`timing_rsa_pss_verify`](crates/security-tests/src/lib.rs#L83)
+- **Public functions:** [`run_dudect_harnesses`](crates/security-tests/src/lib.rs#L32), [`run_dudect_harnesses`](crates/security-tests/src/lib.rs#L37), [`dudect_stub_chacha_decrypt`](crates/security-tests/src/lib.rs#L43), [`dudect_stub_shamir_recover`](crates/security-tests/src/lib.rs#L48), [`dudect_stub_brainpool_ecdh`](crates/security-tests/src/lib.rs#L53), [`timing_brainpool384_scalar_mult`](crates/security-tests/src/lib.rs#L58), [`timing_serpent_tag_check`](crates/security-tests/src/lib.rs#L68), [`timing_twofish_tag_check`](crates/security-tests/src/lib.rs#L73), [`timing_rsa_oaep_decrypt`](crates/security-tests/src/lib.rs#L78), [`timing_rsa_pss_verify`](crates/security-tests/src/lib.rs#L83)
 - **Private functions:** `stubs_are_callable` (L101)
 
 ### `crates/security-tests/src/timing_blake2.rs`
@@ -764,11 +739,6 @@ RRAM vault, crypto, Shamir, sealed keys, Brainpool/RSA, sessions.
 - **Public functions:** [`from_der_bytes`](crates/vault/src/brainpool384.rs#L59), [`der_bytes`](crates/vault/src/brainpool384.rs#L68), [`from_der_bytes_for_test`](crates/vault/src/brainpool384.rs#L75), [`xor_first_byte_for_test`](crates/vault/src/brainpool384.rs#L83), [`generate`](crates/vault/src/brainpool384.rs#L96), [`public_key`](crates/vault/src/brainpool384.rs#L114), [`diffie_hellman`](crates/vault/src/brainpool384.rs#L120), [`from_secret_key_bytes_for_test`](crates/vault/src/brainpool384.rs#L139), [`to_secret_bytes_for_test`](crates/vault/src/brainpool384.rs#L148), [`from_public_key_der`](crates/vault/src/brainpool384.rs#L158), [`to_sec1_uncompressed`](crates/vault/src/brainpool384.rs#L164), [`from_sec1`](crates/vault/src/brainpool384.rs#L173), [`ct_eq`](crates/vault/src/brainpool384.rs#L188), [`as_bytes`](crates/vault/src/brainpool384.rs#L193), [`generate`](crates/vault/src/brainpool384.rs#L200), [`verifying_key`](crates/vault/src/brainpool384.rs#L215), [`sign`](crates/vault/src/brainpool384.rs#L223), [`sign_handshake_sha256_prehash`](crates/vault/src/brainpool384.rs#L240), [`to_scalar_bytes_for_test`](crates/vault/src/brainpool384.rs#L258), [`from_scalar_bytes_for_test`](crates/vault/src/brainpool384.rs#L266), [`from_public_key_der`](crates/vault/src/brainpool384.rs#L275), [`verify`](crates/vault/src/brainpool384.rs#L282), [`verify_handshake_sha256_prehash`](crates/vault/src/brainpool384.rs#L295), [`to_sec1_uncompressed`](crates/vault/src/brainpool384.rs#L309), [`from_sec1`](crates/vault/src/brainpool384.rs#L318), [`from_public_key_for_test`](crates/vault/src/brainpool384.rs#L327)
 - **Private functions:** 15 (open file for full list)
 
-### `crates/vault/src/brainpool512.rs`
-- **Public types:** `const MAX_DER_SIG_P512`, `struct BrainpoolP512Scalar`, `struct BrainpoolP512PublicKey`, `struct BrainpoolP512SharedSecret`, `struct BrainpoolP512SigningKey`, `struct BrainpoolP512VerifyingKey`, `struct BrainpoolP512Signature`
-- **Public functions:** [`from_der_bytes`](crates/vault/src/brainpool512.rs#L59), [`der_bytes`](crates/vault/src/brainpool512.rs#L68), [`from_der_bytes_for_test`](crates/vault/src/brainpool512.rs#L75), [`xor_first_byte_for_test`](crates/vault/src/brainpool512.rs#L83), [`generate`](crates/vault/src/brainpool512.rs#L96), [`public_key`](crates/vault/src/brainpool512.rs#L114), [`diffie_hellman`](crates/vault/src/brainpool512.rs#L120), [`from_secret_key_bytes_for_test`](crates/vault/src/brainpool512.rs#L139), [`to_secret_bytes_for_test`](crates/vault/src/brainpool512.rs#L148), [`from_public_key_der`](crates/vault/src/brainpool512.rs#L158), [`to_sec1_uncompressed`](crates/vault/src/brainpool512.rs#L164), [`from_sec1`](crates/vault/src/brainpool512.rs#L173), [`ct_eq`](crates/vault/src/brainpool512.rs#L188), [`as_bytes`](crates/vault/src/brainpool512.rs#L193), [`generate`](crates/vault/src/brainpool512.rs#L200), [`verifying_key`](crates/vault/src/brainpool512.rs#L215), [`sign`](crates/vault/src/brainpool512.rs#L223), [`sign_handshake_sha256_prehash`](crates/vault/src/brainpool512.rs#L240), [`to_scalar_bytes_for_test`](crates/vault/src/brainpool512.rs#L258), [`from_scalar_bytes_for_test`](crates/vault/src/brainpool512.rs#L266), [`from_public_key_der`](crates/vault/src/brainpool512.rs#L275), [`verify`](crates/vault/src/brainpool512.rs#L282), [`verify_handshake_sha256_prehash`](crates/vault/src/brainpool512.rs#L295), [`to_sec1_uncompressed`](crates/vault/src/brainpool512.rs#L309), [`from_sec1`](crates/vault/src/brainpool512.rs#L318), [`from_public_key_for_test`](crates/vault/src/brainpool512.rs#L327)
-- **Private functions:** 17 (open file for full list)
-
 ### `crates/vault/src/brainpool_common.rs`
 - **Public types:** `enum BrainpoolError`
 
@@ -799,7 +769,7 @@ RRAM vault, crypto, Shamir, sealed keys, Brainpool/RSA, sessions.
 - **Public types:** `const PUBLIC_KEY_TABLE_BYTES`, `const SEALED_BLOB_BYTES`, `const SEALED_SIG_OFFSET`, `const SEALED_DEC_OFFSET`, `const SEALED_AUT_OFFSET`, `const SEALED_KEY_REGION_END`
 
 ### `crates/vault/src/lib.rs`
-- **Modules:** `brainpool`, `brainpool384`, `brainpool512`, `camellia_cipher`, `chacha_aead`, `ecdsa_brainpool`, `kdf_policy`, `key_material`, `layout`, `public_key_vault`, `rsa_keys`, `rsa_vault`, `sealed_key`, `serpent_cipher`, `service`, `session`, `session_long_term_signing`, `shamir`, `twofish_cipher`, `vault_pin_policy`
+- **Modules:** `brainpool`, `brainpool384`, `camellia_cipher`, `chacha_aead`, `ecdsa_brainpool`, `kdf_policy`, `key_material`, `layout`, `public_key_vault`, `rsa_keys`, `rsa_vault`, `sealed_key`, `serpent_cipher`, `service`, `session`, `session_long_term_signing`, `shamir`, `twofish_cipher`, `vault_pin_policy`
 
 ### `crates/vault/src/public_key_vault.rs`
 - **Public types:** `struct PublicKeySlot`, `enum PublicKeyVaultError`, `const PUBLIC_KEY_SLOT_BYTES`, `const PUBLIC_KEY_REGION_BASE`
@@ -819,7 +789,7 @@ RRAM vault, crypto, Shamir, sealed keys, Brainpool/RSA, sessions.
 ### `crates/vault/src/sealed_key.rs`
 - **Public types:** `struct SealedKeyBlob`, `enum SealedKeyError`
 - **Public functions:** [`seal`](crates/vault/src/sealed_key.rs#L73), [`unseal`](crates/vault/src/sealed_key.rs#L115), [`unseal_from_storage_cell`](crates/vault/src/sealed_key.rs#L171), [`as_slice`](crates/vault/src/sealed_key.rs#L207), [`blob_len`](crates/vault/src/sealed_key.rs#L212)
-- **Private functions:** `purpose_wire_id` (L35), `derive_wrapping_key` (L44), `build_aad` (L61), `unseal_inner` (L124), `seal_unseal_roundtrip` (L225), `seal_unseal_bp512` (L237), `tamper_tag` (L250), `tamper_purpose` (L268), `empty_cell` (L278)
+- **Private functions:** `purpose_wire_id` (L35), `derive_wrapping_key` (L44), `build_aad` (L61), `unseal_inner` (L124), `seal_unseal_roundtrip` (L225), `tamper_tag` (L250), `tamper_purpose` (L268), `empty_cell` (L278)
 
 ### `crates/vault/src/serpent_cipher.rs`
 - **Public types:** `const SERPENT_TAG_LEN`, `const MAX_SERPENT_PLAINTEXT`, `const MAX_SERPENT_CIPHERTEXT`, `enum SerpentError`, `struct SerpentKey`, `struct SerpentNonce`, `struct SerpentCiphertext`, `struct SerpentPlaintext`
@@ -862,9 +832,6 @@ RRAM vault, crypto, Shamir, sealed keys, Brainpool/RSA, sessions.
 
 ### `crates/vault/src/wycheproof_brainpool384.rs`
 - **Private functions:** `hex_decode_tc` (L10), `decode_p384_private_scalar` (L16), `run_ecdh_case` (L35), `wycheproof_brainpool384_ecdh_json` (L107), `run_ecdsa_case` (L125), `wycheproof_brainpool384_ecdsa_sha384_json` (L161)
-
-### `crates/vault/src/wycheproof_brainpool512.rs`
-- **Private functions:** `hex_decode_tc` (L10), `decode_p512_private_scalar` (L16), `run_ecdh_case` (L35), `wycheproof_brainpool512_ecdh_json` (L107), `run_ecdsa_case` (L125), `wycheproof_brainpool512_ecdsa_sha512_json` (L161)
 
 ### `crates/vault/src/wycheproof_chacha.rs`
 - **Private functions:** `wycheproof_chacha20_poly1305_json` (L9)
@@ -925,7 +892,6 @@ Build/test automation (test-all, fuzz, docs).
 | `fuzz/fuzz_targets/serpent_aead.rs` | Serpent AEAD |
 | `fuzz/fuzz_targets/twofish_aead.rs` | Twofish AEAD |
 | `fuzz/fuzz_targets/brainpool384_ecdh.rs` | Brainpool P-384 ECDH |
-| `fuzz/fuzz_targets/brainpool512_ecdh.rs` | Brainpool P-512 ECDH |
 | `fuzz/fuzz_targets/rsa_oaep_decrypt.rs` | RSA OAEP decrypt |
 | `fuzz/fuzz_targets/rsa_pss_verify.rs` | RSA PSS verify |
 | `fuzz/fuzz_targets/rsa_der_import.rs` | RSA DER import |

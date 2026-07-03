@@ -53,7 +53,7 @@ In **ISO/IEC 30107-3**: the proportion of **genuine** biometric presentations th
 An optional **“something you are”** check **before** or together with **PIN** unlock: a verified biometric match (and policy gates) must succeed before the token accepts certain operations. Crates: `biometric-api`, `biometric-vault`, and device drivers under `crates/biometric-*`. **Full** host and firmware wiring is still in progress; see [BIOMETRIC_API.md](BIOMETRIC_API.md) and [THREE_FACTOR_AUTH.md](THREE_FACTOR_AUTH.md).
 
 **BSI TR-03111**  
-A German government guideline for elliptic-curve cryptography (current version: 2.10). The project carries JSON vector files for BrainpoolP256r1, BrainpoolP384r1, and BrainpoolP512r1 covering both ECDH and ECDSA sign/verify as an extra check that implementations behave as expected. See `crates/vault/tests/bsi_vectors/` and `docs/TEST_RESULTS.md §2.6`.
+A German government guideline for elliptic-curve cryptography (current version: 2.10). The project carries JSON vector files for BrainpoolP256r1 and BrainpoolP384r1 covering both ECDH and ECDSA sign/verify as an extra check that implementations behave as expected. BrainpoolP512r1 vectors were removed with the unaudited in-tree curve; see [CHANGELOG.md](../CHANGELOG.md). See `crates/vault/tests/bsi_vectors/` and `docs/TEST_RESULTS.md §2.6`.
 
 ---
 

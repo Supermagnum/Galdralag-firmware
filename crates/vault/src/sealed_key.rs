@@ -234,19 +234,6 @@ mod tests {
     }
 
     #[test]
-    fn seal_unseal_bp512() {
-        let mut trng = FakeTrng::from_seed(0x512);
-        let mut scalar = [0x5Au8; 64];
-        scalar[0] = 0x01;
-        let blob =
-            SealedKeyBlob::seal(&MASTER, KeyPurpose::OpenPgpDec, &scalar, &mut trng).expect("seal");
-        let out = blob
-            .unseal(&MASTER, KeyPurpose::OpenPgpDec)
-            .expect("unseal");
-        assert_eq!(out.as_slice(), scalar.as_slice());
-    }
-
-    #[test]
     fn tamper_tag() {
         let mut trng = FakeTrng::from_seed(1);
         let scalar = [0x22u8; 32];

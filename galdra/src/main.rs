@@ -709,6 +709,7 @@ fn run_device(
                 Err(GaldraError::DeviceNotConnected) => None,
                 Err(e) => return Err(e),
             };
+            let openpgp = galdra_core_host::openpgp_pcsc::scan_openpgp_card_via_pcsc();
             if let Some(d) = dev {
                 let st = d.status()?;
                 let info = d.info()?;
@@ -721,6 +722,7 @@ fn run_device(
                         "firmware": info.firmware_version,
                         "key_slots_used": info.key_slots_used,
                         "key_slot_count": info.key_slot_count,
+                        "openpgp_card": openpgp,
                     }))?;
                 } else {
                     println!("Token:      Connected");
@@ -737,16 +739,19 @@ fn run_device(
                         "Key slots:  {} / {} used",
                         info.key_slots_used, info.key_slot_count
                     );
+                    print_openpgp_card_status(&openpgp);
                 }
             } else if output_mode == OutputMode::Json {
                 print_json(&serde_json::json!({
                     "token": "disconnected",
+                    "openpgp_card": openpgp,
                 }))?;
             } else {
                 println!("Token:      Not connected");
                 if !quiet {
                     eprintln!("No Galdralag token detected.");
                 }
+                print_openpgp_card_status(&openpgp);
             }
             Ok(())
         }
@@ -853,6 +858,15 @@ fn run_device(
             }
             Ok(())
         }
+    }
+}
+
+fn print_openpgp_card_status(scan: &galdra_core_host::openpgp_pcsc::OpenPgpCardScan) {
+    if scan.card_present {
+        println!("OpenPGP:    Card present (PC/SC)");
+    }
+    for stale in &scan.stale_p512_slots {
+        eprintln!("Warning:    {}", stale.message);
     }
 }
 

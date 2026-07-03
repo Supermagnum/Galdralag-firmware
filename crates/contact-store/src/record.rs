@@ -4,6 +4,7 @@ use crate::crc::{crc32c, record_crc_ok};
 use crate::error::ContactStoreError;
 use crate::layout::{CONTACT_RECORD_BYTES, CONTACT_RECORD_MAGIC, MAX_STRING_FIELD_BYTES};
 use bitflags::bitflags;
+use galdr_core::legacy_removed::KEY_ALGO_WIRE_BRAINPOOL_P512;
 use zeroize::Zeroize;
 
 bitflags! {
@@ -29,7 +30,6 @@ pub enum KeyAlgo {
     X25519 = 2,
     BrainpoolP256r1 = 3,
     BrainpoolP384r1 = 4,
-    BrainpoolP512r1 = 5,
     NistP256 = 6,
     NistP384 = 7,
     Rsa2048 = 8,
@@ -45,7 +45,7 @@ impl KeyAlgo {
             2 => Ok(Self::X25519),
             3 => Ok(Self::BrainpoolP256r1),
             4 => Ok(Self::BrainpoolP384r1),
-            5 => Ok(Self::BrainpoolP512r1),
+            KEY_ALGO_WIRE_BRAINPOOL_P512 => Err(ContactStoreError::RemovedBrainpoolP512),
             6 => Ok(Self::NistP256),
             7 => Ok(Self::NistP384),
             8 => Ok(Self::Rsa2048),
@@ -395,7 +395,11 @@ impl ContactRecord {
         if !record_crc_ok(bytes.as_slice()) {
             return Err(ContactStoreError::CorruptRecord);
         }
-        Ok(Self::from_bytes_unchecked(bytes))
+        let rec = Self::from_bytes_unchecked(bytes);
+        if rec.magic == CONTACT_RECORD_MAGIC && rec.is_active() {
+            let _ = KeyAlgo::from_wire(rec.key_algo)?;
+        }
+        Ok(rec)
     }
 
     /// Load without CRC check (boot rebuild paths verify separately).
@@ -583,10 +587,33 @@ mod tests {
     }
 
     #[test]
+    fn key_algo_p512_rejected() {
+        assert_eq!(
+            KeyAlgo::from_wire(KEY_ALGO_WIRE_BRAINPOOL_P512),
+            Err(ContactStoreError::RemovedBrainpoolP512)
+        );
+    }
+
+    #[test]
+    fn active_record_p512_key_algo_rejected_on_load() {
+        let mut r = ContactRecord::default();
+        r.magic = CONTACT_RECORD_MAGIC;
+        r.set_contact_flags(ContactFlags::ACTIVE);
+        r.key_algo = KEY_ALGO_WIRE_BRAINPOOL_P512;
+        r.recompute_crc();
+        let b = r.as_bytes();
+        assert!(matches!(
+            ContactRecord::from_bytes_verified(&b),
+            Err(ContactStoreError::RemovedBrainpoolP512)
+        ));
+    }
+
+    #[test]
     fn crc_roundtrip() {
         let mut r = ContactRecord::default();
         r.magic = CONTACT_RECORD_MAGIC;
         r.set_contact_flags(ContactFlags::ACTIVE);
+        r.key_algo = KeyAlgo::Ed25519.to_wire();
         r.recompute_crc();
         let b = r.as_bytes();
         assert!(record_crc_ok(b.as_slice()));

@@ -12,7 +12,7 @@ use gtk::prelude::*;
 use crate::client::{CreateProfileBody, GaldradClient};
 use crate::profile_row::ProfileRow;
 
-const CURVES: &[&str] = &["bp256", "bp384", "bp512"];
+const CURVES: &[&str] = &["bp256", "bp384"];
 const LAYER_OPTS: &[&str] = &["aes256gcm", "chacha20poly1305", "twofish256", "serpent256"];
 
 pub fn build(

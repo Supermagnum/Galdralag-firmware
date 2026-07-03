@@ -225,7 +225,7 @@ galdra key list
 galdra key generate --type ed25519
 ```
 
-Supported `--type` values are documented in `galdra key generate --help` (for example `brainpool256`, `brainpool384`, `brainpool512`, `rsa2048`, `rsa4096`, `ed25519`).
+Supported `--type` values are documented in `galdra key generate --help` (for example `brainpool256`, `brainpool384`, `rsa2048`, `rsa4096`, `ed25519`).
 
 **Current limitation:** `galdra key generate` and `galdra key import` return an error until host-to-device key provisioning is fully integrated for your firmware build. Until then, generate keys with **GnuPG** on the host (`gpg --full-generate-key`) or your organisation’s process, then plan to load material onto the token when import is available, per firmware documentation.
 
@@ -1131,7 +1131,7 @@ galdra device info
 galdra key list
     List key slots on the connected token.
 
-galdra key generate --type <brainpool256|brainpool384|brainpool512|rsa2048|rsa4096|ed25519>
+galdra key generate --type <brainpool256|brainpool384|rsa2048|rsa4096|ed25519>
     Generate a new key pair on the token.
 
 galdra key import --slot <n> --file <key.pem|key.der|key.p8>

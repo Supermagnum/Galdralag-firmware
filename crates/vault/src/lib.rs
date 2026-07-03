@@ -16,7 +16,6 @@ extern crate alloc;
 
 pub mod brainpool;
 pub mod brainpool384;
-pub mod brainpool512;
 mod brainpool_common;
 pub mod camellia_cipher;
 pub mod chacha_aead;
@@ -44,8 +43,6 @@ mod wycheproof_aes_gcm;
 mod wycheproof_brainpool256;
 #[cfg(test)]
 mod wycheproof_brainpool384;
-#[cfg(test)]
-mod wycheproof_brainpool512;
 #[cfg(test)]
 mod wycheproof_chacha;
 #[cfg(test)]

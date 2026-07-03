@@ -1,5 +1,8 @@
 //! Negotiated Brainpool curve for a session.
 
+use core::fmt;
+use galdr_core::legacy_removed::{MSG_SESSION_CURVE_P512, SESSION_CURVE_WIRE_BRAINPOOL_P512};
+
 /// The elliptic curve used for this session's ephemeral key pair.
 /// Both initiator and responder must agree before any key material is generated.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -8,8 +11,6 @@ pub enum SessionCurve {
     BrainpoolP256r1,
     /// BrainpoolP384r1. ~192-bit security.
     BrainpoolP384r1,
-    /// BrainpoolP512r1. ~256-bit security. Largest keys and signatures.
-    BrainpoolP512r1,
 }
 
 impl SessionCurve {
@@ -18,17 +19,21 @@ impl SessionCurve {
         match self {
             SessionCurve::BrainpoolP256r1 => 0x01,
             SessionCurve::BrainpoolP384r1 => 0x02,
-            SessionCurve::BrainpoolP512r1 => 0x03,
         }
     }
 
-    /// Parse from wire byte. Returns `None` for unknown values.
+    /// Parse from wire byte. Returns `None` for unknown values (not removed P-512).
     pub fn from_wire(byte: u8) -> Option<Self> {
+        Self::try_from_wire(byte).ok()
+    }
+
+    /// Parse wire byte, distinguishing retired BrainpoolP512r1 (`0x03`) from other rejections.
+    pub fn try_from_wire(byte: u8) -> Result<Self, SessionCurveWireError> {
         match byte {
-            0x01 => Some(SessionCurve::BrainpoolP256r1),
-            0x02 => Some(SessionCurve::BrainpoolP384r1),
-            0x03 => Some(SessionCurve::BrainpoolP512r1),
-            _ => None,
+            0x01 => Ok(SessionCurve::BrainpoolP256r1),
+            0x02 => Ok(SessionCurve::BrainpoolP384r1),
+            SESSION_CURVE_WIRE_BRAINPOOL_P512 => Err(SessionCurveWireError::RemovedBrainpoolP512),
+            _ => Err(SessionCurveWireError::Unknown),
         }
     }
 
@@ -37,7 +42,24 @@ impl SessionCurve {
         match self {
             SessionCurve::BrainpoolP256r1 => 65,
             SessionCurve::BrainpoolP384r1 => 97,
-            SessionCurve::BrainpoolP512r1 => 129,
+        }
+    }
+}
+
+/// Failure to parse a session curve wire byte.
+#[derive(Debug, Clone, Copy, Eq, PartialEq)]
+pub enum SessionCurveWireError {
+    /// Unrecognised curve wire byte.
+    Unknown,
+    /// Retired BrainpoolP512r1 (`0x03`).
+    RemovedBrainpoolP512,
+}
+
+impl fmt::Display for SessionCurveWireError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            SessionCurveWireError::Unknown => write!(f, "unknown session curve wire byte"),
+            SessionCurveWireError::RemovedBrainpoolP512 => write!(f, "{MSG_SESSION_CURVE_P512}"),
         }
     }
 }
@@ -51,15 +73,27 @@ mod tests {
         for c in [
             SessionCurve::BrainpoolP256r1,
             SessionCurve::BrainpoolP384r1,
-            SessionCurve::BrainpoolP512r1,
         ] {
             assert_eq!(SessionCurve::from_wire(c.wire_id()), Some(c));
         }
     }
 
     #[test]
+    fn removed_p512_wire_id() {
+        assert_eq!(
+            SessionCurve::try_from_wire(SESSION_CURVE_WIRE_BRAINPOOL_P512),
+            Err(SessionCurveWireError::RemovedBrainpoolP512)
+        );
+        assert_eq!(SessionCurve::from_wire(SESSION_CURVE_WIRE_BRAINPOOL_P512), None);
+    }
+
+    #[test]
     fn unknown_wire_id() {
         assert_eq!(SessionCurve::from_wire(0x00), None);
+        assert_eq!(
+            SessionCurve::try_from_wire(0x00),
+            Err(SessionCurveWireError::Unknown)
+        );
         assert_eq!(SessionCurve::from_wire(0xFF), None);
     }
 }

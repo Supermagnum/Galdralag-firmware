@@ -22,7 +22,7 @@ mod keys;
 mod protocol;
 mod trust;
 
-pub use curve_select::SessionCurve;
+pub use curve_select::{SessionCurve, SessionCurveWireError};
 pub use error::EphemeralSessionError;
 pub use handshake::{
     InitMessage, ResponseMessage, INIT_PROTOCOL_VERSION, MAX_HANDSHAKE_BYTES, MAX_SIG_BYTES,

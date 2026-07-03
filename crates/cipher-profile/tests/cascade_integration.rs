@@ -11,7 +11,6 @@ const BUILTIN_NAMES: &[&str] = &[
     "standard",
     "conservative",
     "conservative-shamir",
-    "high-assurance",
 ];
 
 fn tr<T, E: core::fmt::Debug>(r: Result<T, E>) -> T {

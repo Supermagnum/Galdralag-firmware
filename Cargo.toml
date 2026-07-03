@@ -8,7 +8,6 @@ members = [
     "crates/cess",
     "crates/contact-store",
     "crates/galdr-core",
-    "crates/bp512",
     "crates/vault",
     "crates/ephemeral-session",
     "crates/cipher-profile",
@@ -51,7 +50,6 @@ chacha20poly1305 = { version = "0.10", default-features = false, features = ["al
 aead = { version = "0.5", default-features = false }
 bp256 = { version = "0.14.0-rc.8", default-features = false, features = ["arithmetic", "ecdsa", "pkcs8", "sha256"] }
 bp384 = { version = "0.14.0-rc.8", default-features = false, features = ["arithmetic", "ecdsa", "sha384", "pkcs8"] }
-bp512 = { path = "crates/bp512", default-features = false, features = ["arithmetic", "ecdsa", "sha512", "pkcs8"] }
 # Enables `elliptic_curve::ecdh` for vault ECDH (must match bp256's elliptic-curve version).
 elliptic-curve = { version = "0.14.0-rc.29", default-features = false, features = ["ecdh", "sec1", "pkcs8"] }
 ecdsa = { version = "0.17.0-rc.16", default-features = false, features = ["digest", "der", "algorithm"] }

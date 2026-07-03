@@ -35,6 +35,10 @@ inventing product features not present in source.
 
 Host provisioning details: [GALDRA-TOOL.md](GALDRA-TOOL.md), [OPENPGP_CARD.md](OPENPGP_CARD.md).
 
+### Retired algorithms (BrainpoolP512r1)
+
+Contact records or OpenPGP card algorithm attributes that name **BrainpoolP512r1** (`key_algo` wire byte **`0x05`**, or the P-512 OID in C1/C2/C3) are **rejected at parse time** with an explicit error, not silently ignored or mapped to another curve. The same applies on the host when importing legacy material. See [CHANGELOG.md](../CHANGELOG.md).
+
 ---
 
 ## Export policy

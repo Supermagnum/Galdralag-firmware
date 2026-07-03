@@ -122,7 +122,6 @@ Authoritative membership list: root [`Cargo.toml`](../Cargo.toml) `[workspace] m
 | `crates/cipher-profile` | `cipher-profile` | Named cipher cascade profiles (registry + policy) |
 | `crates/cess` | `cess` | CESS Mode A outer wrapper (HKDF-BLAKE3, ChaCha outer AEAD) |
 | `crates/contact-store` | `contact-store` | On-token Galdra contact metadata in RRAM |
-| `crates/bp512` | `bp512` | Brainpool P-512 curve backend (project-maintained; not a generic crates.io re-export) |
 | `crates/biometric-api` | `biometric-api` | Biometric match payload, session token, backend trait |
 | `crates/biometric-vault` | `biometric-vault` | Template sealing and session HMAC helpers |
 | `crates/biometric-fingervein` | `biometric-fingervein` | Finger-vein device driver sketch (host-side) |
@@ -160,7 +159,7 @@ These are excluded from the workspace lockfile because they depend on **xous-cor
 
 ### Layer 2 — Vault and crypto orchestration
 
-- **`galdr-vault`** depends on **`galdr-core`**, **`pin-policy`**, **`bp512`**, and many **upstream** crypto crates. It implements **what** gets sealed in RRAM and **how** keys are derived (`KeyPurpose`, HKDF labels), not new block ciphers.
+- **`galdr-vault`** depends on **`galdr-core`**, **`pin-policy`**, and many **upstream** crypto crates (`bp256`, `bp384`, and others). It implements **what** gets sealed in RRAM and **how** keys are derived (`KeyPurpose`, HKDF labels), not new block ciphers.
 - **`cess`** implements the CESS outer wrapper using **`blake3`** and **`chacha20poly1305`** from upstream.
 - **`ephemeral-session`** ties **`galdr-vault`** + **`cess`** + curve code for forward-secrecy sessions.
 - **`cipher-profile`** composes **`ephemeral-session`**, **`galdr-vault`**, and **`cess`** into named profiles the host can select.

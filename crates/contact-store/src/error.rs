@@ -1,5 +1,8 @@
 //! Typed errors for contact-store operations.
 
+use core::fmt;
+use galdr_core::legacy_removed::MSG_KEY_ALGO_P512;
+
 /// Fallible contact-store outcomes.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 #[non_exhaustive]
@@ -34,6 +37,8 @@ pub enum ContactStoreError {
     StringTooLong,
     /// Unknown `key_algo` byte in a record.
     InvalidAlgo,
+    /// Retired BrainpoolP512r1 (`key_algo` wire byte `0x05`).
+    RemovedBrainpoolP512,
     /// Monotonic counter operation failed.
     CounterError,
     /// HKDF or AEAD operation failed.
@@ -44,4 +49,32 @@ pub enum ContactStoreError {
     AlreadyProvisioned,
     /// Provisioning counter marker is zero (factory-fresh, not provisioned).
     NotProvisioned,
+}
+
+impl fmt::Display for ContactStoreError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            ContactStoreError::StorageRead => write!(f, "contact store read failed"),
+            ContactStoreError::StorageWrite => write!(f, "contact store write failed"),
+            ContactStoreError::CorruptRecord => write!(f, "contact record CRC mismatch"),
+            ContactStoreError::CorruptLogEntry => write!(f, "timing log entry CRC mismatch"),
+            ContactStoreError::SlotNotFound => write!(f, "contact slot not found"),
+            ContactStoreError::RecipientSlotsFull => write!(f, "recipient slots full"),
+            ContactStoreError::HeapFull => write!(f, "string heap or key region full"),
+            ContactStoreError::PinRequired => write!(f, "PIN required for protected key"),
+            ContactStoreError::PinFailed => write!(f, "PIN verification failed"),
+            ContactStoreError::IntegrityMismatch => write!(f, "contact store integrity mismatch"),
+            ContactStoreError::NotInitialised => write!(f, "contact store not initialised"),
+            ContactStoreError::InvalidSlot => write!(f, "invalid contact slot index"),
+            ContactStoreError::KeyTooLarge => write!(f, "public key too large"),
+            ContactStoreError::StringTooLong => write!(f, "string field too long"),
+            ContactStoreError::InvalidAlgo => write!(f, "unknown key algorithm byte"),
+            ContactStoreError::RemovedBrainpoolP512 => write!(f, "{MSG_KEY_ALGO_P512}"),
+            ContactStoreError::CounterError => write!(f, "monotonic counter error"),
+            ContactStoreError::Crypto => write!(f, "contact store crypto error"),
+            ContactStoreError::InvalidRecord => write!(f, "invalid contact record"),
+            ContactStoreError::AlreadyProvisioned => write!(f, "contact store already provisioned"),
+            ContactStoreError::NotProvisioned => write!(f, "contact store not provisioned"),
+        }
+    }
 }

@@ -39,6 +39,12 @@ pub enum CipherProfileError {
     /// Serialised profile bytes are truncated or malformed.
     MalformedEncoding,
 
+    /// Profile wire encoding uses retired BrainpoolP512r1 curve byte `0x03`.
+    RemovedBrainpoolP512Curve,
+
+    /// Profile name is the retired `high-assurance` built-in.
+    RemovedHighAssuranceProfile,
+
     /// The Shamir configuration is invalid (k=0, k>n, n=255 overflow, etc.).
     InvalidShamirConfig,
 

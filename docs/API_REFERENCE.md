@@ -205,7 +205,8 @@ This annex is a **technical snapshot** of behaviours implemented in **`vault::sh
 |-------------------|--------|---------------------------|
 | `0x01` | brainpoolP256r1 | 65 |
 | `0x02` | brainpoolP384r1 | 97 |
-| `0x03` | brainpoolP512r1 | 129 |
+
+Wire byte `0x03` (brainpoolP512r1) was used in earlier protocol versions and is **not** accepted by current firmware. See [CHANGELOG.md](../CHANGELOG.md).
 
 #### Protocol version bytes
 

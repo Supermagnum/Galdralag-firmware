@@ -107,7 +107,15 @@ impl CipherProfile {
         i += dl;
         let cw = *bytes.get(i).ok_or(CipherProfileError::MalformedEncoding)?;
         i += 1;
-        let curve = SessionCurve::from_wire(cw).ok_or(CipherProfileError::MalformedEncoding)?;
+        let curve = match SessionCurve::try_from_wire(cw) {
+            Ok(c) => c,
+            Err(ephemeral_session::SessionCurveWireError::RemovedBrainpoolP512) => {
+                return Err(CipherProfileError::RemovedBrainpoolP512Curve);
+            }
+            Err(ephemeral_session::SessionCurveWireError::Unknown) => {
+                return Err(CipherProfileError::MalformedEncoding);
+            }
+        };
         let lc = *bytes.get(i).ok_or(CipherProfileError::MalformedEncoding)? as usize;
         i += 1;
         if lc == 0 || lc > 4 {
@@ -452,5 +460,20 @@ mod tests {
         let _ = v.push(1);
         let r = CipherProfile::from_bytes(v.as_slice());
         assert_eq!(r, Err(CipherProfileError::MalformedEncoding));
+    }
+
+    #[test]
+    fn profile_parse_removed_p512_curve_wire() {
+        let mut v = Vec::<u8, 256>::new();
+        let _ = v.push(1);
+        let _ = v.push(b'x');
+        let _ = v.push(0);
+        let _ = v.push(galdr_core::legacy_removed::SESSION_CURVE_WIRE_BRAINPOOL_P512);
+        let _ = v.push(1);
+        let _ = v.push(1);
+        let _ = v.push(1);
+        let _ = v.push(1);
+        let r = CipherProfile::from_bytes(v.as_slice());
+        assert_eq!(r, Err(CipherProfileError::RemovedBrainpoolP512Curve));
     }
 }

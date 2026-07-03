@@ -495,37 +495,6 @@ fn bench_timing_fingerprint_lookup() -> CtSummary {
     update_ct_stats(None, l, r).0
 }
 
-fn bench_brainpool_ecdh_p512() -> CtSummary {
-    use galdr_core::fake_hal::FakeTrng;
-    use galdr_vault::brainpool512::BrainpoolP512Scalar;
-    let mut t1 = FakeTrng::from_seed(0x000B_512A);
-    let mut t2 = FakeTrng::from_seed(0x000B_512B);
-    let mut t3 = FakeTrng::from_seed(0x000B_512C);
-    let a = BrainpoolP512Scalar::generate(&mut t1).expect("a");
-    let b = BrainpoolP512Scalar::generate(&mut t2).expect("b");
-    let c = BrainpoolP512Scalar::generate(&mut t3).expect("c");
-    let pb = b.public_key().expect("pb");
-    let pc = c.public_key().expect("pc");
-    let n = samples_for_harness("timing_brainpool512_scalar_mult");
-    let mut rng = StdRng::seed_from_u64(0xB512);
-    let mut runner = CtRunner::default();
-    for _ in 0..n {
-        let left = rng.gen_bool(0.5);
-        let cl = if left { Class::Left } else { Class::Right };
-        if left {
-            runner.run_one(cl, || {
-                let _ = a.diffie_hellman(&pb);
-            });
-        } else {
-            runner.run_one(cl, || {
-                let _ = a.diffie_hellman(&pc);
-            });
-        }
-    }
-    let (l, r) = runner.left_right();
-    update_ct_stats(None, l, r).0
-}
-
 fn bench_timing_shamir_recover() -> CtSummary {
     use galdr_core::fake_hal::FakeTrng;
     use galdr_vault::shamir::{shamir_recover, shamir_split, ShamirShare};
@@ -823,18 +792,15 @@ fn bench_timing_rsa_pss_verify() -> CtSummary {
 pub fn run_all() -> i32 {
     let started = Instant::now();
     println!(
-        "Galdr dudect harnesses ({} for most; {} for Brainpool P256/P384 ECDH; {} for Brainpool P512 ECDH; threshold |t| <= {})",
+        "Galdr dudect harnesses ({} for most; {} for Brainpool P256/P384 ECDH; threshold |t| <= {})",
         DUDECT_SAMPLES,
         DUDECT_SAMPLES_BRAINPOOL_REDUCED,
-        DUDECT_SAMPLES_BRAINPOOL_SLOW,
         DUDECT_THRESHOLD
     );
     println!();
     println!(
-        "Note: each harness prints to stdout when it finishes. Brainpool P256/P384 ECDH use {} timings; P512 uses {} (not {}); ephemeral-session ECDH uses {} total timings; timing_signature_verify uses {}; other default harnesses use {}. RSA benches can still take minutes. Set DUDECT_HARNESSES=name1,name2 to run only listed harnesses.",
+        "Note: each harness prints to stdout when it finishes. Brainpool P256/P384 ECDH use {} timings; ephemeral-session ECDH uses {} total timings; timing_signature_verify uses {}; other default harnesses use {}. RSA benches can still take minutes. Set DUDECT_HARNESSES=name1,name2 to run only listed harnesses.",
         DUDECT_SAMPLES_BRAINPOOL_REDUCED,
-        DUDECT_SAMPLES_BRAINPOOL_SLOW,
-        DUDECT_SAMPLES,
         DUDECT_SAMPLES_EPHEMERAL_ECDH,
         DUDECT_SAMPLES_SIGNATURE_VERIFY,
         DUDECT_SAMPLES
@@ -845,7 +811,7 @@ pub fn run_all() -> i32 {
     let mut executed = 0usize;
 
     type HarnessFn = fn() -> CtSummary;
-    let harnesses: [(&str, HarnessFn); 33] = [
+    let harnesses: [(&str, HarnessFn); 32] = [
         ("timing_subtle_eq_u256", bench_subtle_eq_u256),
         ("timing_chacha_tag_check", bench_timing_chacha_tag_check),
         ("timing_aes_gcm_tag_check", bench_timing_aes_gcm_tag_check),
@@ -855,7 +821,6 @@ pub fn run_all() -> i32 {
         ("timing_x25519_ecdh", bench_timing_x25519_ecdh),
         ("timing_brainpool256_scalar_mult", bench_brainpool_ecdh_p256),
         ("timing_brainpool384_scalar_mult", bench_brainpool_ecdh_p384),
-        ("timing_brainpool512_scalar_mult", bench_brainpool_ecdh_p512),
         ("timing_ephemeral_ecdh", bench_timing_ephemeral_ecdh),
         ("timing_signature_verify", bench_timing_signature_verify),
         ("timing_fingerprint_lookup", bench_timing_fingerprint_lookup),

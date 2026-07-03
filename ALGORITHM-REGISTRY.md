@@ -95,18 +95,20 @@ known gaps in test coverage. It supplements `docs/CIPHER_PROFILES.md` and
 
 ## Asymmetric / key-agreement
 
-### BrainpoolP256r1, BrainpoolP384r1, BrainpoolP512r1 (ECDH + ECDSA)
+### BrainpoolP256r1, BrainpoolP384r1 (ECDH + ECDSA)
 
 | Field | Value |
 |-------|-------|
 | Standard | BSI TR-03111 v2.10; RFC 5639 |
 | Auditors | BSI (German Federal Office for Information Security); IETF RFC process |
 | NIST involvement | None. Brainpool curves were specified independently by BSI |
-| Implementation | `bp256`, `bp384`, `bp512` crates (RustCrypto / elliptic-curve ecosystem) |
+| Implementation | `bp256`, `bp384` crates from [RustCrypto elliptic-curves](https://github.com/RustCrypto/elliptic-curves) |
 | KAT source | BSI TR-03111 ECDH vectors + project-owned ECDSA KAT vectors (`crates/vault/tests/bsi_vectors/`) |
 | Wycheproof | Yes — Brainpool ECDH/ECDSA edge cases in `crates/vault/tests/data/wycheproof/` |
-| Dudect harnesses | `timing_brainpool256_scalar_mult`, `timing_brainpool384_scalar_mult`, `timing_brainpool512_scalar_mult` |
-| Fuzz targets | `brainpool384_ecdh`, `brainpool512_ecdh` |
+| Dudect harnesses | `timing_brainpool256_scalar_mult`, `timing_brainpool384_scalar_mult` |
+| Fuzz targets | `brainpool384_ecdh` |
+
+BrainpoolP512r1 was removed; see [CHANGELOG.md](CHANGELOG.md).
 
 ---
 

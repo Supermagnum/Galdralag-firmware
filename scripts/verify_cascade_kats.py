@@ -16,7 +16,7 @@ Layout (see crates/cipher-profile/src/cascade.rs):
 
 standard (0x0001): full ciphertext recomputed with HKDF-BLAKE3 + ChaCha20-Poly1305.
 
-conservative / conservative-shamir / high-assurance: recomputes intermediate_before_outer_hex
+conservative / conservative-shamir: recomputes intermediate_before_outer_hex
 from IKM and plaintext (inner ChaCha with empty AAD + inter-layer MAC). Verifies the trailing
 32-byte Serpent EtM tag: HMAC-SHA256(MAC key, aad || nonce_16 || body) per
 crates/vault/src/serpent_cipher.rs, where MAC key is the trailing 32 bytes of HKDF-BLAKE3
@@ -244,7 +244,7 @@ def verify_row(
             )
         return ok, independent, structural
 
-    if profile in ("conservative", "conservative-shamir", "high-assurance"):
+    if profile in ("conservative", "conservative-shamir"):
         elen = expected_two_layer_outer_len(len(plaintext))
         if len(expected_outer) != elen:
             ok = False

@@ -360,15 +360,6 @@ fn sign_with_long_term<T: HardwareTrng>(
                 .map_err(|_| EphemeralSessionError::MalformedHandshake)?;
             Ok(v)
         }
-        SessionLongTermSigningKey::P512(sk) => {
-            let s = sk
-                .sign_handshake_sha256_prehash(preimage, trng)
-                .map_err(|_| EphemeralSessionError::InvalidPeerSignature)?;
-            let mut v = heapless::Vec::new();
-            v.extend_from_slice(s.der_bytes())
-                .map_err(|_| EphemeralSessionError::MalformedHandshake)?;
-            Ok(v)
-        }
     }
 }
 
@@ -385,14 +376,6 @@ fn verifying_sec1(
             Ok(v)
         }
         SessionLongTermSigningKey::P384(sk) => {
-            let vk = sk.verifying_key();
-            let b = vk.to_sec1_uncompressed();
-            let mut v = heapless::Vec::new();
-            v.extend_from_slice(&b)
-                .map_err(|_| EphemeralSessionError::MalformedHandshake)?;
-            Ok(v)
-        }
-        SessionLongTermSigningKey::P512(sk) => {
             let vk = sk.verifying_key();
             let b = vk.to_sec1_uncompressed();
             let mut v = heapless::Vec::new();
@@ -423,15 +406,6 @@ fn verify_with_cert(
             let vk = BrainpoolP384VerifyingKey::from_sec1(cert.verifying_key.as_slice())
                 .map_err(|_| EphemeralSessionError::InvalidPeerPublicKey)?;
             let sig = BrainpoolP384Signature::from_der_bytes(der_sig)
-                .map_err(|_| EphemeralSessionError::InvalidPeerSignature)?;
-            vk.verify_handshake_sha256_prehash(preimage, &sig)
-                .map_err(|_| EphemeralSessionError::InvalidPeerSignature)
-        }
-        SessionCurve::BrainpoolP512r1 => {
-            use galdr_vault::brainpool512::{BrainpoolP512Signature, BrainpoolP512VerifyingKey};
-            let vk = BrainpoolP512VerifyingKey::from_sec1(cert.verifying_key.as_slice())
-                .map_err(|_| EphemeralSessionError::InvalidPeerPublicKey)?;
-            let sig = BrainpoolP512Signature::from_der_bytes(der_sig)
                 .map_err(|_| EphemeralSessionError::InvalidPeerSignature)?;
             vk.verify_handshake_sha256_prehash(preimage, &sig)
                 .map_err(|_| EphemeralSessionError::InvalidPeerSignature)

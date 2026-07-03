@@ -1,5 +1,6 @@
 //! `galdra identity` subcommands.
 
+use galdra_core_host::openpgp_card_attrs::OpenPgpKeySlot;
 use galdra_core_host::openpgp_pcsc;
 use galdra_core_host::profiles::ProfileStore;
 use galdra_core_host::{GaldraError, GaldraFingerprint};
@@ -27,6 +28,7 @@ pub fn run_identity(
                     GALDRA_FINGERPRINT_EPHEMERAL_ECDH_BLOCKED.to_string(),
                 ));
             }
+            openpgp_pcsc::preflight_openpgp_slot_via_pcsc(OpenPgpKeySlot::Sig)?;
             let pk = openpgp_pcsc::read_sig_public_key_bytes_via_pcsc()?;
             let fp = GaldraFingerprint::from_public_key_bytes(&pk);
             if output_mode == OutputMode::Json {

@@ -19,7 +19,6 @@ fn base_samples_for_harness(name: &str) -> usize {
         "timing_brainpool256_scalar_mult" | "timing_brainpool384_scalar_mult" => {
             DUDECT_SAMPLES_BRAINPOOL_REDUCED
         }
-        "timing_brainpool512_scalar_mult" => DUDECT_SAMPLES_BRAINPOOL_SLOW,
         "timing_pbkdf2" => DUDECT_SAMPLES_PBKDF2,
         "timing_sha3_256" | "timing_sha3_512" => DUDECT_SAMPLES_SHA3,
         "timing_ephemeral_ecdh" => DUDECT_SAMPLES_EPHEMERAL_ECDH,

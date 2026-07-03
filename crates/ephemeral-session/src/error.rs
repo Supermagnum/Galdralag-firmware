@@ -1,5 +1,7 @@
 //! Error type for the ephemeral session protocol.
 
+use core::fmt;
+use galdr_core::legacy_removed::MSG_SESSION_CURVE_P512;
 use galdr_core::HalError;
 
 /// Failure modes for authenticated ephemeral ECDH sessions.
@@ -27,6 +29,9 @@ pub enum EphemeralSessionError {
 
     /// Handshake message is malformed or truncated.
     MalformedHandshake,
+
+    /// Retired BrainpoolP512r1 curve wire byte (`0x03`) in a peer handshake.
+    RemovedBrainpoolP512Curve,
 
     /// The curve specified in the peer's message does not match the
     /// negotiated curve.
@@ -67,6 +72,38 @@ impl From<galdr_vault::session_long_term_signing::SessionLongTermSigningVaultErr
                 EphemeralSessionError::Storage
             }
             _ => EphemeralSessionError::MalformedHandshake,
+        }
+    }
+}
+
+impl fmt::Display for EphemeralSessionError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            EphemeralSessionError::KeyGeneration => write!(f, "ephemeral key generation failed"),
+            EphemeralSessionError::InvalidPeerPublicKey => {
+                write!(f, "peer ephemeral public key is not on the curve")
+            }
+            EphemeralSessionError::InvalidPeerSignature => {
+                write!(f, "peer long-term signature over ephemeral key is invalid")
+            }
+            EphemeralSessionError::EcdhFailed => write!(f, "ECDH failed"),
+            EphemeralSessionError::SessionAlreadyCompleted => {
+                write!(f, "session already completed")
+            }
+            EphemeralSessionError::SessionAlreadyInitialised => {
+                write!(f, "session already initialised")
+            }
+            EphemeralSessionError::MalformedHandshake => write!(f, "malformed handshake message"),
+            EphemeralSessionError::RemovedBrainpoolP512Curve => {
+                write!(f, "{MSG_SESSION_CURVE_P512}")
+            }
+            EphemeralSessionError::CurveMismatch => write!(f, "handshake curve mismatch"),
+            EphemeralSessionError::FingerprintMismatch => {
+                write!(f, "long-term key fingerprint mismatch")
+            }
+            EphemeralSessionError::Storage => write!(f, "vault storage error"),
+            EphemeralSessionError::Brainpool => write!(f, "brainpool operation failed"),
+            EphemeralSessionError::TrustStoreFull => write!(f, "trust store full"),
         }
     }
 }

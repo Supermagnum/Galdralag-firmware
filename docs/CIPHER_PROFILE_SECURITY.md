@@ -10,7 +10,7 @@ A **profile identifier** (human-readable profile name, registry ID, or other sta
 
 If that identifier is transmitted **in cleartext** on the wire or stored in **unauthenticated** metadata visible before decryption (for example in plaintext headers, unencrypted side channels, or logs), a passive observer learns facts that are not necessary to deliver confidentiality of the user payload:
 
-- **Policy fingerprinting:** Which named policy or suite a party is using (for example “high-assurance” vs “standard”), which can correlate to role, organisational segment, or sensitivity class.
+- **Policy fingerprinting:** Which named policy or suite a party is using (for example `conservative` vs `standard`), which can correlate to role, organisational segment, or sensitivity class.
 - **Deployment clustering:** Repeated identifiers tie multiple sessions or messages to the **same** policy choice, improving correlation even when content and long-term keys remain unknown.
 - **Target selection:** Attackers may prioritise endpoints or messages that advertise stronger or more sensitive profiles.
 

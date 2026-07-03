@@ -9,6 +9,7 @@
 
 pub mod error;
 pub mod hal;
+pub mod legacy_removed;
 
 #[cfg(feature = "test-hal")]
 pub mod fake_hal;

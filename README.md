@@ -207,13 +207,13 @@ A cryptographer or serious implementer reviewing Galdralag will typically open `
 
 That is not a reason to hide the point from everyone else. People evaluating the project for procurement, deciding whether to contribute, or shipping code without deep training in cryptographic testing methodology still deserve a pointer to the concrete evidence. 
 
-**What to look at:** Conformance material includes RFC 8439 worked examples for ChaCha20-Poly1305 under `crates/vault/tests/rfc_vectors/`, vendored Wycheproof JSON for ChaCha20-Poly1305 and Brainpool ECDH/ECDSA edge cases under `crates/vault/tests/data/wycheproof/`, BSI TR-03111 vectors for BrainpoolP256r1, P384r1, and P512r1 under `crates/vault/tests/bsi_vectors/`, official BLAKE3 reference vectors (all 35 input lengths, all three modes) under `crates/vault/tests/blake3_vectors.json`, Twofish specification vectors (1203 cases including Monte Carlo) under `crates/vault/tests/twofish_vectors.json`, and the project's own CESS cascade KAT fixture with independently verified intermediates under `crates/cipher-profile/tests/fixtures/cascade_cess_kat.json`. Together these are the ground truth the runner and reviewers can exercise with `cargo test --workspace` and `python3 scripts/verify_cascade_kats.py`.
+**What to look at:** Conformance material includes RFC 8439 worked examples for ChaCha20-Poly1305 under `crates/vault/tests/rfc_vectors/`, vendored Wycheproof JSON for ChaCha20-Poly1305 and Brainpool ECDH/ECDSA edge cases under `crates/vault/tests/data/wycheproof/`, BSI TR-03111 vectors for BrainpoolP256r1 and P384r1 under `crates/vault/tests/bsi_vectors/`, official BLAKE3 reference vectors (all 35 input lengths, all three modes) under `crates/vault/tests/blake3_vectors.json`, Twofish specification vectors (1203 cases including Monte Carlo) under `crates/vault/tests/twofish_vectors.json`, and the project's own CESS cascade KAT fixture with independently verified intermediates under `crates/cipher-profile/tests/fixtures/cascade_cess_kat.json`. Together these are the ground truth the runner and reviewers can exercise with `cargo test --workspace` and `python3 scripts/verify_cascade_kats.py`.
 
 **RFC 8439** is published by the Internet Engineering Task Force (IETF), the organisation that standardises much of how the internet interoperates. RFCs (Request for Comments) are the usual form for protocol and many cryptographic specifications. RFC 8439 defines ChaCha20-Poly1305 authenticated encryption (building on Daniel Bernstein's designs) and includes concrete worked examples with specific inputs and expected outputs so independent implementations can check they match the standard byte-for-byte. The widely reproduced plaintext beginning with *Ladies and Gentlemen of the class of '99: wear sunscreen* appears in the RFC's appendix examples: if your code reproduces the AEAD output exactly, you have a strong check that you implemented the construction correctly. It is the cryptographic analogue of an official answer key. ChaCha20-Poly1305 is the inner layer of every multi-layer cascade profile in this firmware, so this check sits at the foundation of the entire cipher stack.
 
 **Wycheproof** is a test corpus released by Google's security team (2017). The name refers to Mount Wycheproof in Australia — often cited as the world's smallest mountain — because the project focuses on clearing small but fatal hurdles: integer overflows, boundary cases, malformed inputs, and tampered authentication tags; failures that show up repeatedly in real deployed crypto. It complements RFC-style vectors: RFC 8439-style examples demonstrate correctness against the published AEAD; Wycheproof stresses robustness where implementations historically break. In this repository Wycheproof JSON covers ChaCha20-Poly1305, AES-GCM, HMAC, HKDF, X25519, Ed25519, RSA, and Brainpool ECDH/ECDSA variants.
 
-**BSI TR-03111** is the technical guideline for elliptic curve cryptography published by the German Federal Office for Information Security (Bundesamt fur Sicherheit in der Informationstechnik). Version 2.10 is the current revision. The three Brainpool curves used in this firmware — P256r1, P384r1, P512r1 — are specified in BSI standards, making TR-03111 the natural reference for their test vectors. Each curve has ECDH and ECDSA coverage; ECDSA signatures were additionally cross-checked against an independent Python implementation using the `cryptography` library.
+**BSI TR-03111** is the technical guideline for elliptic curve cryptography published by the German Federal Office for Information Security (Bundesamt fur Sicherheit in der Informationstechnik). Version 2.10 is the current revision. The Brainpool curves used in this firmware — P256r1 and P384r1 — are specified in BSI standards, making TR-03111 the natural reference for their test vectors. Each curve has ECDH and ECDSA coverage; ECDSA signatures were additionally cross-checked against an independent Python implementation using the `cryptography` library.
 
 **BLAKE3 reference vectors** are the official test corpus published alongside the BLAKE3 specification by its authors. They cover 35 input lengths from 0 to 102400 bytes, specifically chosen to exercise all internal chunk and tree-hashing boundary conditions that are invisible to short-input tests. All three BLAKE3 modes — default hash, keyed hash, and derive-key — are covered. BLAKE3 is used throughout this firmware for HKDF key derivation and inter-layer integrity checks in the cascade cipher profiles; the boundary coverage matters because BLAKE3's tree construction only activates above 1024 bytes.
 
@@ -319,6 +319,8 @@ OpenPGP puts **name and e-mail in one User ID string**; it does not give you sep
 | **Certification signatures** (WoT) | Yes | No |
 | **Revocation certificate** | Yes | No |
 | **Algorithm attributes** (DO **0xC1** / **0xC2** / **0xC3**) | `gpg --card-edit` | Yes |
+
+Tokens upgraded from firmware that offered BrainpoolP512r1 may still return P-512 attributes on GET DATA; GnuPG operations on those slots then fail with generic card errors. Run `galdra device status` (or see [docs/OPENPGP_CARD.md](docs/OPENPGP_CARD.md)) to identify stale slots; removal background is in [CHANGELOG.md](CHANGELOG.md).
 | **PW1** / **PW3** | Never stored | Verifier on chip (min **5** chars, **3** tries default) |
 | **Cardholder DOs** (login, language, URL, …) | Cached by GnuPG | Optional (**254** bytes max per DO) |
 
@@ -739,7 +741,7 @@ Operational key handling for LUKS and full-disk encryption is security-sensitive
 
 One concrete pattern is a **drive or volume** encrypted using **Brainpool** curves where your stack requires them (for example ECDH/ECDSA around a **master secret**), combined with **Shamir's Secret Sharing** on the **key material** that unlocks that encryption (the same [small-secret layering](#hybrid-pattern-large-data) as above: SSS protects the key, not multi-gigabyte ciphertext). If and when **firmware and host software** implementing that workflow have been **independently audited**, such a combination can be valuable to organisations that must meet **quorum** policies and **national crypto** profiles at the same time.
 
-**Why Brainpool curves (e.g. BrainpoolP256r1, BrainpoolP384r1, BrainpoolP512r1) are often discussed in that context:**
+**Why Brainpool curves (e.g. BrainpoolP256r1, BrainpoolP384r1) are often discussed in that context:**
 
 - **BSI** (Germany's federal cybersecurity authority) mandates Brainpool in many deployment profiles; requirements appear in **EU government** and **NATO** procurement and policy settings.
 - Parameters are **fully specified and verifiable** in [RFC 5639](https://datatracker.ietf.org/doc/html/rfc5639), which reduces "nothing up my sleeve" concerns compared with older debates around some NIST curve generation methods.
@@ -997,7 +999,7 @@ The items below are **Galdralag firmware capabilities**, not requirements of the
   ChaCha20-Poly1305, then Serpent-256, then Twofish-256), or a fourth distinct
   layer where policy allows — with **no cipher repeated** in the same profile
   and **independent** HKDF-derived key and nonce material per layer. Built-in
-  names such as `standard`, `conservative`, and `high-assurance` ship with **one
+  names such as `standard`, `conservative`, and `conservative-shamir` ship with **one
   or two** layers; deeper stacks are for advanced or custom profiles.
   Full rules and wire layout: [docs/CIPHER_PROFILES.md](docs/CIPHER_PROFILES.md).
   Every profile selection is logged in the audit trail.
@@ -1056,7 +1058,6 @@ Nothing is implemented in-tree.
 |-----------|----------|-------|
 | BrainpoolP256r1 ECDH + ECDSA | RFC 5639, BSI TR-03111 | BSI-standardised, no NSA involvement |
 | BrainpoolP384r1 ECDH + ECDSA | RFC 5639, BSI TR-03111 | ~192-bit security |
-| BrainpoolP512r1 ECDH + ECDSA | RFC 5639, BSI TR-03111 | ~256-bit security |
 | X25519 ECDH | RFC 7748 | |
 | Ed25519 sign / verify | RFC 8032 | |
 | RSA-2048 / 3072 / 4096 OAEP, PSS | RFC 8017 | Minimum 2048-bit enforced |
@@ -1203,7 +1204,6 @@ Firmware-oriented crates under `crates/` and host binaries at the repo root (see
 | `ephemeral-session` | Authenticated ephemeral ECDH session protocol; forward secrecy |
 | `cipher-profile` | User-configurable cipher cascade profiles; built-in and user-defined |
 | `cess` | HKDF-BLAKE3 `K_outer`, ChaCha outer AEAD, `suite_id \|\| inner_blob`; see [CESS_CONFORMANCE.md](docs/CESS_CONFORMANCE.md) |
-| `bp512` | Brainpool P-512 backend helper crate |
 | `biometric-api` | Biometric pre-gate wire types (CBOR, `SignedMatchResult`), session token helpers |
 | `biometric-vault` | Template sealing and vault-side integration pieces |
 | `biometric-fingervein` / `biometric-sweet` | Pluggable biometric backend sketches |
@@ -1291,6 +1291,12 @@ PIN cap: 32 bytes (firmware limit; OpenPGP spec allows 127). See
 `crates/baochip-openpgp/src/xous_impl.rs`.
 
 **Integration:** **`usb-bao1x`** lives in **xous-core** (not built in this workspace). Bring-up: [docs/HARDWARE_BRINGUP_TEST_PLAN.md](docs/HARDWARE_BRINGUP_TEST_PLAN.md). Historical tracking: [xous-core issue #875](https://github.com/betrusted-io/xous-core/issues/875).
+
+### Host `device status`: PC/SC scans any OpenPGP card (vendor filter pending)
+
+`galdra device status` / `galdrad` `GET /device/status` always attempt a read-only PC/SC scan (OpenPGP SELECT, then GET DATA on C1/C2/C3 for stale BrainpoolP512r1 attributes). They do **not** yet verify that the card is a Galdralag/Baochip token. If the first PC/SC reader holds a third-party OpenPGP card, output may show `card_present: true` and stale-P512 warnings for **that** card.
+
+A proper filter needs an **FSFE/GnuPG-registered OpenPGP manufacturer ID** (AID bytes 7-8 from GET DATA `0x004F`), which is not assigned for Baochip/Galdralag yet. The firmware prototype passes `0x20A0` into `build_aid()` — that value is the **USB VID**, not a registered OpenPGP manufacturer code. See [docs/OPENPGP_CARD.md](docs/OPENPGP_CARD.md) and [xous-core#875](https://github.com/betrusted-io/xous-core/issues/875).
 
 ---
 

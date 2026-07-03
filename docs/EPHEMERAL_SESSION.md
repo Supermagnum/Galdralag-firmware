@@ -51,13 +51,14 @@ Use `session_keys.as_gdss_keys()` to extract them in GR-K-GDSS order.
 
 ## Curves supported
 
-All three Brainpool curves are supported. Choose based on security requirement:
+BrainpoolP256r1 and BrainpoolP384r1 are supported. Choose based on security requirement:
 
 | Curve | Classical security | Signature size | Key size |
 |-------|-------------------|----------------|----------|
 | BrainpoolP256r1 | ~128 bit | ~72 bytes DER | 65 bytes |
 | BrainpoolP384r1 | ~192 bit | ~104 bytes DER | 97 bytes |
-| BrainpoolP512r1 | ~256 bit | ~139 bytes DER | 129 bytes |
+
+BrainpoolP512r1 (wire id `0x03`) was removed; see [CHANGELOG.md](../CHANGELOG.md).
 
 ## Hardware caveat
 

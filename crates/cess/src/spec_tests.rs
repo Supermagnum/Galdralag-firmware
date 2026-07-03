@@ -191,6 +191,9 @@ fn length_vectors_n0_and_n64_all_classical_suite_ids() {
             let Some(profile) = classical_spec_profile(suite_id) else {
                 continue;
             };
+            if galdr_core::legacy_removed::is_retired_suite_id(suite_id) {
+                continue;
+            }
             for n in [0usize, 64usize] {
                 let inner = synthetic_inner_blob(n, profile);
                 let plain = assemble_mode_a_outer_plaintext(suite_id, &inner).unwrap();
@@ -279,6 +282,9 @@ fn seal_open_roundtrip_every_listed_suite_id() {
     for &(low, high) in crate::LISTED_SUITE_ID_RANGES {
         for suite_id in low..=high {
             if !is_listed_suite_id(suite_id) {
+                continue;
+            }
+            if galdr_core::legacy_removed::is_retired_suite_id(suite_id) {
                 continue;
             }
             let plain = assemble_mode_a_outer_plaintext(suite_id, inner).unwrap();

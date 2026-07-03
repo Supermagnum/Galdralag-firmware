@@ -99,6 +99,10 @@ pub enum GaldraError {
     #[error("cipher profile: {0}")]
     CipherProfile(String),
 
+    /// Retired P-512 / `high-assurance` artifact (see CHANGELOG); message is user-facing.
+    #[error("{0}")]
+    RemovedLegacyCrypto(String),
+
     /// Named profile is not in the local registry.
     #[error("profile not found: {0}")]
     ProfileNotFound(String),

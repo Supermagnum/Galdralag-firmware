@@ -55,8 +55,6 @@ pub mod registry {
     pub const CESS_CORE_DEFAULT_CHACHA: u16 = 0x0001;
     /// `0x0003` — cascade ChaCha inner, Serpent outer (BrainpoolP384r1 classical KEM per table).
     pub const CASCADE_CHACHA_INNER_SERPENT_OUTER_P384: u16 = 0x0003;
-    /// `0x0012` — cascade ChaCha inner, Serpent outer (BrainpoolP512r1 classical KEM per table).
-    pub const CASCADE_CHACHA_INNER_SERPENT_OUTER_P512: u16 = 0x0012;
 }
 
 /// Map a **built-in** [`cipher-profile`](https://github.com/Supermagnum/Galdralag-firmware/tree/main/crates/cipher-profile)
@@ -72,7 +70,6 @@ pub fn suite_id_for_profile_name(name: &str) -> Option<u16> {
         "conservative" | "conservative-shamir" => {
             Some(registry::CASCADE_CHACHA_INNER_SERPENT_OUTER_P384)
         }
-        "high-assurance" => Some(registry::CASCADE_CHACHA_INNER_SERPENT_OUTER_P512),
         _ => None,
     }
 }
@@ -101,7 +98,6 @@ mod tests {
             "standard",
             "conservative",
             "conservative-shamir",
-            "high-assurance",
         ] {
             let id = suite_id_for_profile_name(name).expect("builtin profile");
             assert!(
@@ -121,10 +117,6 @@ mod tests {
             suite_id_for_profile_name("conservative-shamir"),
             Some(registry::CASCADE_CHACHA_INNER_SERPENT_OUTER_P384)
         );
-        assert_eq!(
-            suite_id_for_profile_name("high-assurance"),
-            Some(registry::CASCADE_CHACHA_INNER_SERPENT_OUTER_P512)
-        );
     }
 
     #[test]
@@ -132,9 +124,6 @@ mod tests {
         assert!(is_listed_suite_id(registry::CESS_CORE_DEFAULT_CHACHA));
         assert!(is_listed_suite_id(
             registry::CASCADE_CHACHA_INNER_SERPENT_OUTER_P384
-        ));
-        assert!(is_listed_suite_id(
-            registry::CASCADE_CHACHA_INNER_SERPENT_OUTER_P512
         ));
     }
 

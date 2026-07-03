@@ -4,7 +4,6 @@
 //! contract for integration tests and early bring-up. Region is disjoint from [`crate::rsa_vault`].
 
 use crate::brainpool384::BrainpoolP384SigningKey;
-use crate::brainpool512::BrainpoolP512SigningKey;
 use crate::ecdsa_brainpool::BrainpoolSigningKey;
 use crate::rsa_vault::KeySlot;
 use galdr_core::hal::VaultStorage;
@@ -21,8 +20,6 @@ pub enum SessionLongTermSigningKey {
     P256(BrainpoolSigningKey),
     /// Brainpool P-384r1.
     P384(BrainpoolP384SigningKey),
-    /// Brainpool P-512r1.
-    P512(BrainpoolP512SigningKey),
 }
 
 /// Errors from session long-term signing key persistence.
@@ -73,15 +70,10 @@ pub fn vault_store_session_long_term_signing_key<S: VaultStorage>(
             a[..48].copy_from_slice(&b);
             (2, a)
         }
-        SessionLongTermSigningKey::P512(k) => {
-            let b = k.to_scalar_bytes_for_test();
-            (3, b)
-        }
     };
     let slen = match curve_id {
         1 => 32usize,
         2 => 48usize,
-        3 => 64usize,
         _ => return Err(SessionLongTermSigningVaultError::InvalidEncoding),
     };
     let scalar = &scalar_buf[..slen];
@@ -96,7 +88,7 @@ pub fn vault_store_session_long_term_signing_key<S: VaultStorage>(
     Ok(())
 }
 
-/// Load the signing key at `slot`. `expected_curve` is the wire id (`1`/`2`/`3`).
+/// Load the signing key at `slot`. `expected_curve` is the wire id (`1`/`2`).
 pub fn vault_load_session_long_term_signing_key<S: VaultStorage>(
     storage: &S,
     slot: &KeySlot,
@@ -139,16 +131,6 @@ pub fn vault_load_session_long_term_signing_key<S: VaultStorage>(
             let sk = BrainpoolP384SigningKey::from_scalar_bytes_for_test(&a)
                 .map_err(|_| SessionLongTermSigningVaultError::InvalidScalar)?;
             Ok(SessionLongTermSigningKey::P384(sk))
-        }
-        3 => {
-            if slen != 64 {
-                return Err(SessionLongTermSigningVaultError::InvalidEncoding);
-            }
-            let mut a = [0u8; 64];
-            a.copy_from_slice(scalar);
-            let sk = BrainpoolP512SigningKey::from_scalar_bytes_for_test(&a)
-                .map_err(|_| SessionLongTermSigningVaultError::InvalidScalar)?;
-            Ok(SessionLongTermSigningKey::P512(sk))
         }
         _ => Err(SessionLongTermSigningVaultError::InvalidEncoding),
     }

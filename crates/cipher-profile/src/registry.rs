@@ -11,10 +11,9 @@ const BUILTIN: &[&str] = &[
     "standard",
     "conservative",
     "conservative-shamir",
-    "high-assurance",
 ];
 
-/// Registry of up to 16 profiles (4 built-in + up to 12 user).
+/// Registry of up to 16 profiles (3 built-in + up to 13 user).
 pub struct ProfileRegistry {
     profiles: Vec<CipherProfile, 16>,
 }
@@ -27,7 +26,6 @@ impl ProfileRegistry {
             builtin_standard(),
             builtin_conservative(),
             builtin_conservative_shamir(),
-            builtin_high_assurance(),
         ] {
             match p {
                 Ok(profile) => {
@@ -115,16 +113,6 @@ fn builtin_conservative_shamir() -> Result<CipherProfile, CipherProfileError> {
         .build()
 }
 
-fn builtin_high_assurance() -> Result<CipherProfile, CipherProfileError> {
-    CipherProfileBuilder::new("high-assurance")?
-        .description("ChaCha inner, Serpent outer (CESS suite_id 0x0012); BP512r1; Shamir 3-of-5")
-        .curve(SessionCurve::BrainpoolP512r1)
-        .layer(CipherLayer::ChaCha20Poly1305)?
-        .layer(CipherLayer::Serpent256)?
-        .shamir(ShamirConfig::new(3, 5)?)
-        .build()
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -160,19 +148,6 @@ mod tests {
         let Some(p) = r.get("conservative") else {
             panic!("missing conservative");
         };
-        assert_eq!(
-            p.layers(),
-            &[CipherLayer::ChaCha20Poly1305, CipherLayer::Serpent256]
-        );
-    }
-
-    #[test]
-    fn registry_get_high_assurance() {
-        let r = ProfileRegistry::with_builtins();
-        let Some(p) = r.get("high-assurance") else {
-            panic!("missing high-assurance");
-        };
-        assert_eq!(p.curve(), SessionCurve::BrainpoolP512r1);
         assert_eq!(
             p.layers(),
             &[CipherLayer::ChaCha20Poly1305, CipherLayer::Serpent256]
@@ -227,8 +202,9 @@ mod tests {
     #[test]
     fn registry_full() {
         let mut r = ProfileRegistry::with_builtins();
-        const NAMES: [&str; 12] = [
+        const NAMES: [&str; 13] = [
             "u00", "u01", "u02", "u03", "u04", "u05", "u06", "u07", "u08", "u09", "u10", "u11",
+            "u12",
         ];
         for name in NAMES {
             let b = tr(CipherProfileBuilder::new(name));

@@ -15,11 +15,20 @@ pub const BUILTIN_PROFILE_NAMES: &[&str] = &[
     "standard",
     "conservative",
     "conservative-shamir",
-    "high-assurance",
 ];
 
 fn map_cipher_err(e: CipherProfileError) -> GaldraError {
-    GaldraError::CipherProfile(format!("{e:?}"))
+    match e {
+        CipherProfileError::RemovedHighAssuranceProfile => {
+            GaldraError::RemovedLegacyCrypto(
+                galdr_core::legacy_removed::MSG_CIPHERTEXT_HIGH_ASSURANCE.to_string(),
+            )
+        }
+        CipherProfileError::RemovedBrainpoolP512Curve => GaldraError::RemovedLegacyCrypto(
+            galdr_core::legacy_removed::MSG_SESSION_CURVE_P512.to_string(),
+        ),
+        other => GaldraError::CipherProfile(format!("{other:?}")),
+    }
 }
 
 /// Host-side wrapper for the cipher profile registry.
@@ -145,7 +154,9 @@ pub fn parse_curve_wire(s: &str) -> Result<SessionCurve, GaldraError> {
     match s.to_ascii_lowercase().as_str() {
         "brainpool256" | "bp256" | "brainpoolp256r1" => Ok(SessionCurve::BrainpoolP256r1),
         "brainpool384" | "bp384" | "brainpoolp384r1" => Ok(SessionCurve::BrainpoolP384r1),
-        "brainpool512" | "bp512" | "brainpoolp512r1" => Ok(SessionCurve::BrainpoolP512r1),
+        "brainpool512" | "bp512" | "brainpoolp512r1" => Err(GaldraError::RemovedLegacyCrypto(
+            galdr_core::legacy_removed::MSG_KEY_ALGO_P512.to_string(),
+        )),
         _ => Err(GaldraError::Config(format!("unknown curve: {s}"))),
     }
 }

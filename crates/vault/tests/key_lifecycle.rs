@@ -6,7 +6,6 @@ use galdr_core::hal::VaultStorage;
 use galdr_core::HalError;
 use galdr_vault::brainpool::BrainpoolScalar;
 use galdr_vault::brainpool384::{BrainpoolP384Scalar, BrainpoolP384SigningKey};
-use galdr_vault::brainpool512::{BrainpoolP512Scalar, BrainpoolP512SigningKey};
 use galdr_vault::chacha_aead::{chacha_decrypt, chacha_encrypt, ChaChaKey, ChaChaNonce};
 use galdr_vault::ecdsa_brainpool::BrainpoolSigningKey;
 use galdr_vault::kdf_policy::KeyPurpose;
@@ -242,7 +241,6 @@ macro_rules! brainpool_scalar_lifecycle {
 
 brainpool_scalar_lifecycle!(brainpool_p256, BrainpoolScalar, 32);
 brainpool_scalar_lifecycle!(brainpool_p384, BrainpoolP384Scalar, 48);
-brainpool_scalar_lifecycle!(brainpool_p512, BrainpoolP512Scalar, 64);
 
 macro_rules! brainpool_signing_lifecycle {
     ($curve:ident, $Sk:ty, $n:literal) => {
@@ -403,7 +401,6 @@ macro_rules! brainpool_signing_lifecycle {
 
 brainpool_signing_lifecycle!(brainpool_p256, BrainpoolSigningKey, 32);
 brainpool_signing_lifecycle!(brainpool_p384, BrainpoolP384SigningKey, 48);
-brainpool_signing_lifecycle!(brainpool_p512, BrainpoolP512SigningKey, 64);
 
 #[test]
 fn lifecycle_chacha_generate() {

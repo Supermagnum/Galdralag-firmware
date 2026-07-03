@@ -142,7 +142,6 @@ Source: `crates/vault/tests/twofish_vectors.json`
 | `timing_x25519_ecdh` | 100000 | +2.303 | PASS |  |
 | `timing_brainpool256_scalar_mult` | 5000 | +1.709 | PASS |  |
 | `timing_brainpool384_scalar_mult` | 5000 | +1.467 | PASS |  |
-| `timing_brainpool512_scalar_mult` | 15000 | -2.339 | PASS |  |
 | `timing_ephemeral_ecdh` | 10000 | +2.259 | PASS |  |
 | `timing_signature_verify` | 10000 | -2.660 | PASS |  |
 | `timing_fingerprint_lookup` | 100000 | +1.722 | PASS | Null pairing — same absent fingerprint both classes |
@@ -203,7 +202,6 @@ rustup run nightly cargo fuzz run <target> \
 | `chacha_roundtrip` | 0 | See recorded run below |
 | `shamir_split_recover` | 0 | Fixed `data.len() >= 8` guard |
 | `brainpool384_ecdh` | 0 | |
-| `brainpool512_ecdh` | 0 | |
 | `serpent_aead` | 0 | |
 | `twofish_aead` | 0 | |
 | `rsa_oaep_decrypt` | 0 | |

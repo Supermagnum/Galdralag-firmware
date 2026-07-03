@@ -5,7 +5,6 @@ use ephemeral_session::{
 };
 use galdr_core::fake_hal::{FakeTrng, FakeVaultStorage};
 use galdr_vault::brainpool384::BrainpoolP384SigningKey;
-use galdr_vault::brainpool512::BrainpoolP512SigningKey;
 use galdr_vault::ecdsa_brainpool::BrainpoolSigningKey;
 use galdr_vault::rsa_vault::KeySlot;
 use galdr_vault::session_long_term_signing::{
@@ -35,18 +34,6 @@ fn p384_cert(sk: &BrainpoolP384SigningKey) -> LongTermCert {
     LongTermCert {
         fingerprint: LongTermCert::fingerprint_of(&sec1),
         curve: SessionCurve::BrainpoolP384r1,
-        verifying_key,
-    }
-}
-
-fn p512_cert(sk: &BrainpoolP512SigningKey) -> LongTermCert {
-    let vk = sk.verifying_key();
-    let sec1 = vk.to_sec1_uncompressed();
-    let mut verifying_key = heapless::Vec::new();
-    verifying_key.extend_from_slice(&sec1).expect("sec1");
-    LongTermCert {
-        fingerprint: LongTermCert::fingerprint_of(&sec1),
-        curve: SessionCurve::BrainpoolP512r1,
         verifying_key,
     }
 }
@@ -147,43 +134,6 @@ fn test_full_handshake_brainpool384r1() {
         .init(curve, &KeySlot(0), &mut trng, &mut storage)
         .expect("init");
     let mut trng2 = FakeTrng::from_seed(0xD1);
-    let (resp_msg, r_keys) =
-        ResponderSession::respond(&init_msg, &KeySlot(1), &cert_i, &mut trng2, &mut storage)
-            .expect("respond");
-    let i_keys = initiator.complete(&resp_msg, &cert_r).expect("complete");
-    assert_keys_equal(&i_keys, &r_keys);
-}
-
-#[test]
-fn test_full_handshake_brainpool512r1() {
-    let mut trng_i = FakeTrng::from_seed(0xA3);
-    let mut trng_r = FakeTrng::from_seed(0xB3);
-    let init_sk = BrainpoolP512SigningKey::generate(&mut trng_i).expect("init sk");
-    let resp_sk = BrainpoolP512SigningKey::generate(&mut trng_r).expect("resp sk");
-    let cert_i = p512_cert(&init_sk);
-    let cert_r = p512_cert(&resp_sk);
-    let mut storage = FakeVaultStorage::new(VAULT_SIZE);
-    vault_store_session_long_term_signing_key(
-        &mut storage,
-        &KeySlot(0),
-        &SessionLongTermSigningKey::P512(init_sk),
-        true,
-    )
-    .expect("store");
-    vault_store_session_long_term_signing_key(
-        &mut storage,
-        &KeySlot(1),
-        &SessionLongTermSigningKey::P512(resp_sk),
-        true,
-    )
-    .expect("store");
-    let curve = SessionCurve::BrainpoolP512r1;
-    let mut trng = FakeTrng::from_seed(0xC2);
-    let mut initiator = InitiatorSession::new();
-    let init_msg = initiator
-        .init(curve, &KeySlot(0), &mut trng, &mut storage)
-        .expect("init");
-    let mut trng2 = FakeTrng::from_seed(0xD2);
     let (resp_msg, r_keys) =
         ResponderSession::respond(&init_msg, &KeySlot(1), &cert_i, &mut trng2, &mut storage)
             .expect("respond");

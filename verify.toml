@@ -23,9 +23,7 @@ signing_key_fingerprint = "55FDF48EB398011D5C35E3CE4F21DEAD0DE9024E"
 [wycheproof.files]
 "crates/vault/tests/blake3_vectors.json" = "ba40cd69e4a4a0b080e880fa1753ad1f3accb7137ea5cf9c71ac38e50a75f3cc"
 "crates/vault/tests/data/ecdh_brainpoolP384r1_test.json" = "f32542f287664e337e1cc516e879de201ac023b6759a0d0637a4b687e96fd04f"
-"crates/vault/tests/data/ecdh_brainpoolP512r1_test.json" = "5f9d2c37b0d8daeca751f8e6467620ad1ad2bb789a6438a51a87f4830cf0f46f"
 "crates/vault/tests/data/ecdsa_brainpoolP384r1_sha384_test.json" = "5192a7f9e992238f99c5017bbe84205b5f8b9c3b8e12ca2cff41d4e8e6bdedd5"
-"crates/vault/tests/data/ecdsa_brainpoolP512r1_sha512_test.json" = "85227427f090750ea04e9453fd29c04ce3047711ec2ed7b8916bb7724b7eef82"
 "crates/vault/tests/data/shamir_vectors.json" = "9f4f937bf95c510e265c6650aadb63b2c147a3244e53082d9b987a511c9e54e5"
 "crates/vault/tests/data/wycheproof/aes_gcm_test.json" = "985e5ecc172e181eaf49e89508b9470dcf478002eb7e8559c707eb42dc97dfe7"
 "crates/vault/tests/data/wycheproof/ecdh_brainpoolP256r1_test.json" = "8502c0259d85813d93cba5a664245b2d5ad1cdd3480a77337f3b377b8d63ccf4"
@@ -67,11 +65,6 @@ expected_sha256 = "b464e5f3a5b03995b9d42ad78512228d82265b57dc798daa7f3395b94f813
 url = ""
 local_path = "crates/vault/tests/bsi_vectors/tr03111_brainpool384r1.json"
 expected_sha256 = "61c595632818740b04432bf1aa070235b6be7f64ae3690a17beeb4c280612bc7"
-
-[[bsi]]
-url = ""
-local_path = "crates/vault/tests/bsi_vectors/tr03111_brainpool512r1.json"
-expected_sha256 = "c8dfcf63cdb43867b5e2fb606c284b697b2f8c924662f0130e65149bd771d867"
 
 # Release signing keys (OpenPGP fingerprints) for upstreams that sign tags; fill when you import keys under keys/.
 # crypto-verify currently records these for policy; tag verification is not implemented yet.
