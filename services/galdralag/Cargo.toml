@@ -18,6 +18,8 @@ default = []
 xous-bsp = ["board-baosec"]
 board-baosec = []
 board-dabao = []
+# Deliberate opt-in for MMIO firmware-update reboot (see `reboot::UpdateModeAuthorization`).
+privileged-reboot = []
 
 [dependencies]
 galdr-core = { path = "../../crates/galdr-core" }

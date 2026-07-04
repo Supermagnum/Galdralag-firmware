@@ -3,3 +3,5 @@
 //! The binary target is built only with `--features xous-bsp` (see `Cargo.toml`).
 
 pub mod reboot;
+
+pub use reboot::{Bao1xRebootController, UpdateModeAuthorization};

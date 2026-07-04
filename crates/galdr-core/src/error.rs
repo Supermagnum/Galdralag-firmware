@@ -5,6 +5,12 @@
 pub enum GaldrError {
     /// Feature or code path not implemented yet (scaffold until wired to services such as Xous).
     NotImplemented,
+    /// Privileged IPC or service path is unavailable in this build (stub handler).
+    ///
+    /// Callers **must** treat this as a permanent denial for the current firmware image — not as a
+    /// transient fault, not as "retry later", and not as ignorable. Real implementations replace
+    /// the stub with policy-checked handlers; until then, privileged operations stay blocked.
+    PrivilegedOperationDenied,
     /// Caller lacked capability or policy denied the operation.
     Denied,
     /// Integrity or authentication check failed.
@@ -13,6 +19,16 @@ pub enum GaldrError {
     DeviceZeroised,
     /// Key derivation failed: HKDF-Expand rejected the requested output length or PRF setup failed.
     KeyDerivation,
+}
+
+impl GaldrError {
+    /// Returns `true` when the error means the operation must not be retried as if pending work.
+    pub fn is_permanent_denial(self) -> bool {
+        matches!(
+            self,
+            Self::PrivilegedOperationDenied | Self::Denied | Self::DeviceZeroised
+        )
+    }
 }
 
 /// Hardware or bus-level failures below IPC policy errors.

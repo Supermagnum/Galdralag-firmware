@@ -1,4 +1,5 @@
-//! Vault IPC surface (Xous messages to be wired). Stubs return [`GaldrError::NotImplemented`].
+//! Vault IPC surface (Xous messages to be wired). Stubs fail closed with
+//! [`GaldrError::PrivilegedOperationDenied`].
 
 use crate::GaldrError;
 
@@ -28,7 +29,42 @@ impl VaultService {
         Self
     }
 
-    pub fn dispatch(_req: VaultRequest) -> Result<(), GaldrError> {
-        Err(GaldrError::NotImplemented)
+    /// Dispatch a privileged vault IPC request.
+    ///
+    /// **Fail-closed contract:** until `vaultd` exists, every variant returns
+    /// [`GaldrError::PrivilegedOperationDenied`]. Callers must propagate that error and must not
+    /// treat it as [`GaldrError::NotImplemented`] (retry-later semantics).
+    pub fn dispatch(req: VaultRequest) -> Result<(), GaldrError> {
+        match req {
+            VaultRequest::Seal { .. } | VaultRequest::Unseal { .. } | VaultRequest::ZeroiseAll { .. } => {
+                Err(GaldrError::PrivilegedOperationDenied)
+            }
+        }
+    }
+}
+
+#[cfg(test)]
+mod fail_closed_tests {
+    use super::*;
+
+    #[test]
+    fn seal_stub_is_fail_closed() {
+        let err = VaultService::dispatch(VaultRequest::Seal { slot: 0 });
+        assert_eq!(err, Err(GaldrError::PrivilegedOperationDenied));
+        assert!(err.unwrap_err().is_permanent_denial());
+    }
+
+    #[test]
+    fn unseal_stub_is_fail_closed() {
+        let err = VaultService::dispatch(VaultRequest::Unseal { slot: 1 });
+        assert_eq!(err, Err(GaldrError::PrivilegedOperationDenied));
+        assert!(err.unwrap_err().is_permanent_denial());
+    }
+
+    #[test]
+    fn zeroise_all_stub_is_fail_closed() {
+        let err = VaultService::dispatch(VaultRequest::ZeroiseAll { reason_code: 0xDEAD });
+        assert_eq!(err, Err(GaldrError::PrivilegedOperationDenied));
+        assert!(err.unwrap_err().is_permanent_denial());
     }
 }

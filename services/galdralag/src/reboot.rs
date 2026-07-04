@@ -45,7 +45,28 @@
 //! sourced directly from the xous-core utralib and bao1x-hal generated files and
 //! verified against the Baochip-1x memory map documented in `docs/RRAM_LAYOUT.md`.
 
-use galdr_core::{HalError, RebootController};
+use galdr_core::HalError;
+
+/// Opaque authorization for [`Bao1xRebootController::enter_update_mode`].
+///
+/// This type cannot be constructed by downstream code unless the `privileged-reboot` feature is
+/// enabled on `galdralag-service` **and** the caller uses [`Self::for_operator_consent`], which must
+/// only be invoked from an explicit operator-consent or boot-policy flow (not yet wired to IPC).
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct UpdateModeAuthorization(());
+
+impl UpdateModeAuthorization {
+    /// Issue authorization after operator consent or boot-policy approval.
+    ///
+    /// Gated by the `privileged-reboot` Cargo feature (default **off**). **Placeholder:** does not
+    /// verify physical input, boot1 serial, Admin PIN, or any other operator-intent signal yet —
+    /// it only constructs an opaque token. Real consent logic must be added here (or in a single
+    /// caller this function delegates to) once product UX is chosen.
+    #[cfg(feature = "privileged-reboot")]
+    pub fn for_operator_consent() -> Self {
+        Self(())
+    }
+}
 
 /// Physical base address of the ACRAM one-way counter array.
 /// Source: `bao1x-hal/src/acram.rs` `ONEWAY_START`.
@@ -96,6 +117,33 @@ pub struct Bao1xRebootController;
 impl Bao1xRebootController {
     pub fn new() -> Self {
         Self
+    }
+
+    /// Advance `BootWaitCoding` to `Enable`, then trigger a soft reset.
+    ///
+    /// Requires [`UpdateModeAuthorization`]. There is no bare `RebootController` implementation
+    /// on this type: enabling `privileged-reboot` and calling
+    /// [`UpdateModeAuthorization::for_operator_consent`] is the deliberate opt-in path.
+    ///
+    /// This function does not return on Baochip-1x hardware: the device reboots into boot1 update
+    /// mode. Any in-flight operations must be completed or aborted before calling this.
+    pub fn enter_update_mode(
+        &mut self,
+        _auth: UpdateModeAuthorization,
+    ) -> Result<(), HalError> {
+        // SAFETY: all unsafe blocks below dereference MMIO-mapped addresses that
+        // are valid and live for the lifetime of the hardware. This code must only
+        // run on a Baochip-1x SoC (Dabao or Baosec board). The `xous-bsp` feature
+        // gate on the binary target in Cargo.toml provides the build-time boundary.
+        unsafe {
+            if !boot_wait_is_enabled(Self::read_boot_wait()) {
+                Self::inc_boot_wait();
+                if !boot_wait_is_enabled(Self::read_boot_wait()) {
+                    return Err(HalError::Bus);
+                }
+            }
+            Self::trigger_soft_reset()
+        }
     }
 
     /// Return a raw pointer to the `BootWaitCoding` counter word in ACRAM.
@@ -172,42 +220,6 @@ impl Default for Bao1xRebootController {
     }
 }
 
-impl RebootController for Bao1xRebootController {
-    /// Advance `BootWaitCoding` to `Enable`, then trigger a soft reset.
-    ///
-    /// This function does not return on Baochip-1x hardware: the device reboots
-    /// into boot1 update mode. Any in-flight operations must be completed or
-    /// aborted before calling this.
-    ///
-    /// The maximum number of RRAM writes this call performs is 1 (if the counter
-    /// is currently at `Disable`) plus 1 for the reset write.
-    fn enter_update_mode(&mut self) -> Result<(), HalError> {
-        // SAFETY: all unsafe blocks below dereference MMIO-mapped addresses that
-        // are valid and live for the lifetime of the hardware. This code must only
-        // run on a Baochip-1x SoC (Dabao or Baosec board). The `xous-bsp` feature
-        // gate on the binary target in Cargo.toml provides the build-time boundary.
-        unsafe {
-            // Step 1: advance BootWaitCoding to Enable.
-            // The counter cycles through [Disable=even, Enable=odd] states.
-            // At most one increment is needed because the encoding is two-state.
-            if !boot_wait_is_enabled(Self::read_boot_wait()) {
-                Self::inc_boot_wait();
-                // Confirm the increment took effect. If RRAM is worn out the
-                // counter will not have changed and we must not proceed, because
-                // booting with a stale counter state could lead to an unexpected
-                // normal boot instead of update mode.
-                if !boot_wait_is_enabled(Self::read_boot_wait()) {
-                    return Err(HalError::Bus);
-                }
-            }
-
-            // Step 2: trigger a soft reset. boot1 will read Enable on the next
-            // boot and enter USB update mode.
-            Self::trigger_soft_reset()
-        }
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -227,10 +239,22 @@ mod tests {
     #[test]
     fn fake_reboot_controller_records_request() {
         use galdr_core::fake_hal::FakeRebootController;
+        use galdr_core::RebootController;
         let mut ctrl = FakeRebootController::new();
         assert!(!ctrl.requested);
         ctrl.enter_update_mode().unwrap();
         assert!(ctrl.requested);
+    }
+
+    #[test]
+    fn update_mode_requires_authorization_token_type() {
+        // Compile-time contract: `enter_update_mode` takes `UpdateModeAuthorization`, not `()`.
+        // With default features, `for_operator_consent` is absent so no production call site can
+        // obtain a token without enabling `privileged-reboot`.
+        let _needs_auth = |auth: UpdateModeAuthorization, ctrl: &mut Bao1xRebootController| {
+            let _ = ctrl.enter_update_mode(auth);
+        };
+        let _ = _needs_auth;
     }
 
     #[test]

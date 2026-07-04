@@ -59,7 +59,7 @@ Each row: **Attacker capability** → **Outcome** → **Mitigation** → **Cavea
 | **T4** | Stolen token; PIN known; **presentation attack** on biometric device | Intended failure if liveness fails or score below threshold | Device-side liveness (e.g. vascular pulse; multimodal on sweet — see device docs) | **APCER/BPCER** on **real** hardware **not** measured; ISO/IEC 30107-3 compliance **cannot** be claimed without measured data ([BIOMETRIC_TESTING.md](BIOMETRIC_TESTING.md)). **Coercion** with a live subject is **not** a PAD problem — see **T13**. |
 | **T5** | Compromised host (malware, root) | Cannot extract long-term **private keys** or **plaintext templates** from the token via documented vault boundaries; can observe **plaintext outputs** of operations the **user** performs (normal OpenPGP/host behaviour) | Keys and templates stay on token; ephemeral ECDH limits retroactive decryption of **past** sessions if protocol used correctly | Root can tamper with **`galdrad`**, **pcscd** interactions, or UI — see **T7**. Host **udev** and separate **host** daemons reduce casual abuse; they **do not** defeat a determined root attacker. **On-device:** separate `vaultd` / `pind` / `usbd` Xous processes are a **design target** only — today vault, PIN policy, and OpenPGP dispatch run **in one** `galdralag-service` process ([ARCHITECTURE.md](ARCHITECTURE.md)). |
 | **T6** | Long-term **private** key compromised | **Future** signatures/decryptions impersonate the victim; **past** ephemeral sessions retain confidentiality vs this key only if ephemeral ECDH was used correctly | Forward secrecy property of authenticated ephemeral ECDH ([EPHEMERAL_SESSION.md](EPHEMERAL_SESSION.md)); Shamir reduces single-point theft of material | Wrong integration (session keys mishandled on host) can **void** forward-secrecy benefits. Key rotation response is operational. |
-| **T7** | Malicious **`galdrad`** (or stub replacing it) | Biometric **pre-gate** can be **bypassed** on the host for workflows that trust the daemon | Session token **HMAC** verified with **`verify_session_token`** in **`biometric-vault`** — must be called from **token firmware** before accepting PIN | **Critical gap until wired:** If firmware does **not** enforce session token checks on **every** relevant PIN path, a forged host can send PIN APDUs **without** biometrics. Mitigate with OS integrity, reproducible builds, restricted CCID access — **not** a full substitute for firmware enforcement. |
+| **T7** | Malicious **`galdrad`** (or stub replacing it) | Biometric **pre-gate** can be **bypassed** on the host for workflows that trust the daemon | **Two independent layers required (neither substitutes for the other):** (1) host-side session-token verification — **`verify_session_token`** in **`biometric-vault`** must run before PIN APDUs are accepted when biometric policy applies; (2) on-device caller authentication on CCID transport IPC — when **`usb-bao1x`** adds **`CcidRxDeferred` / `CcidTx`** (opcodes 640/642, tracked in [xous-core #875](https://github.com/betrusted-io/xous-core/issues/875)), those opcodes must use **first-PID lock** caller auth equivalent to existing **`U2fRxDeferred` / `U2fTx`** (128/129) in the same server. Host verification alone does not stop another Xous process from sending CCID IPC; on-device PID lock alone does not stop a forged host from driving PIN APDUs if firmware accepts them without session token. | **Critical gap until wired:** If firmware does **not** enforce session token checks on **every** relevant PIN path, a forged host can send PIN APDUs **without** biometrics. CCID opcodes **640/642 are not present** in the vendored `xous-core` tree at audit refresh (2026-06); Galdralag reserves them in `usb_bao_ipc.rs` pending upstream merge. Mitigate with OS integrity, reproducible builds, restricted CCID access — **not** a full substitute for firmware enforcement. |
 | **T8** | Physical attack (glitching, **power analysis**, debug/JTAG) | Potential extraction or misuse of secrets | Sealed vault, zeroisation policies, **intended** Xous server separation ([HARDWARE_VERIFICATION.md](HARDWARE_VERIFICATION.md), [ARCHITECTURE.md](ARCHITECTURE.md)) | **No** independent hardware security evaluation reported. **Multi-process vault/USB/PIN isolation is not implemented yet** — a compromise of `galdralag-service` sees all linked subsystems in one address space. Open RTL aids **review** and aids **attackers** equally. |
 | **T9** | Supply-chain malicious **firmware** image | boot0 **Ed25519** verification rejects tampered images **if** verification keys are trustworthy | Signed boot chain; reproducible builds help verify binaries | Compromise of **signing keys** or **wrong** trusted keys burns operational trust (“correct build of wrong firmware”) — see “does not protect”. |
 | **T10** | Downgrade or coercion of **cipher profile** | Weaker profile might reduce security margins | **CIPHER_PROFILE_SECURITY.md** discusses identifiers, traffic analysis, wildcard profile | **Automatic** append of every profile change to **RRAM** is **not** implemented ([AUDIT_LOG.md](AUDIT_LOG.md)). Whether profile selection can be forced **without** legitimate operator action depends on **concrete** CCID/host flows — treat as **deployment-dependent**. |
@@ -74,7 +74,7 @@ Each row: **Attacker capability** → **Outcome** → **Mitigation** → **Cavea
 
 - **Coercion** (**T13**).
 - **Fully compromised host** for **current** user operations: plaintext after decrypt/sign on host remains visible to malware (**T5**).
-- **Malicious `galdrad` / host shim** bypassing biometric intent until firmware enforcement is complete (**T7**).
+- **Malicious `galdrad` / host shim** bypassing biometric intent until **both** host session-token enforcement **and** on-device CCID caller-auth are complete (**T7**).
 - **Physical attacks** without independent silicon evaluation (**T8**); on-device **vaultd/pind/usbd process boundaries** are not an active mitigation until implemented.
 - **Post-quantum** adversaries against classical asymmetric cryptography used today (**T14**).
 - **Logic bugs**, wrong protocols, and integration mistakes — Rust reduces memory unsafety, **not** incorrect security logic.
@@ -126,6 +126,59 @@ Capability classes only — **no** named commercial products.
 | CESS conformance | Unusual | Documented — [CESS_CONFORMANCE.md](CESS_CONFORMANCE.md) |
 | Independent product audit | Often for mature lines | **No** — not yet |
 | Production-ready | Often claimed for shipping products | **No** — experimental |
+
+---
+
+## IPC access control (userspace audit refresh, 2026-06)
+
+Re-derived from the vendored **`xous-core/services/usb-bao1x`** tree bundled in this repository (not a submodule pin; verify before release). Galdralag **`galdralag-service`** is a **client only** to **`_Xous USB device driver_`**; in-tree **`vaultd` / `pind` / `usbd`** are library stubs without Xous servers.
+
+### `usb-bao1x` opcode inventory vs prior audit (Table C)
+
+| Opcode | Name | Caller auth (current vendored `main.rs`) | Notes vs prior audit |
+|--------|------|------------------------------------------|----------------------|
+| 0 | `LinkStatus` | None | Unchanged |
+| 1 | `SendKeyCode` | **None** | Unchanged — see vendored gap below |
+| 2 | `SendString` | **None** | Unchanged — log crate dependency |
+| 3–12 | LED / cores / debug / autotype / observer / log level | None | Unchanged |
+| 128 | `U2fTx` | **First-PID lock** (`fido_listener_pid`) | Unchanged — prior art for CCID auth |
+| 129 | `U2fRxDeferred` | **First-PID lock**; others get `U2fCode::Denied` | Unchanged |
+| 130 | `U2fRxTimeout` | Internal timeout pump | Unchanged |
+| 256 | `IsSocCompatible` | None | Unchanged |
+| 512–519 | Serial hooks / flush / send | **None** | Unchanged — see vendored gap |
+| 768–769 | `IrqFidoRx` / `IrqSerialRx` | Interrupt context | Unchanged |
+| 1024–1026 | Mass-storage (feature) | Not audited here | Feature-gated |
+| 1027 | `HIDReadReport` | **Not dispatched** — `_` arm (log, continue) | Enum + client API in `lib.rs`; **no `match` arm in `usb-bao1x/main.rs`**. Reference impl in `usb-device-xous/main_hw.rs` (~1691): reads host HID input; **no sender auth** there either |
+| 1028 | `HIDWriteReport` | **Not dispatched** — `_` arm | Would write 64-byte HID reports to USB if ported; **high privilege** (HID injection, same class as `SendKeyCode`). Reference impl (~1706): **no sender auth** |
+| 1029 | `HIDSetDescriptor` | **Not dispatched** — `_` arm | Would install userland HID report descriptor (up to 1024 B). Reference impl (~1672): **no sender auth** |
+| 1030 | `HIDUnsetDescriptor` | **Not dispatched** — `_` arm | Would reset HIDv2 state. Reference impl (~1687): **no sender auth** |
+| 1536 | `PmicIrq` | Platform IRQ path | `bao1x` feature |
+| 2048–2049 | `UsbIrqHandler` / `SuspendResume` | Internal | Unchanged |
+| 4096 | `Quit` | **None** | Unchanged — terminates server |
+| 4097 | `InvalidCall` | N/A (logged) | Unchanged |
+| 8192 | `LogString` | None (logging API) | Hard-coded for log crate |
+| **640** | **`CcidRxDeferred`** | **Not in vendored `api.rs`** | **Still absent upstream**; Galdralag expects when `ccid-openpgp` lands ([#875](https://github.com/betrusted-io/xous-core/issues/875)) |
+| **642** | **`CcidTx`** | **Not in vendored `api.rs`** | **Still absent**; wire format reserved in `services/galdralag/src/usb_bao_ipc.rs` (`CcidMsgIpc` / `CcidCode`, mirroring U2F) |
+
+Unknown opcodes hit the `_` arm: log warning and **continue** (fail-open for unimplemented variants, not fail-closed).
+
+### Vendored `usb-bao1x` gaps (flag only — do not patch in-tree)
+
+The following **`usb-bao1x`** opcodes are **implemented** in the vendored dispatch loop and accept IPC from **any** sender without a PID or capability check: **`SendKeyCode` (1)**, **`SendString` (2)**, **`Quit` (4096)**, and the **serial hook** family (**512–519**). A compromised or mis-registered Xous process could inject keyboard/autotype traffic, attach serial listeners, or terminate the USB server.
+
+**HIDv2 (1027–1030) on Baochip today:** opcodes exist in `api.rs` and the **`usb-bao1x` client library** (`lib.rs`: `connect_hid_app`, `read_report`, `write_report`), but **`usb-bao1x/main.rs` has no handler** — messages hit the `_` arm (log warning, continue). There is **no active HID injection path** on the Baochip server build until handlers are ported (see `usb-device-xous/main_hw.rs` for the intended behaviour). **Upstream requirement when porting:** apply the same first-PID-lock pattern as **`U2fTx` / `U2fRxDeferred`**, especially for **`HIDWriteReport`** and **`HIDSetDescriptor`** (high privilege).
+
+**Recommended fix (upstream):** mirror the **`U2fTx` / `U2fRxDeferred`** first-PID lock in `xous-core/services/usb-bao1x/src/main.rs` (`fido_listener_pid` pattern, lines ~403–535 in current tree): first registrant locks the interface; subsequent senders receive **`Denied`** (or equivalent) without affecting the locked owner.
+
+**Local patching:** confirm with whoever owns the **`xous-core`** vendoring policy whether to carry a forked patch or upstream the auth change before modifying the bundled tree.
+
+### In-tree privileged paths (this repository)
+
+| Path | Gate (2026-06) |
+|------|----------------|
+| `Bao1xRebootController::enter_update_mode` | **Compile-time gate only:** requires **`UpdateModeAuthorization`** (opaque type; field not constructible outside module). Token via **`for_operator_consent()`** exists only with **`privileged-reboot`** Cargo feature. **Behavioral consent check: none** — with the feature enabled, `for_operator_consent()` returns a valid token unconditionally (`Self(())`). **Not wired to IPC; no call site in `main.rs`.** Production **`xtask build-and-register`** passes **`--features xous-bsp` only** (`privileged-reboot` off). **Open:** owner must define real operator-intent signal (see below). |
+| `VaultService::dispatch` (`Seal` / `Unseal` / `ZeroiseAll`) | **`GaldrError::PrivilegedOperationDenied`** (fail-closed stub + tests) |
+| `set_personality_stub` | **`GaldrError::PrivilegedOperationDenied`** (fail-closed stub + tests) |
 
 ---
 

@@ -35,11 +35,14 @@ pub fn usb_exposed_secret_slice(p: Personality) -> Option<&'static [u8]> {
 }
 
 /// Stub: set personality after policy allows (Xous IPC to `usbd`).
+///
+/// **Fail-closed contract:** returns [`galdr_core::GaldrError::PrivilegedOperationDenied`]
+/// until a real `usbd` server enforces capability checks. Callers must not retry or ignore.
 pub fn set_personality_stub(
     _p: Personality,
     _cap: Option<UnlockCapability>,
 ) -> Result<(), galdr_core::GaldrError> {
-    Err(galdr_core::GaldrError::NotImplemented)
+    Err(galdr_core::GaldrError::PrivilegedOperationDenied)
 }
 
 #[cfg(test)]

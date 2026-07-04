@@ -1,11 +1,20 @@
-//! Contract tests: scaffold code paths must fail loudly until Xous services exist.
-//!
-//! **TODO (developer):** Remove `#[should_panic]` tests once real IPC handlers return
-//! `GaldrError::NotImplemented` instead of `todo!`, and add integration tests against hardware
-//! doubles.
+//! Contract tests: privileged scaffold paths must fail closed until Xous servers exist.
+
+use crate::GaldrError;
+
+/// Placeholder for future `vaultd` / `pind` / `usbd` IPC wiring.
+fn privileged_xous_server_scaffold() -> Result<(), GaldrError> {
+    Err(GaldrError::PrivilegedOperationDenied)
+}
 
 #[test]
-#[should_panic(expected = "not yet implemented")]
-fn document_stub_panic_contract() {
-    todo!("not yet implemented — wire vaultd / pind / usbd Xous servers");
+fn privileged_xous_server_scaffold_is_fail_closed() {
+    assert_eq!(
+        privileged_xous_server_scaffold(),
+        Err(GaldrError::PrivilegedOperationDenied)
+    );
+    assert!(
+        GaldrError::PrivilegedOperationDenied.is_permanent_denial(),
+        "stub denials must not be retried as pending work"
+    );
 }
