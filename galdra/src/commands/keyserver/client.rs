@@ -1,6 +1,7 @@
 //! Fulla-style HTTP registry helpers and response types.
 
 use galdra_core_host::config::RegistryKeyserverConfig;
+use galdra_core_host::registry::{self, RegistryResolution};
 use galdra_core_host::GaldraError;
 use serde::{Deserialize, Serialize};
 use std::time::Duration;
@@ -71,9 +72,9 @@ pub enum FetchKeysBody {
     Many(Vec<KeyRecord>),
 }
 
-pub fn registry_http_client() -> Result<reqwest::blocking::Client, GaldraError> {
+pub fn registry_http_client(timeout_seconds: u64) -> Result<reqwest::blocking::Client, GaldraError> {
     reqwest::blocking::Client::builder()
-        .timeout(Duration::from_secs(30))
+        .timeout(Duration::from_secs(timeout_seconds))
         .user_agent(USER_AGENT)
         .build()
         .map_err(|e| {
@@ -83,13 +84,7 @@ pub fn registry_http_client() -> Result<reqwest::blocking::Client, GaldraError> 
 }
 
 pub fn trimmed_registry_base(url: &str) -> Result<String, GaldraError> {
-    let t = url.trim();
-    if t.is_empty() {
-        return Err(GaldraError::Config(
-            "registry base URL must not be empty".to_string(),
-        ));
-    }
-    Ok(t.trim_end_matches('/').to_string())
+    registry::trimmed_registry_base(url)
 }
 
 pub fn push_url(base: &str) -> Result<String, GaldraError> {
@@ -112,47 +107,40 @@ pub fn email_lookup_url(base: &str, email: &str) -> Result<String, GaldraError> 
     Ok(u.to_string())
 }
 
-const ENV_REGISTRY_URL: &str = "GALDRA_KEYSERVER_URL";
+/// Resolve registry endpoints: CLI flag → `GALDRA_KEYSERVER_URL` → `[keyserver]` config.
+pub fn resolve_registry(
+    flag: Option<&str>,
+    cfg: Option<&RegistryKeyserverConfig>,
+) -> Result<RegistryResolution, GaldraError> {
+    let env_candidate = std::env::var(registry::ENV_REGISTRY_URL).ok();
+    registry::resolve_registry(flag, cfg, env_candidate.as_deref())
+}
 
-/// Resolve registry URL: CLI flag → non-empty trimmed `GALDRA_KEYSERVER_URL` → `[keyserver].url`.
+/// Resolve the first registry base URL (legacy helper; used in unit tests).
+#[cfg_attr(not(test), allow(dead_code))]
 pub fn resolve_registry_url(
     flag: Option<&str>,
     cfg: Option<&RegistryKeyserverConfig>,
 ) -> Result<String, GaldraError> {
-    let env_candidate = std::env::var(ENV_REGISTRY_URL).ok();
-    resolve_registry_sources(flag, cfg, env_candidate.as_deref())
+    let env_candidate = std::env::var(registry::ENV_REGISTRY_URL).ok();
+    registry::resolve_registry_url(flag, cfg, env_candidate.as_deref())
 }
 
-/// Resolve with an explicit candidate for the environment-variable value (`GALDRA_KEYSERVER_URL`);
-/// handy for deterministic tests without touching the real process environment.
+/// Resolve with an explicit environment-variable candidate (for tests).
+#[cfg_attr(not(test), allow(dead_code))]
 pub fn resolve_registry_sources(
     flag: Option<&str>,
     cfg: Option<&RegistryKeyserverConfig>,
     env_value: Option<&str>,
 ) -> Result<String, GaldraError> {
-    if let Some(u) = flag {
-        let t = u.trim();
-        if !t.is_empty() {
-            return Ok(t.to_string());
-        }
+    registry::resolve_registry_url(flag, cfg, env_value)
+}
+
+pub(crate) fn endpoint_label(region: Option<&str>, url: &str) -> String {
+    match region {
+        Some(r) => format!("{r} ({url})"),
+        None => url.to_string(),
     }
-    if let Some(v) = env_value {
-        let t = v.trim();
-        if !t.is_empty() {
-            return Ok(t.to_string());
-        }
-    }
-    if let Some(c) = cfg {
-        let t = c.url.trim();
-        if !t.is_empty() {
-            return Ok(t.to_string());
-        }
-    }
-    Err(GaldraError::Config(
-        "no registry URL configured — pass `--keyserver-url`, set environment variable \
-         GALDRA_KEYSERVER_URL, or add a [keyserver] section with url = \"...\" to your config file"
-            .to_string(),
-    ))
 }
 
 #[cfg(test)]
@@ -160,11 +148,19 @@ mod tests {
     use super::*;
     use galdra_core_host::config::RegistryKeyserverConfig;
 
+    fn sample_cfg() -> RegistryKeyserverConfig {
+        RegistryKeyserverConfig {
+            url: "https://from-config.invalid".into(),
+            enabled: true,
+            failover: true,
+            timeout_seconds: 30,
+            nodes: vec![],
+        }
+    }
+
     #[test]
     fn resolve_order_flag_env_config() {
-        let cfg_some = RegistryKeyserverConfig {
-            url: "https://from-config.invalid".into(),
-        };
+        let cfg_some = sample_cfg();
 
         assert_eq!(
             resolve_registry_sources(
@@ -194,9 +190,7 @@ mod tests {
 
     #[test]
     fn blank_flag_env_skips_until_config_when_present() {
-        let cfg_some = RegistryKeyserverConfig {
-            url: "https://from-config.invalid".into(),
-        };
+        let cfg_some = sample_cfg();
 
         match resolve_registry_sources(Some(" "), Some(&cfg_some), Some("")) {
             Ok(v) => assert_eq!(v, "https://from-config.invalid"),
@@ -206,9 +200,7 @@ mod tests {
 
     #[test]
     fn blank_env_fallback_to_config() {
-        let cfg_some = RegistryKeyserverConfig {
-            url: "https://from-config.invalid".into(),
-        };
+        let cfg_some = sample_cfg();
 
         match resolve_registry_sources(None, Some(&cfg_some), Some(" \t ")) {
             Ok(v) => assert_eq!(v, "https://from-config.invalid"),
@@ -221,6 +213,7 @@ mod tests {
         assert!(resolve_registry_sources(Some("\n"), None, None).is_err());
         assert!(resolve_registry_sources(Some(" "), None, None).is_err());
     }
+
     #[test]
     fn resolve_errors_when_missing() {
         assert!(resolve_registry_sources(None, None, None).is_err());

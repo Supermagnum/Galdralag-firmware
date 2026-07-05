@@ -381,26 +381,45 @@ Fingerprint in paths **would be** **normalized** uppercase hex **without spaces*
 
 ## 11. `galdra keyserver push` / `fetch` integration
 
-**Status.** This section is specification only: the **`keyserver`** config table and **`galdra keyserver push`** / **`galdra keyserver fetch`** CLI subcommands are **not** implemented in the current **`galdra`** / **`galdra-core-host`** tree. Today’s host config (`galdra-core-host/src/config.rs`) exposes **`[keyservers]`** (`servers`, `timeout_seconds`) for **HKP fetch** (`galdra contact fetch --source keyserver`), which is unrelated to the registry **`url`** below.
+**Status.** **`galdra keyserver push`** and **`galdra keyserver fetch`** are implemented against **Fulla**-compatible HTTP registries. Host config (`galdra-core-host/src/config.rs`) exposes **`[keyserver]`** for the registry API (distinct from **`[keyservers]`** HKP list used by `galdra contact fetch --source keyserver`).
 
-Once implemented, **`galdra keyserver push`** **would**:
+**URL resolution order:** `--keyserver-url` → **`GALDRA_KEYSERVER_URL`** → **`[keyserver]`** in `config.toml`.
 
-1. Resolve the registry **`url`** from, in order: environment **`GALDRA_KEYSERVER_URL`**, then **`[keyserver].url`** in the same **`config.toml`** file **`galdra` already loads** (`--config PATH` overrides; otherwise **`galdra_core_host::config::default_config_path()`**: **Linux / generic Unix** → **`~/.config/galdra/config.toml`**; **macOS** → **`~/Library/Application Support/galdra/config.toml`**; **Windows** → **`%APPDATA%\galdra\config.toml`**).
-2. Export the **public** OpenPGP certificate from the connected token using the documented card export paths in [docs/GALDRA-TOOL.md](docs/GALDRA-TOOL.md).
-3. Collect optional **first name**, optional **last name**, optional **Fluxer ID**, optional **Discord ID**, optional **IRC ID**, optional **callsign**, optional **DMR ID**, optional **radio affiliation**, optional **`street` / `country` / `postal_code` / `region`** (TTY prompts or CLI flags—exact UX matches whatever **`galdra`** uses elsewhere). Derive **email** **only** from **`User ID`** packets on the exported cert (**reject** if missing or if multiple mails make the choice ambiguous without an explicit flag).
-4. **`POST`** to **`{base_url}/api/v1/keys`** with JSON as in §7b (`Content-Type: application/json`).
-5. Print server JSON (**stdout**) for scripting; non-zero exit on **`4xx`** / **`5xx`**.
-
-A companion **`galdra keyserver fetch`** (not implemented) **would** be specified against the same registry base URL, to retrieve public keys or metadata exposed by the future HTTP API—exact paths and query parameters remain to be fixed when the server and client are implemented.
-
-Implementers **would** extend **`serde`** deserialization in **`Config`** with an optional **`[keyserver]`** section so existing installs without it keep working.
+**Geographic failover (Fulla-aligned).** Fulla deploys up to **14** mesh nodes; clients use each node's public **`KEYSERVER_BASE_URL`** (not the private mesh `sync_api_port`). `galdra` tries **`[[keyserver.nodes]]`** in file order when **`failover = true`** (default). On connection failure or HTTP **502/503/504/429**, the client tries the next node. Application errors (**404**, **422**, etc.) do not trigger failover. Set **`enabled = false`** to disable registry push/fetch entirely; set **`failover = false`** to use only the first node.
 
 ```toml
 [keyserver]
-url = "https://keys.example.com"
+enabled = true
+failover = true
+timeout_seconds = 30
+url = "https://keys-oslo.example.com"   # used when nodes = []
+
+[[keyserver.nodes]]
+region = "Northern Europe"
+node_id = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"   # optional; Fulla node_id_path UUID
+url = "https://keys-oslo.example.com"
+
+[[keyserver.nodes]]
+region = "Western Europe"
+url = "https://keys-de.example.com"
+# Up to 14 [[keyserver.nodes]] entries (same cap as Fulla mesh design).
 ```
 
-Landing this subcommand **would be** expected **after** the standalone **`galdralag-keyserver`** binary crate exists (**not** a member of the firmware workspace **`Cargo.toml` until added).
+When **`[[keyserver.nodes]]`** is non-empty, those URLs replace the legacy **`url`** field for endpoint selection. **`--keyserver-url`** or **`GALDRA_KEYSERVER_URL`** selects a single URL and disables config failover.
+
+**`galdra keyserver push`**:
+
+1. Resolve registry endpoint(s) as above.
+2. Export the **public** OpenPGP certificate from the connected token (or `--fixture-armored-key` with `--dry-run`).
+3. Collect optional sidecar fields; derive **email** from User ID packets unless `--email` is set.
+4. **`POST`** to **`{base_url}/api/v1/keys`** with JSON (`Content-Type: application/json`).
+5. Print server JSON on stdout for scripting; non-zero exit on hard failures.
+
+**`galdra keyserver fetch`**: **`GET {base}/keys?email=`** or **`GET {base}/keys/{fingerprint}`** with the same failover rules.
+
+See **[Fulla integration](https://github.com/Supermagnum/Fulla/blob/main/docs/FULLA_INTEGRATION.md)** (external registry server; not modified from this repo).
+
+Production registries may run **Fulla** instead of the in-tree **`galdralag-keyserver`** design below.
 
 ---
 

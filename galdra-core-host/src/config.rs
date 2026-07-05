@@ -78,10 +78,54 @@ impl Default for Config {
 }
 
 /// HTTP key registry (`[keyserver]` in config.toml): Fulla-compatible JSON API.
+///
+/// Aligns with [Fulla](https://github.com/Supermagnum/Fulla) geographic mesh nodes: each
+/// `[[keyserver.nodes]]` entry maps to a peer's public `KEYSERVER_BASE_URL` (not the private mesh
+/// sync port). Up to [`MAX_REGISTRY_NODES`] entries; clients try them in file order when
+/// [`RegistryKeyserverConfig::failover`] is true.
 #[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Eq)]
 pub struct RegistryKeyserverConfig {
-    /// Base URL, e.g. `https://keys.example.com` (no trailing path required).
+    /// Base URL when `nodes` is empty, e.g. `https://keys.example.com` (no trailing path required).
     pub url: String,
+    /// When false, `galdra keyserver` refuses to use this section.
+    #[serde(default = "default_registry_enabled")]
+    pub enabled: bool,
+    /// When true, try each node in order until one responds; when false, use only the first URL.
+    #[serde(default = "default_registry_failover")]
+    pub failover: bool,
+    /// Per-request timeout in seconds (default 30).
+    #[serde(default = "default_registry_timeout_seconds")]
+    pub timeout_seconds: u64,
+    /// Geographic registry nodes (Fulla-aligned). When non-empty, used instead of [`Self::url`].
+    #[serde(default)]
+    pub nodes: Vec<RegistryNodeConfig>,
+}
+
+/// Maximum geographic registry endpoints (matches Fulla's 14-node mesh design).
+pub const MAX_REGISTRY_NODES: usize = 14;
+
+/// One Fulla registry deployment reachable by clients (public site URL).
+#[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Eq)]
+pub struct RegistryNodeConfig {
+    /// Human label (e.g. `Northern Europe`); matches Fulla `[[replication.mesh.peers]].region`.
+    pub region: String,
+    /// Optional peer UUID from the remote node's `node_id_path` (informational for operators).
+    #[serde(default)]
+    pub node_id: Option<String>,
+    /// Public registry base URL (`KEYSERVER_BASE_URL` on that node).
+    pub url: String,
+}
+
+fn default_registry_enabled() -> bool {
+    true
+}
+
+fn default_registry_failover() -> bool {
+    true
+}
+
+fn default_registry_timeout_seconds() -> u64 {
+    30
 }
 
 /// LDAP / Active Directory settings (password is never stored).

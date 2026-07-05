@@ -1,9 +1,9 @@
 //! `galdra keyserver push` — upload an OpenPGP public key certificate to an HTTP registry.
 
-use super::client::{registry_http_client, push_url, PushResponse};
-use crate::commands::keyserver::client::resolve_registry_url;
+use super::client::{endpoint_label, push_url, registry_http_client, resolve_registry, PushResponse};
 use clap::Parser;
 use galdra_core_host::config::RegistryKeyserverConfig;
+use galdra_core_host::registry;
 use galdra_core_host::device::{Device, KeyFormat};
 use galdra_core_host::GaldraError;
 use sequoia_openpgp::armor;
@@ -239,8 +239,14 @@ pub fn run_push(
 ) -> Result<(), GaldraError> {
     validate_dmr_id_range(args.dmr_id)?;
 
-    let base = resolve_registry_url(args.keyserver_url.as_deref(), registry_cfg)?;
-    let _ = super::client::trimmed_registry_base(&base)?;
+    let resolution = resolve_registry(args.keyserver_url.as_deref(), registry_cfg)?;
+    let _ = super::client::trimmed_registry_base(
+        resolution
+            .endpoints
+            .first()
+            .map(|e| e.url.as_str())
+            .unwrap_or(""),
+    )?;
 
     let (cert, armored) = load_cert_and_armor(&args)?;
     let email = resolve_email_for_push(&cert, args.email.as_deref())?;
@@ -278,77 +284,121 @@ pub fn run_push(
         return Ok(());
     }
 
-    let url = push_url(&base)?;
-    let client = registry_http_client()?;
-    let resp = client
-        .post(url)
-        .header(reqwest::header::CONTENT_TYPE, "application/json")
-        .body(json)
-        .send()
-        .map_err(|e| {
-            tracing::debug!(error = %e, "registry push request failed");
-            GaldraError::Config(
-                "could not reach the registry — check the URL and network connectivity".to_string(),
-            )
-        })?;
+    let client = registry_http_client(resolution.timeout_seconds)?;
+    let mut last_transport_err = String::from("no registry endpoint responded");
+    let endpoint_count = resolution.endpoints.len();
 
-    let status = resp.status();
-    let body_text = resp.text().map_err(|e| {
-        tracing::debug!(error = %e, "registry push read body failed");
-        GaldraError::Config("registry returned a response that could not be read".to_string())
-    })?;
-    tracing::debug!(%status, body = %body_text, "registry push response");
-
-    if status.is_success() {
-        let pr: PushResponse = serde_json::from_str(&body_text).map_err(|e| {
-            tracing::debug!(error = %e, body = %body_text, "registry push JSON parse failed");
-            GaldraError::Config(
-                "registry returned success but the response was not valid JSON".to_string(),
-            )
-        })?;
-        match pr.status.as_str() {
-            "accepted" => {
-                if let Some(fp) = pr.fingerprint {
-                    println!("{fp}");
-                } else {
-                    println!("accepted");
+    for (idx, ep) in resolution.endpoints.iter().enumerate() {
+        let label = endpoint_label(ep.region.as_deref(), &ep.url);
+        let url = push_url(&ep.url)?;
+        let resp = match client
+            .post(url)
+            .header(reqwest::header::CONTENT_TYPE, "application/json")
+            .body(json.clone())
+            .send()
+        {
+            Ok(r) => r,
+            Err(e) => {
+                tracing::debug!(error = %e, endpoint = %label, "registry push transport error");
+                last_transport_err = format!(
+                    "could not reach {label} — check URL and network connectivity"
+                );
+                if resolution.failover && idx + 1 < endpoint_count {
+                    if !quiet {
+                        eprintln!("registry node unreachable ({label}); trying next");
+                    }
+                    continue;
                 }
-                Ok(())
+                return Err(GaldraError::Config(last_transport_err));
             }
-            "pending_confirmation" => {
-                let msg = pr
-                    .message
-                    .unwrap_or_else(|| "pending confirmation".to_string());
-                println!("{msg}");
-                Ok(())
-            }
-            "error" => {
-                let reason = pr
-                    .reason
-                    .unwrap_or_else(|| "registry rejected the request".to_string());
-                Err(GaldraError::Config(format!(
-                    "registry rejected the key upload: {reason}"
-                )))
-            }
-            other => Err(GaldraError::Config(format!(
-                "registry returned an unexpected status field: {other}"
-            ))),
+        };
+
+        let status = resp.status();
+        let body_text = resp.text().map_err(|e| {
+            tracing::debug!(error = %e, "registry push read body failed");
+            GaldraError::Config("registry returned a response that could not be read".to_string())
+        })?;
+        tracing::debug!(%status, endpoint = %label, body = %body_text, "registry push response");
+
+        if status.is_success() {
+            let pr: PushResponse = serde_json::from_str(&body_text).map_err(|e| {
+                tracing::debug!(error = %e, body = %body_text, "registry push JSON parse failed");
+                GaldraError::Config(
+                    "registry returned success but the response was not valid JSON".to_string(),
+                )
+            })?;
+            return match pr.status.as_str() {
+                "accepted" => {
+                    if let Some(fp) = pr.fingerprint {
+                        println!("{fp}");
+                    } else {
+                        println!("accepted");
+                    }
+                    Ok(())
+                }
+                "pending_confirmation" => {
+                    let msg = pr
+                        .message
+                        .unwrap_or_else(|| "pending confirmation".to_string());
+                    println!("{msg}");
+                    Ok(())
+                }
+                "error" => {
+                    let reason = pr
+                        .reason
+                        .unwrap_or_else(|| "registry rejected the request".to_string());
+                    Err(GaldraError::Config(format!(
+                        "registry rejected the key upload: {reason}"
+                    )))
+                }
+                other => Err(GaldraError::Config(format!(
+                    "registry returned an unexpected status field: {other}"
+                ))),
+            };
         }
-    } else if status.as_u16() == 422 {
-        let reason_msg = serde_json::from_str::<PushResponse>(&body_text)
-            .ok()
-            .filter(|pr| pr.status == "error")
-            .and_then(|pr| pr.reason)
-            .unwrap_or_else(|| "registry rejected the request (HTTP 422)".to_string());
-        Err(GaldraError::Config(format!(
-            "registry rejected the key upload: {reason_msg}"
-        )))
-    } else {
-        Err(GaldraError::Config(format!(
-            "registry returned HTTP {}; try again or contact the registry operator",
+
+        if status.as_u16() == 422 {
+            let reason_msg = serde_json::from_str::<PushResponse>(&body_text)
+                .ok()
+                .filter(|pr| pr.status == "error")
+                .and_then(|pr| pr.reason)
+                .unwrap_or_else(|| "registry rejected the request (HTTP 422)".to_string());
+            return Err(GaldraError::Config(format!(
+                "registry rejected the key upload: {reason_msg}"
+            )));
+        }
+
+        if registry::is_registry_application_status(status.as_u16()) {
+            return Err(GaldraError::Config(format!(
+                "registry returned HTTP {} from {label}",
+                status.as_u16(),
+            )));
+        }
+
+        if resolution.failover
+            && registry::should_failover_after_http(status.as_u16(), true)
+            && idx + 1 < endpoint_count
+        {
+            if !quiet {
+                eprintln!(
+                    "registry node returned HTTP {} ({label}); trying next",
+                    status.as_u16()
+                );
+            }
+            last_transport_err = format!(
+                "registry returned HTTP {} from {label}",
+                status.as_u16()
+            );
+            continue;
+        }
+
+        return Err(GaldraError::Config(format!(
+            "registry returned HTTP {} from {label}; try again or contact the registry operator",
             status.as_u16(),
-        )))
+        )));
     }
+
+    Err(GaldraError::Config(last_transport_err))
 }
 
 #[cfg(test)]

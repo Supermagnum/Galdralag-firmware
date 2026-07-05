@@ -1,12 +1,13 @@
 //! `galdra keyserver fetch` — download a registry key row by fingerprint or email.
 
 use super::client::{
-    email_lookup_url, fingerprint_lookup_url, registry_http_client, FetchKeysBody, KeyRecord,
+    email_lookup_url, endpoint_label, fingerprint_lookup_url, registry_http_client,
+    resolve_registry, FetchKeysBody, KeyRecord,
 };
-use crate::commands::keyserver::client::resolve_registry_url;
-use clap::Parser;
 use galdra_core_host::config::RegistryKeyserverConfig;
+use galdra_core_host::registry;
 use galdra_core_host::GaldraError;
+use clap::Parser;
 use serde::Serialize;
 use std::path::PathBuf;
 
@@ -107,63 +108,107 @@ pub fn run_fetch(
         ));
     }
 
-    let base = resolve_registry_url(args.keyserver_url.as_deref(), registry_cfg)?;
+    let resolution = resolve_registry(args.keyserver_url.as_deref(), registry_cfg)?;
     let fmt = parse_output_mode(&args.output)?;
 
-    let client = registry_http_client()?;
-    let url = if let Some(fp_str) = fp_hex.as_ref() {
-        fingerprint_lookup_url(&base, fp_str)?
-    } else {
-        let em = email.ok_or_else(|| {
-            GaldraError::Config(
-                "internal error: resolved lookup without fingerprint or email".to_string(),
-            )
-        })?;
-        email_lookup_url(&base, em)?
+    let client = registry_http_client(resolution.timeout_seconds)?;
+    let mut last_transport_err = String::from("no registry endpoint responded");
+
+    let records = {
+        let mut found: Option<Vec<KeyRecord>> = None;
+        let endpoint_count = resolution.endpoints.len();
+        for (idx, ep) in resolution.endpoints.iter().enumerate() {
+            let label = endpoint_label(ep.region.as_deref(), &ep.url);
+            let url = if let Some(fp_str) = fp_hex.as_ref() {
+                fingerprint_lookup_url(&ep.url, fp_str)?
+            } else {
+                let em = email.ok_or_else(|| {
+                    GaldraError::Config(
+                        "internal error: resolved lookup without fingerprint or email".to_string(),
+                    )
+                })?;
+                email_lookup_url(&ep.url, em)?
+            };
+
+            let resp = match client
+                .get(&url)
+                .header(reqwest::header::ACCEPT, "application/json")
+                .send()
+            {
+                Ok(r) => r,
+                Err(e) => {
+                    tracing::debug!(error = %e, endpoint = %label, "registry fetch transport error");
+                    last_transport_err = format!(
+                        "could not reach {label} — check URL and network connectivity"
+                    );
+                    if resolution.failover && idx + 1 < endpoint_count {
+                        if !quiet {
+                            eprintln!("registry node unreachable ({label}); trying next");
+                        }
+                        continue;
+                    }
+                    return Err(GaldraError::Config(last_transport_err));
+                }
+            };
+
+            let status = resp.status();
+            let body_text = resp.text().map_err(|e| {
+                tracing::debug!(error = %e, "registry fetch read body failed");
+                GaldraError::Config("registry returned a response that could not be read".to_string())
+            })?;
+            tracing::debug!(%status, endpoint = %label, body = %body_text, "registry fetch response");
+
+            if status.as_u16() == 404 {
+                return Err(GaldraError::Config(
+                    "No key found for the given query".to_string(),
+                ));
+            }
+            if registry::is_registry_application_status(status.as_u16()) {
+                return Err(GaldraError::Config(format!(
+                    "registry returned HTTP {} from {label}",
+                    status.as_u16(),
+                )));
+            }
+            if !status.is_success() {
+                if resolution.failover
+                    && registry::should_failover_after_http(status.as_u16(), true)
+                    && idx + 1 < endpoint_count
+                {
+                    if !quiet {
+                        eprintln!(
+                            "registry node returned HTTP {} ({label}); trying next",
+                            status.as_u16()
+                        );
+                    }
+                    last_transport_err = format!(
+                        "registry returned HTTP {} from {label}",
+                        status.as_u16()
+                    );
+                    continue;
+                }
+                return Err(GaldraError::Config(format!(
+                    "registry returned HTTP {} from {label}",
+                    status.as_u16(),
+                )));
+            }
+
+            let parsed: FetchKeysBody = serde_json::from_str(&body_text).map_err(|e| {
+                tracing::debug!(error = %e, body = %body_text, "registry fetch JSON parse failed");
+                GaldraError::Config(
+                    "registry returned success but the body was not valid JSON".to_string(),
+                )
+            })?;
+            let batch = flatten_records(parsed);
+            if batch.is_empty() {
+                return Err(GaldraError::Config(
+                    "No key found for the given query".to_string(),
+                ));
+            }
+            found = Some(batch);
+            break;
+        }
+        found.ok_or_else(|| GaldraError::Config(last_transport_err))?
     };
-
-    let resp = client
-        .get(&url)
-        .header(reqwest::header::ACCEPT, "application/json")
-        .send()
-        .map_err(|e| {
-            tracing::debug!(error = %e, "registry fetch request failed");
-            GaldraError::Config(
-                "could not reach the registry — check the URL and network connectivity".to_string(),
-            )
-        })?;
-
-    let status = resp.status();
-    let body_text = resp.text().map_err(|e| {
-        tracing::debug!(error = %e, "registry fetch read body failed");
-        GaldraError::Config("registry returned a response that could not be read".to_string())
-    })?;
-    tracing::debug!(%status, body = %body_text, "registry fetch response");
-
-    if status.as_u16() == 404 {
-        return Err(GaldraError::Config(
-            "No key found for the given query".to_string(),
-        ));
-    }
-    if !status.is_success() {
-        return Err(GaldraError::Config(format!(
-            "registry returned HTTP {}",
-            status.as_u16(),
-        )));
-    }
-
-    let parsed: FetchKeysBody = serde_json::from_str(&body_text).map_err(|e| {
-        tracing::debug!(error = %e, body = %body_text, "registry fetch JSON parse failed");
-        GaldraError::Config(
-            "registry returned success but the body was not valid JSON".to_string(),
-        )
-    })?;
-    let records = flatten_records(parsed);
-    if records.is_empty() {
-        return Err(GaldraError::Config(
-            "No key found for the given query".to_string(),
-        ));
-    }
 
     let ambiguity_note: Option<&'static str> = if records.len() > 1 {
         Some("Multiple registry records matched; output includes all matching rows.")

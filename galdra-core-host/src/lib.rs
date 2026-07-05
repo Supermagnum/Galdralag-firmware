@@ -20,6 +20,7 @@ pub mod groups;
 pub mod keyserver;
 pub mod ldap;
 pub mod profiles;
+pub mod registry;
 pub mod shamir_ops;
 pub mod sign;
 pub mod sync;
