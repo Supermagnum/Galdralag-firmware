@@ -242,11 +242,17 @@ Omit `--format` to use the default OpenPGP-style export where supported (`pgp`).
 
 **Note:** This requires a connected token and a working `key_export_public` path in the device stack. If the command fails, check firmware and `galdra key list`.
 
-### Publish public keys to keyservers (upload)
+### Publish public keys to a registry
 
-**`galdra` can fetch keys from keyservers (HKP) but does not upload keys.** Publishing is intentionally delegated to the OpenPGP ecosystem so policies (email verification, consent) stay with established tools.
+**Fulla / project registry (recommended for Galdralag deployments):** push the token's public certificate to a **[Fulla](https://github.com/Supermagnum/Fulla)**-compatible HTTP registry:
 
-Typical workflow after you have `my_pubkey.asc` from the previous section:
+```bash
+galdra keyserver push --slot 1 --email you@example.org
+```
+
+Configure geographic failover in `config.toml` (up to 14 nodes, aligned with Fulla's mesh design) — see [Fulla HTTP registry](#fulla-http-registry-keyserver) and [server.md](server.md#11-galdra-keyserver-push--fetch-integration).
+
+**HKP keyservers (OpenPGP ecosystem):** `galdra contact fetch --source keyserver` can **download** from HKP servers but does **not** upload. For traditional keyserver publication:
 
 1. **Import the certificate into GnuPG** (one-time on the machine you use to publish):
 
@@ -324,7 +330,8 @@ Recovery of secrets after zeroisation requires your **Shamir** (or other) backup
 |------|-------------------------|
 | Create key on token | `galdra key generate --type …` (when integrated); else GnuPG then future import |
 | Export public key file | `galdra key export --slot N --format pgp > file.asc` |
-| Upload to public keyserver | **Not `galdra`** — `gpg --import` then `gpg --send-keys`, or keys.openpgp.org web UI |
+| Upload to Fulla / project registry | **`galdra keyserver push`** — `[keyserver]` in `config.toml` (see [Fulla HTTP registry](#fulla-http-registry-keyserver)) |
+| Upload to public HKP keyserver | **`gpg --send-keys`** after `gpg --import`, or keys.openpgp.org web UI |
 | Publish via WKD | Host the key on your domain; **`galdra` only fetches** with `contact fetch --source wkd` |
 | Revoke | **GnuPG** (or equivalent); then `galdra contact refresh` or delete contact |
 | Delete contact (local DB only) | `galdra contact delete <identifier> --confirm` |
@@ -453,7 +460,8 @@ All CLI commands and daemon endpoints are thin wrappers over this library.
 | Module | Responsibility |
 |--------|---------------|
 | `device` | USB token communication using the host protocol defined in `docs/HOST_PROTOCOL.md` |
-| `keyserver` | HKP keyserver queries, WKD lookups, LDAP queries, file import |
+| `keyserver` | HKP keyserver and WKD fetch (`[keyservers]` in config) |
+| `registry` | Fulla HTTP registry URL resolution and geographic failover (`[keyserver]` in config) |
 | `contacts` | Contact CRUD operations against the local database |
 | `groups` | Group CRUD, membership queries, expiry enforcement |
 | `encrypt` | Multi-recipient OpenPGP and age encryption/decryption |
@@ -755,6 +763,37 @@ servers = [
 ]
 timeout_seconds = 10
 ```
+
+### Fulla HTTP registry (`[keyserver]`)
+
+**`galdra keyserver push`** and **`galdra keyserver fetch`** talk to a **[Fulla](https://github.com/Supermagnum/Fulla)**-compatible HTTP registry (`POST /api/v1/keys`, `GET /keys/...`). This is separate from **`[keyservers]`** (HKP) above.
+
+URL resolution: `--keyserver-url` → `GALDRA_KEYSERVER_URL` → `[keyserver]` in config. List up to **14** geographic nodes (Fulla's public `KEYSERVER_BASE_URL` per node, not the mesh sync port). With **`failover = true`** (default), the client tries nodes in file order when a node is unreachable or returns HTTP 502/503/504/429.
+
+```toml
+[keyserver]
+enabled = true
+failover = true
+timeout_seconds = 30
+url = "https://keys-oslo.example.com"
+
+[[keyserver.nodes]]
+region = "Northern Europe"
+node_id = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"
+url = "https://keys-oslo.example.com"
+
+[[keyserver.nodes]]
+region = "Western Europe"
+url = "https://keys-de.example.com"
+```
+
+```bash
+galdra keyserver push --slot 1 --email you@example.org
+galdra keyserver fetch --email you@example.org
+galdra keyserver fetch --fingerprint 0123456789ABCDEF0123456789ABCDEF01234567
+```
+
+Set **`enabled = false`** to disable registry push/fetch. Set **`failover = false`** to use only the first configured node. Details: [server.md](server.md#11-galdra-keyserver-push--fetch-integration).
 
 ### WKD (Web Key Directory)
 

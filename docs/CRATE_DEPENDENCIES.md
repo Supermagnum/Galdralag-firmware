@@ -132,7 +132,7 @@ Authoritative membership list: root [`Cargo.toml`](../Cargo.toml) `[workspace] m
 
 | Path | Binary / lib | Purpose |
 |------|--------------|---------|
-| `galdra-core-host` | library | SQLite schema, contacts/groups, device/OpenPGP helpers, Shamir ops |
+| `galdra-core-host` | library | SQLite schema, contacts/groups, device/OpenPGP helpers, Shamir ops, **Fulla registry client** (`registry.rs`) |
 | `galdra` | `galdra` | CLI |
 | `galdrad` | `galdrad` | Local REST daemon (biometric pre-gate, policy hooks) |
 | `galdra-gtk` | `galdra-gtk` | GTK4 desktop UI |
@@ -175,7 +175,7 @@ These are excluded from the workspace lockfile because they depend on **xous-cor
 
 ### Layer 5 — Host stack
 
-- **`galdra-core-host`** reuses **`galdr-vault`**, **`cipher-profile`**, **`ephemeral-session`**, and **`cess`** so host-side encrypt/decrypt and profile tests match firmware semantics. It adds **`sequoia-openpgp`**, **`rusqlite`**, and PC/SC for real-world token and keyring workflows.
+- **`galdra-core-host`** reuses **`galdr-vault`**, **`cipher-profile`**, **`ephemeral-session`**, and **`cess`** so host-side encrypt/decrypt and profile tests match firmware semantics. It adds **`sequoia-openpgp`**, **`rusqlite`**, PC/SC, and **`registry`** (Fulla HTTP registry URL resolution and geographic failover for **`galdra keyserver`**).
 - **`galdra`**, **`galdrad`**, and **`galdra-gtk`** are thin application shells over **`galdra-core-host`**.
 - **`biometric-api`** / **`biometric-vault`** connect **`galdrad`** policy to optional third-factor templates; device drivers (`biometric-fingervein`, `biometric-sweet`) plug in via traits.
 
@@ -187,6 +187,7 @@ These are excluded from the workspace lockfile because they depend on **xous-cor
 | Wrong PIN | **`usb-personality`** → **`pin-policy`** (in-process) → **`galdr-core`** zeroise hook → RRAM wipe in **`baochip-openpgp`** |
 | Galdra encrypt with profile | **`galdra`** → **`galdra-core-host`** → **`cipher-profile`** → **`ephemeral-session`** + **`cess`** + **`galdr-vault`** |
 | First-boot PIN | Host **`galdralag-provision`** → Xous PDDB → **`galdralag-service`** → **`baochip-openpgp`** provision slots |
+| Publish key to Fulla registry | **`galdra keyserver push`** → **`galdra-core-host::registry`** → Fulla `POST /api/v1/keys` (optional geographic failover) |
 
 ---
 
@@ -205,6 +206,8 @@ These are excluded from the workspace lockfile because they depend on **xous-cor
 | Document | Contents |
 |----------|----------|
 | [CODE_MAP.md](CODE_MAP.md) | Per-file function and type index |
+| [server.md](server.md) | HTTP registry server design; `galdra keyserver` client and `[keyserver]` config |
+| [THREAT_MODEL.md](THREAT_MODEL.md) | Threats, IPC access-control inventory, vendored `usb-bao1x` gaps |
 | [dev-ref.md](dev-ref.md) | HAL traits, security invariants, test surface |
 | [ARCHITECTURE.md](ARCHITECTURE.md) | Intended Xous servers, current `galdralag-service` topology, RRAM regions, PIN FSM |
 | [API_REFERENCE.md](API_REFERENCE.md) | Public API annex (Shamir, ephemeral session, HKDF labels) |

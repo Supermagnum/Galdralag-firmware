@@ -3,6 +3,8 @@
 This document lists **where** Rust modules, types, and functions live in the Galdralag / Galdr workspace. Use it to navigate the tree before opening files. For protocol behaviour and cross-crate flows, see also:
 
 - [ARCHITECTURE.md](ARCHITECTURE.md) — Xous servers, RRAM layout, threat model
+- [THREAT_MODEL.md](THREAT_MODEL.md) — assets, threats, IPC access-control inventory
+- [server.md](server.md) — HTTP registry server design and `galdra keyserver` client config
 - [API_REFERENCE.md](API_REFERENCE.md) — Shamir, ephemeral session, and major public APIs in prose
 - `cargo doc -p <crate> --open` — full signatures and trait bounds
 
@@ -93,6 +95,10 @@ OpenPGP APDU dispatch hub: [`handle_apdu`](crates/usb-personality/src/openpgp/di
 | OpenPGP commands | `crates/usb-personality/src/openpgp/commands/` (`sign`, `decipher`, `get_data`, …) |
 | Cipher profiles | `crates/cipher-profile/src/profile.rs`, `registry.rs` |
 | Host contacts / groups | `galdra-core-host/src/contacts.rs`, `groups.rs`, `db.rs` |
+| Fulla HTTP registry (`galdra keyserver`) | `galdra-core-host/src/registry.rs`, `galdra/src/commands/keyserver/` |
+| HKP / WKD public-key fetch | `galdra-core-host/src/keyserver.rs` (`[keyservers]` in config) |
+| Privileged IPC stubs (fail-closed) | `crates/vault/src/service.rs`, `crates/usb-personality/src/lib.rs`, `crates/galdr-core/src/error.rs` |
+| Firmware update mode gate | `services/galdralag/src/reboot.rs` (`UpdateModeAuthorization`, `privileged-reboot` feature) |
 | Constant-time tests | `crates/security-tests/src/dudect_harnesses.rs` |
 
 ---
@@ -280,7 +286,8 @@ HAL traits (TRNG, zeroise), shared errors.
 - **Private functions:** `hkdf_sha256_rfc5869_appendix_a` (L8), `hkdf_sha512_expand_smoke` (L28), `chacha20poly1305_rfc8439_aead` (L38), `x25519_rfc7748` (L65), `ed25519_rfc8032_sign_verify_smoke` (L81), `hmac_sha256_rfc4231_case_1` (L95), `pbkdf2_hmac_sha1_rfc6070_count_1` (L110), `aes256_gcm_nist_one_block` (L121), `sha3_256_empty` (L143), `blake2b512_known_vector` (L152), `blake3_deterministic` (L164)
 
 ### `crates/galdr-core/src/error.rs`
-- **Public types:** `enum GaldrError`, `enum HalError`
+- **Public types:** `enum GaldrError` (`PrivilegedOperationDenied`, `is_permanent_denial`), `enum HalError`
+- **Public functions:** [`is_permanent_denial`](crates/galdr-core/src/error.rs#L26)
 
 ### `crates/galdr-core/src/fake_hal.rs`
 - **Public types:** `struct FakeMonotonicCounter`, `struct FakeTrng`, `struct FakeZeroiseController`, `struct FakeRebootController`, `struct FakeVaultStorage`
@@ -301,21 +308,21 @@ HAL traits (TRNG, zeroise), shared errors.
 - **Private functions:** `read` (L10), `increment` (L14), `counter_never_decrements` (L22)
 
 ### `crates/galdr-core/src/scaffold_todos.rs`
-- **Private functions:** `document_stub_panic_contract` (L9)
+- **Private functions:** `privileged_xous_server_scaffold_is_fail_closed` (L11)
 
 ## `galdra`
-CLI (profiles, Shamir, EPK, identity, keyserver).
+CLI (profiles, Shamir, EPK, identity, Fulla HTTP registry via `keyserver`).
 
 **Files:** 13 | **Public functions:** 32 | **Private functions:** 48
 
 ### `galdra/src/commands/keyserver/client.rs`
 - **Public types:** `struct PushResponse`, `struct KeyRecord`, `enum FetchKeysBody`
-- **Public functions:** [`registry_http_client`](galdra/src/commands/keyserver/client.rs#L74), [`trimmed_registry_base`](galdra/src/commands/keyserver/client.rs#L85), [`push_url`](galdra/src/commands/keyserver/client.rs#L95), [`fingerprint_lookup_url`](galdra/src/commands/keyserver/client.rs#L100), [`email_lookup_url`](galdra/src/commands/keyserver/client.rs#L105), [`resolve_registry_url`](galdra/src/commands/keyserver/client.rs#L118), [`resolve_registry_sources`](galdra/src/commands/keyserver/client.rs#L128)
-- **Private functions:** `resolve_order_flag_env_config` (L164), `blank_flag_env_skips_until_config_when_present` (L196), `blank_env_fallback_to_config` (L208), `blanks_fail_when_no_config_section` (L220), `resolve_errors_when_missing` (L225), `push_url_formats` (L232), `key_record_deserializes_fulla_sidecar_fields` (L240)
+- **Public functions:** [`registry_http_client`](galdra/src/commands/keyserver/client.rs#L75), [`trimmed_registry_base`](galdra/src/commands/keyserver/client.rs#L86), [`push_url`](galdra/src/commands/keyserver/client.rs#L90), [`fingerprint_lookup_url`](galdra/src/commands/keyserver/client.rs#L95), [`email_lookup_url`](galdra/src/commands/keyserver/client.rs#L100), [`resolve_registry`](galdra/src/commands/keyserver/client.rs#L111), [`resolve_registry_url`](galdra/src/commands/keyserver/client.rs#L121), [`resolve_registry_sources`](galdra/src/commands/keyserver/client.rs#L131)
+- **Private functions:** `endpoint_label` (L137), `resolve_order_flag_env_config` (L158), `blank_flag_env_skips_until_config_when_present` (L190), `blank_env_fallback_to_config` (L202), `blanks_fail_when_no_config_section` (L214), `resolve_errors_when_missing` (L219), `push_url_formats` (L226), `key_record_deserializes_fulla_sidecar_fields` (L234)
 
 ### `galdra/src/commands/keyserver/fetch.rs`
 - **Public types:** `struct FetchArgs`
-- **Public functions:** [`normalize_fingerprint_hex`](galdra/src/commands/keyserver/fetch.rs#L31), [`run_fetch`](galdra/src/commands/keyserver/fetch.rs#L89)
+- **Public functions:** [`normalize_fingerprint_hex`](galdra/src/commands/keyserver/fetch.rs#L31), [`run_fetch`](galdra/src/commands/keyserver/fetch.rs#L90)
 - **Private functions:** `parse_output_mode` (L53), `flatten_records` (L63), `write_stdout_or_file` (L70), `fingerprint_normalizes` (L218), `fingerprint_bad_length` (L226), `fingerprint_bad_char` (L231)
 
 ### `galdra/src/commands/keyserver/mod.rs`
@@ -376,9 +383,9 @@ Host library: device, DB, encrypt, Shamir, audit.
 - **Private functions:** `serialize_cascade_ct` (L29), `deserialize_cascade_ct` (L51), `open_cess_mode_a_outer_to_inner_blob` (L250), `cess_mode_a_roundtrip_wraps_galdra_inner` (L291)
 
 ### `galdra-core-host/src/config.rs`
-- **Public types:** `struct Config`, `struct KeyserverConfig`, `struct RegistryKeyserverConfig`, `struct LdapConfig`
-- **Public functions:** [`default_database_path`](galdra-core-host/src/config.rs#L108), [`default_config_path`](galdra-core-host/src/config.rs#L142), [`database_key_from_env`](galdra-core-host/src/config.rs#L207), [`load_config`](galdra-core-host/src/config.rs#L227)
-- **Private functions:** `default_key_expiry_warn_days` (L30), `default_keyservers` (L46), `default_timeout_seconds` (L54), `default` (L59), `default` (L68), `home_dir` (L171), `data_dir_linux` (L195)
+- **Public types:** `struct Config`, `struct KeyserverConfig`, `struct RegistryKeyserverConfig`, `struct RegistryNodeConfig`, `const MAX_REGISTRY_NODES`, `struct LdapConfig`
+- **Public functions:** [`default_database_path`](galdra-core-host/src/config.rs#L152), [`default_config_path`](galdra-core-host/src/config.rs#L186), [`database_key_from_env`](galdra-core-host/src/config.rs#L251), [`load_config`](galdra-core-host/src/config.rs#L271)
+- **Private functions:** `default_key_expiry_warn_days` (L30), `default_keyservers` (L46), `default_timeout_seconds` (L54), `default` (L59), `default` (L68), `default_registry_enabled` (L119), `default_registry_failover` (L123), `default_registry_timeout_seconds` (L127), `home_dir` (L215), `data_dir_linux` (L239)
 
 ### `galdra-core-host/src/contacts.rs`
 - **Public types:** `enum KeySource`, `struct Identity`, `struct NewContact`, `struct ContactUpdate`, `struct ContactFilter`
@@ -420,12 +427,16 @@ Host library: device, DB, encrypt, Shamir, audit.
 - **Public functions:** [`keyserver_fetch`](galdra-core-host/src/keyserver.rs#L42), [`wkd_fetch`](galdra-core-host/src/keyserver.rs#L74), [`cert_first_email`](galdra-core-host/src/keyserver.rs#L93)
 - **Private functions:** `reject_plain_http` (L12), `userid_from_query` (L22), `flatten_certs` (L30)
 
+### `galdra-core-host/src/registry.rs`
+- **Public types:** `struct RegistryEndpoint`, `const ENV_REGISTRY_URL`, `struct RegistryResolution`
+- **Public functions:** [`trimmed_registry_base`](galdra-core-host/src/registry.rs#L20), [`ensure_registry_enabled`](galdra-core-host/src/registry.rs#L31), [`endpoints_from_config`](galdra-core-host/src/registry.rs#L42), [`resolve_registry`](galdra-core-host/src/registry.rs#L100), [`resolve_registry_url`](galdra-core-host/src/registry.rs#L153), [`should_failover_after_http`](galdra-core-host/src/registry.rs#L166), [`is_registry_application_status`](galdra-core-host/src/registry.rs#L174)
+
 ### `galdra-core-host/src/ldap.rs`
 - **Public functions:** [`ldap_fetch_async`](galdra-core-host/src/ldap.rs#L44)
 - **Private functions:** `ldap_escape_filter_value` (L11), `cert_from_ldap_value` (L26)
 
 ### `galdra-core-host/src/lib.rs`
-- **Modules:** `audit`, `cipher_envelope`, `config`, `contacts`, `db`, `device`, `encrypt`, `ephemeral_offers`, `error`, `galdra_fingerprint`, `openpgp_pcsc`, `groups`, `keyserver`, `ldap`, `profiles`, `shamir_ops`, `sign`, `sync`
+- **Modules:** `audit`, `cipher_envelope`, `config`, `contacts`, `db`, `device`, `encrypt`, `ephemeral_offers`, `error`, `galdra_fingerprint`, `openpgp_pcsc`, `groups`, `keyserver`, `registry`, `ldap`, `profiles`, `shamir_ops`, `sign`, `sync`
 
 ### `galdra-core-host/src/openpgp_pcsc.rs`
 - **Public functions:** [`read_sig_public_key_bytes_via_pcsc`](galdra-core-host/src/openpgp_pcsc.rs#L106), [`read_sig_public_key_bytes_via_pcsc`](galdra-core-host/src/openpgp_pcsc.rs#L118), [`read_sig_public_key_bytes_via_pcsc`](galdra-core-host/src/openpgp_pcsc.rs#L128)
@@ -603,18 +614,19 @@ dudect timing harnesses and statistical tests.
 ## `services/galdralag`
 Xous firmware service: CCID + OpenPGP on Baochip.
 
-**Files:** 4 | **Public functions:** 2 | **Private functions:** 18
+**Files:** 4 | **Public functions:** 4 | **Private functions:** 18
 
 ### `services/galdralag/src/lib.rs`
 - **Modules:** `reboot`
+- **Re-exports:** `Bao1xRebootController`, `UpdateModeAuthorization`
 
 ### `services/galdralag/src/main.rs`
 - **Private functions:** `main` (L9), `main` (L15), `galdralag_ccid_main` (L20), `build_id_aid` (L142), `ccid_pddb_provisioned` (L152), `read_pddb_key` (L177), `ccid_serve_loop` (L188), `usb_link_status` (L240), `ccid_rx_deferred` (L252), `ccid_tx` (L275)
 
 ### `services/galdralag/src/reboot.rs`
-- **Public types:** `struct Bao1xRebootController`
-- **Public functions:** [`new`](services/galdralag/src/reboot.rs#L97)
-- **Private functions:** `boot_wait_is_enabled` (L84), `boot_wait_ptr` (L107), `rcurst0_ptr` (L117), `default` (L170), `enter_update_mode` (L184), `boot_wait_enable_detection` (L216), `fake_reboot_controller_records_request` (L228), `hardware_addresses_are_sane` (L237)
+- **Public types:** `struct UpdateModeAuthorization`, `struct Bao1xRebootController`
+- **Public functions:** [`for_operator_consent`](services/galdralag/src/reboot.rs#L66) (`privileged-reboot` feature), [`new`](services/galdralag/src/reboot.rs#L118), [`enter_update_mode`](services/galdralag/src/reboot.rs#L130)
+- **Private functions:** `boot_wait_is_enabled` (L84), `boot_wait_ptr` (L143), `rcurst0_ptr` (L153), `read_boot_wait` (L162), `inc_boot_wait` (L177), `trigger_soft_reset` (L189), `default` (L217), `boot_wait_enable_detection` (L252), `fake_reboot_controller_records_request` (L264), `update_mode_requires_authorization_token_type` (L273), `hardware_addresses_are_sane` (L285)
 
 ### `services/galdralag/src/usb_bao_ipc.rs`
 - **Public types:** `const SERVER_NAME_USB_DEVICE`, `const OP_LINK_STATUS`, `const OP_CCID_RX_DEFERRED`, `const OP_CCID_TX`, `struct CcidMsgIpc`, `enum CcidCode`, `enum UsbDeviceState`
@@ -658,7 +670,7 @@ CCID, OpenPGP card dispatch, provisioning hooks.
 ### `crates/usb-personality/src/lib.rs`
 - **Modules:** `ccid`, `openpgp`, `provisioning`
 - **Public types:** `enum Personality`, `struct UnlockCapability`
-- **Public functions:** [`usb_exposed_secret_slice`](crates/usb-personality/src/lib.rs#L30), [`set_personality_stub`](crates/usb-personality/src/lib.rs#L38)
+- **Public functions:** [`usb_exposed_secret_slice`](crates/usb-personality/src/lib.rs#L30), [`set_personality_stub`](crates/usb-personality/src/lib.rs#L41) (returns `GaldrError::PrivilegedOperationDenied`)
 
 ### `crates/usb-personality/src/openpgp/aid.rs`
 - **Public types:** `const OPENPGP_AID_PREFIX`, `const OPENPGP_CARD_VERSION_MAJOR`, `const OPENPGP_CARD_VERSION_MINOR`
@@ -798,8 +810,8 @@ RRAM vault, crypto, Shamir, sealed keys, Brainpool/RSA, sessions.
 
 ### `crates/vault/src/service.rs`
 - **Public types:** `enum VaultRequest`, `struct VaultService`
-- **Public functions:** [`new`](crates/vault/src/service.rs#L27), [`dispatch`](crates/vault/src/service.rs#L31)
-- **Private functions:** `default` (L21)
+- **Public functions:** [`new`](crates/vault/src/service.rs#L28), [`dispatch`](crates/vault/src/service.rs#L37) (fail-closed: `PrivilegedOperationDenied`)
+- **Private functions:** `default` (L21), `seal_stub_is_fail_closed` (L49), `unseal_stub_is_fail_closed` (L56), `zeroise_all_stub_is_fail_closed` (L63)
 
 ### `crates/vault/src/session.rs`
 - **Public types:** `enum VaultSessionState`

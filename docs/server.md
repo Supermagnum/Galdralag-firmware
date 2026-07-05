@@ -1,10 +1,8 @@
 # Galdralag Web of Trust key registry server
 
-> **Status: not implemented.**  
-> This document is a specification and design record only.  
-> The `galdralag-keyserver` server does not exist yet.  
-> The `galdra keyserver push` and `galdra keyserver fetch` commands are not implemented. No client code wires against this API.  
-> This file records intended design for future implementation.
+> **Status:** The in-tree **`galdralag-keyserver`** server binary is **not implemented**. Production registries may run **[Fulla](https://github.com/Supermagnum/Fulla)** instead.  
+> **`galdra keyserver push`** and **`galdra keyserver fetch`** **are implemented** against Fulla-compatible HTTP APIs (`POST /api/v1/keys`, `GET /keys/...`), including geographic failover — see [section 11](#11-galdra-keyserver-push--fetch-integration).  
+> The remainder of this document records the original in-tree server design for future implementation.
 
 ## 1. Purpose and scope
 
