@@ -110,6 +110,7 @@ pub fn group_get(db: &Db, name: &str) -> Result<GroupWithMembers, GaldraError> {
                 i.id, i.display_name, i.callsign, i.email, i.badge_number, i.organisation,
                 i.department, i.role, i.note, i.dmr_id, i.radio_affiliation, i.street,
                 i.country, i.postal_code, i.region, i.fluxer_id, i.discord_id, i.irc_id,
+                i.phone_number,
                 i.pgp_fingerprint, i.pgp_pubkey, i.fetched_at, i.expires_at, i.source
             FROM groups g
             JOIN identities i ON i.id = g.identity_id

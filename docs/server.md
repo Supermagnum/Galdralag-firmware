@@ -38,7 +38,7 @@ This Galdralag server is specified to **reuse Hagrid’s OpenPGP and mail-valida
 
 ## 3. Identity fields
 
-Every submission **would be** tied to one OpenPGP certificate (public key material only) and a **metadata record** keyed by primary **fingerprint**. The following fields **would** apply. **Amateur radio callsign**, **DMR ID**, **radio affiliation**, **postal hint**, **Fluxer ID**, **Discord ID**, **IRC ID**, and **identity name** (first / last) are **optional**; **email address** is the **only** mandatory sidecar field and **would** tie to validated mailbox consent.
+Every submission **would be** tied to one OpenPGP certificate (public key material only) and a **metadata record** keyed by primary **fingerprint**. The following fields **would** apply. **Amateur radio callsign**, **DMR ID**, **radio affiliation**, **postal hint**, **Fluxer ID**, **Discord ID**, **IRC ID**, **phone number**, and **identity name** (first / last) are **optional**; **email address** is the **only** mandatory sidecar field and **would** tie to validated mailbox consent.
 
 | Field | Required | Validation |
 |-------|----------|------------|
@@ -48,6 +48,7 @@ Every submission **would be** tied to one OpenPGP certificate (public key materi
 | Fluxer ID | No | UTF-8, maximum **128** Unicode scalars — submitter-declared handle or opaque id on Fluxer (not verified against a remote service in v1) |
 | Discord ID | No | UTF-8, maximum **32** Unicode scalars — typically numeric snowflake; no remote verification in v1 |
 | IRC ID | No | UTF-8, maximum **128** Unicode scalars — e.g. nickname or `nick@server` style; submitter-declared, not verified in v1 |
+| Phone number | No | UTF-8, maximum **32** Unicode scalars — submitter-declared; not verified in v1 |
 | Amateur radio callsign | No | ICAO-style token (e.g. `LA1BC`); stored as submitted; no online registry query in v1 |
 | DMR ID number | No | Unsigned 32-bit integer (when set, meaningful range **1–16777215** to align with amateur **DMR** practice). Meaningful mainly when a callsign is also present. |
 | Radio amateur affiliation | No | Free text, maximum **128** Unicode scalars. Examples: **`NRRL`** (Norwegian Radio Relay League — *Norsk Radio Relæ Liga*); other national society abbreviations (**ARRL**, **RSGB**, **DARC**, **REF**, …); or **local amateur radio club / contest group** names. Not verified against registries in v1 — submitter-declared metadata only. |
@@ -144,6 +145,7 @@ CREATE TABLE IF NOT EXISTS keys (
     fluxer_id       TEXT,
     discord_id      TEXT,
     irc_id          TEXT,
+    phone_number    TEXT,
     callsign        TEXT,                              -- NULL if not provided
     dmr_id          INTEGER,                           -- NULL if not provided
     radio_affiliation TEXT,                          -- NULL; NRRL / club / national society etc.
@@ -164,6 +166,7 @@ CREATE INDEX IF NOT EXISTS idx_keys_dmr_id      ON keys(dmr_id);
 CREATE INDEX IF NOT EXISTS idx_keys_fluxer_id   ON keys(fluxer_id);
 CREATE INDEX IF NOT EXISTS idx_keys_discord_id  ON keys(discord_id);
 CREATE INDEX IF NOT EXISTS idx_keys_irc_id      ON keys(irc_id);
+CREATE INDEX IF NOT EXISTS idx_keys_phone_number ON keys(phone_number);
 ```
 
 **`migrations/002_pending.sql`**
@@ -178,6 +181,7 @@ CREATE TABLE IF NOT EXISTS pending_submissions (
     fluxer_id       TEXT,
     discord_id      TEXT,
     irc_id          TEXT,
+    phone_number    TEXT,
     callsign        TEXT,
     dmr_id          INTEGER,
     radio_affiliation TEXT,
@@ -231,6 +235,14 @@ CREATE INDEX IF NOT EXISTS idx_keys_discord_id  ON keys(discord_id);
 CREATE INDEX IF NOT EXISTS idx_keys_irc_id      ON keys(irc_id);
 ```
 
+**`migrations/006_identity_phone.sql`**
+
+```sql
+ALTER TABLE keys ADD COLUMN phone_number TEXT;
+ALTER TABLE pending_submissions ADD COLUMN phone_number TEXT;
+CREATE INDEX IF NOT EXISTS idx_keys_phone_number ON keys(phone_number);
+```
+
 Fresh installs **would** use **`001`** / **`002`** snippets above (nullable names and social-id columns) and **may** omit **`005`** entirely.
 
 ---
@@ -239,7 +251,7 @@ Fresh installs **would** use **`001`** / **`002`** snippets above (nullable name
 
 ### 7a. Web form (`POST /submit`)
 
-The site **would** serve **`GET /submit`** with an HTML form. Fields: mandatory **email** only; optional **first name**, **last name**, optional **Fluxer ID**, **Discord ID**, **IRC ID**, optional **callsign**, **DMR ID**, **radio affiliation**, optional **street / country / postal code / region** (leave blank when unused), plus a `<textarea>` for the ASCII-armored public key block. **`POST /submit`** **would**:
+The site **would** serve **`GET /submit`** with an HTML form. Fields: mandatory **email** only; optional **first name**, **last name**, optional **Fluxer ID**, **Discord ID**, **IRC ID**, optional **phone number**, optional **callsign**, **DMR ID**, **radio affiliation**, optional **street / country / postal code / region** (leave blank when unused), plus a `<textarea>` for the ASCII-armored public key block. **`POST /submit`** **would**:
 
 1. Run `validator`-based checks on typed fields (lengths, optional **fluxer/discord/irc** and **name** bounds when present, optional **DMR id** numeric range aligned with §3, optional **affiliation** and **postal** column bounds, email format).
 2. Parse armored data in `openpgp.rs` with Sequoia; **would** reject malformed packets or cryptographic validation failures surfaced by the library.
@@ -265,6 +277,7 @@ Request body:
   "fluxer_id":  "example-handle",
   "discord_id": "123456789012345678",
   "irc_id":     "nick",
+  "phone_number": "+47 123 45 678",
   "callsign":   "LA1BC",
   "dmr_id":     2345678,
   "radio_affiliation": "NRRL",
@@ -276,7 +289,7 @@ Request body:
 }
 ```
 
-**`email`** is required. Optional sidecar columns **`first_name`**, **`last_name`**, **`fluxer_id`**, **`discord_id`**, **`irc_id`**, **`callsign`**, **`dmr_id`**, **`radio_affiliation`**, **`street`**, **`country`**, **`postal_code`**, and **`region`** may be omitted or JSON `null`.
+**`email`** is required. Optional sidecar columns **`first_name`**, **`last_name`**, **`fluxer_id`**, **`discord_id`**, **`irc_id`**, **`phone_number`**, **`callsign`**, **`dmr_id`**, **`radio_affiliation`**, **`street`**, **`country`**, **`postal_code`**, and **`region`** may be omitted or JSON `null`.
 
 Intended responses (semantics fixed at implementation time):
 

@@ -282,6 +282,7 @@ pub struct IdentityRow {
     pub fluxer_id: Option<String>,
     pub discord_id: Option<String>,
     pub irc_id: Option<String>,
+    pub phone_number: Option<String>,
     pub dmr_id: Option<i64>,
     pub radio_affiliation: Option<String>,
     pub street: Option<String>,

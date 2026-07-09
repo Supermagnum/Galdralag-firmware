@@ -24,6 +24,7 @@ fn contact_crud_roundtrip() {
             fluxer_id: None,
             discord_id: None,
             irc_id: None,
+            phone_number: None,
         },
     )
     .expect("add");
@@ -86,6 +87,7 @@ fn contact_add_requires_non_empty_email() {
             fluxer_id: None,
             discord_id: None,
             irc_id: None,
+            phone_number: None,
         },
     );
     assert!(r.is_err());

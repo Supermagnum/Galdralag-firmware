@@ -24,6 +24,7 @@ fn resolve_by_fingerprint_ignores_separators() {
             fluxer_id: None,
             discord_id: None,
             irc_id: None,
+            phone_number: None,
         },
     )
     .expect("add");
@@ -69,6 +70,7 @@ fn resolve_by_dmr_id_decimal_token() {
             fluxer_id: None,
             discord_id: None,
             irc_id: None,
+            phone_number: None,
         },
     )
     .expect("add");

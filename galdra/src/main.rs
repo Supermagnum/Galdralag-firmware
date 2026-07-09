@@ -271,6 +271,8 @@ enum ContactCmd {
         discord_id: Option<String>,
         #[arg(long)]
         irc_id: Option<String>,
+        #[arg(long)]
+        phone_number: Option<String>,
     },
     /// Fetch a key from a remote source.
     Fetch {
@@ -335,6 +337,8 @@ enum ContactCmd {
         discord_id: Option<String>,
         #[arg(long)]
         irc_id: Option<String>,
+        #[arg(long)]
+        phone_number: Option<String>,
     },
     Delete {
         identifier: String,
@@ -1019,6 +1023,7 @@ fn run_contact(
             fluxer_id,
             discord_id,
             irc_id,
+            phone_number,
         } => {
             let nc = NewContact {
                 display_name: name.unwrap_or_default(),
@@ -1038,6 +1043,7 @@ fn run_contact(
                 fluxer_id,
                 discord_id,
                 irc_id,
+                phone_number,
             };
             let id = contacts::contact_add(db, nc)?;
             audit::audit_append(
@@ -1142,6 +1148,7 @@ fn run_contact(
                 fluxer_id: None,
                 discord_id: None,
                 irc_id: None,
+                phone_number: None,
             };
             let id = contacts::contact_add(db, nc)?;
             contacts::contact_upsert_key(db, &id.id, &buf, &fp, parse_key_source(src)?, None)?;
@@ -1222,6 +1229,7 @@ fn run_contact(
                 fluxer_id: None,
                 discord_id: None,
                 irc_id: None,
+                phone_number: None,
             };
             let id = contacts::contact_add(db, nc)?;
             let mut buf = Vec::new();
@@ -1273,6 +1281,7 @@ fn run_contact(
                 println!("fluxer_id:     {}", c.fluxer_id.as_deref().unwrap_or(""));
                 println!("discord_id:    {}", c.discord_id.as_deref().unwrap_or(""));
                 println!("irc_id:        {}", c.irc_id.as_deref().unwrap_or(""));
+                println!("phone_number:  {}", c.phone_number.as_deref().unwrap_or(""));
                 println!(
                     "fingerprint:   {}",
                     c.pgp_fingerprint.as_deref().unwrap_or("")
@@ -1322,6 +1331,7 @@ fn run_contact(
             fluxer_id,
             discord_id,
             irc_id,
+            phone_number,
         } => {
             let c = resolve_identity(db, &identifier)?;
             let u = ContactUpdate {
@@ -1342,6 +1352,7 @@ fn run_contact(
                 fluxer_id,
                 discord_id,
                 irc_id,
+                phone_number,
             };
             let updated = contacts::contact_update(db, &c.id, u)?;
             if output_mode == OutputMode::Json {

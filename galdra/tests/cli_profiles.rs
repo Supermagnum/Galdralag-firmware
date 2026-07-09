@@ -222,6 +222,7 @@ fn db_with_alice_group(db_path: &std::path::Path) {
         fluxer_id: None,
         discord_id: None,
         irc_id: None,
+        phone_number: None,
     };
     let id = contacts::contact_add(&mut db, nc).expect("add");
     contacts::contact_upsert_key(

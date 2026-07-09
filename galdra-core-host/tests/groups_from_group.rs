@@ -25,6 +25,7 @@ fn add_from_group_copies_members() {
             fluxer_id: None,
             discord_id: None,
             irc_id: None,
+            phone_number: None,
         },
     )
     .expect("a");
@@ -48,6 +49,7 @@ fn add_from_group_copies_members() {
             fluxer_id: None,
             discord_id: None,
             irc_id: None,
+            phone_number: None,
         },
     )
     .expect("b");

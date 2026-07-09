@@ -60,12 +60,13 @@ galdra device lock
 
 ### Contacts
 
-Add a contact **without** importing a key (metadata only). **`--email` is required**; optional **`--name`** (display name), **`--fluxer-id`**, **`--discord-id`**, **`--irc-id`**, **`--callsign`**, and other flags follow the same rules as in the [identity model](#identity-model).
+Add a contact **without** importing a key (metadata only). **`--email` is required**; optional **`--name`** (display name), **`--fluxer-id`**, **`--discord-id`**, **`--irc-id`**, **`--phone-number`**, **`--callsign`**, and other flags follow the same rules as in the [identity model](#identity-model).
 
 ```bash
 galdra contact add --email ops@example.org --name "Example station" --callsign W1ABC \
   --street "Karl Johans gate 1" --postal-code 0154 --region Oslo --country NO --dmr-id 2412345 \
-  --radio-affiliation NRRL --fluxer-id my-handle --discord-id "123456789012345678" --irc-id "nick"
+  --radio-affiliation NRRL --fluxer-id my-handle --discord-id "123456789012345678" --irc-id "nick" \
+  --phone-number "+47 123 45 678"
 ```
 
 Optional **postal hints** (`--street`, `--country`, `--postal-code`, `--region`) are stored in the local SQLite contact row only (not authenticated; omit them if you prefer least data). Amateur-radio fields **`--dmr-id`** (1–16777215) and **`--radio-affiliation`** (max 128 characters) behave the same way.
@@ -247,7 +248,7 @@ Omit `--format` to use the default OpenPGP-style export where supported (`pgp`).
 **Fulla / project registry (recommended for Galdralag deployments):** push the token's public certificate to a **[Fulla](https://github.com/Supermagnum/Fulla)**-compatible HTTP registry:
 
 ```bash
-galdra keyserver push --slot 1 --email you@example.org
+galdra keyserver push --slot 1 --email you@example.org --phone-number "+47 123 45 678"
 ```
 
 Configure geographic failover in `config.toml` (up to 14 nodes, aligned with Fulla's mesh design) — see [Fulla HTTP registry](#fulla-http-registry-keyserver) and [server.md](server.md#11-galdra-keyserver-push--fetch-integration).
@@ -611,6 +612,7 @@ key. Identities are not limited to humans.
 | `fluxer_id` | text | Optional Fluxer handle or id (**max 128** characters when set) |
 | `discord_id` | text | Optional Discord user id (**max 32** characters when set) |
 | `irc_id` | text | Optional IRC nick or `nick@server` style id (**max 128** characters when set) |
+| `phone_number` | text | Optional phone number (**max 32** characters when set; submitter-declared, not verified) |
 | `badge_number` | text | Hospital or security badge/employee ID |
 | `organisation` | text | Employer, club, agency |
 | `department` | text | Ward, division, team |
@@ -632,7 +634,7 @@ key. Identities are not limited to humans.
 
 **HKP / WKD fetch:** the upstream keyserver matches your query against **OpenPGP User ID** name, email, and comment fields (implementation-dependent).
 
-**Local contact search (`galdra contact` search path and the `contact_search` helper in `galdra-core-host`):** textual `LIKE` search covers `display_name`, `callsign`, `email`, `badge_number`, `organisation`, `department`, `role`, `note`, `radio_affiliation`, **`dmr_id` as text**, `street`, `country`, `postal_code`, `region`, **`fluxer_id`**, **`discord_id`**, and **`irc_id`**. That lets a dispatcher find "Oslo", a postal prefix, organisation name, **and** amateur-radio affiliation or numeric DMR substring in one place on the workstation.
+**Local contact search (`galdra contact` search path and the `contact_search` helper in `galdra-core-host`):** textual `LIKE` search covers `display_name`, `callsign`, `email`, `badge_number`, `organisation`, `department`, `role`, `note`, `radio_affiliation`, **`dmr_id` as text**, `street`, `country`, `postal_code`, `region`, **`fluxer_id`**, **`discord_id`**, **`irc_id`**, and **`phone_number`**. That lets a dispatcher find "Oslo", a postal prefix, organisation name, **and** amateur-radio affiliation or numeric DMR substring in one place on the workstation.
 
 ---
 
@@ -788,7 +790,7 @@ url = "https://keys-de.example.com"
 ```
 
 ```bash
-galdra keyserver push --slot 1 --email you@example.org
+galdra keyserver push --slot 1 --email you@example.org --phone-number "+47 123 45 678"
 galdra keyserver fetch --email you@example.org
 galdra keyserver fetch --fingerprint 0123456789ABCDEF0123456789ABCDEF01234567
 ```
@@ -1098,7 +1100,7 @@ The host stores **OpenPGP public certificates** for people you communicate with.
 | **Import** from another token on the same USB bus | `galdra contact fetch <query> --source peer` (requires a connected peer token; see implementation notes). |
 | **Refresh** keys from their recorded source | `galdra contact refresh <identifier>` or `galdra contact refresh --all` |
 | **Remove** a contact and its public key from the local database | `galdra contact delete <identifier> --confirm` — removes the row and group memberships; does not revoke the key on the internet. |
-| **Optional metadata** (not cryptographically verified) | Set on add/edit: `--dmr-id`, `--radio-affiliation`, `--street`, `--country`, `--postal-code`, `--region`, `--fluxer-id`, `--discord-id`, `--irc-id` (CLI); same keys in **`galdrad`** JSON bodies; see **[Identity model](#identity-model)** and [README](../README.md#compile-and-install-host-tools-galdra-galdrad-galdra-gtk). |
+| **Optional metadata** (not cryptographically verified) | Set on add/edit: `--dmr-id`, `--radio-affiliation`, `--street`, `--country`, `--postal-code`, `--region`, `--fluxer-id`, `--discord-id`, `--irc-id`, `--phone-number` (CLI); same keys in **`galdrad`** JSON bodies; see **[Identity model](#identity-model)** and [README](../README.md#compile-and-install-host-tools-galdra-galdrad-galdra-gtk). |
 | **List / show** | `galdra contact list`, `galdra contact show <id>` |
 
 **Delete public key material locally** means **delete the contact** (`contact delete`). That only affects your machine.
@@ -1190,7 +1192,7 @@ galdra key delete --slot <n> [--confirm]
 galdra contact add --email <addr> [--name <name>] [--callsign <call>] [--badge <id>] [--org <org>] [--role <role>]
     [--note <text>] [--dmr-id <id>] [--radio-affiliation <text>]
     [--street <line>] [--country <text>] [--postal-code <code>] [--region <text>]
-    [--fluxer-id <id>] [--discord-id <id>] [--irc-id <id>]
+    [--fluxer-id <id>] [--discord-id <id>] [--irc-id <id>] [--phone-number <number>]
     Add a contact manually without a key. --email is required.
 
 galdra contact fetch <query> [--source keyserver|wkd|ldap|peer|file]
@@ -1198,7 +1200,7 @@ galdra contact fetch <query> [--source keyserver|wkd|ldap|peer|file]
     Fetch a public key for a contact. When searching the local database, text
     matches span display name, callsign, email, badge, organisation, department,
     role, notes, radio affiliation, DMR id, optional postal fields, and
-    Fluxer / Discord / IRC ids.
+    Fluxer / Discord / IRC ids, and phone numbers.
     If contact does not exist locally, creates it (the certificate must carry an
     e-mail User ID).
     If contact exists, updates the key.
@@ -1223,7 +1225,7 @@ galdra contact edit <identifier> [--name <name>] [--email <addr>] [--callsign <c
     [--badge <id>] [--org <org>] [--role <role>] [--note <text>]
     [--dmr-id <id>] [--radio-affiliation <text>]
     [--street <line>] [--country <text>] [--postal-code <code>] [--region <text>]
-    [--fluxer-id <id>] [--discord-id <id>] [--irc-id <id>]
+    [--fluxer-id <id>] [--discord-id <id>] [--irc-id <id>] [--phone-number <number>]
     Update contact metadata. Does not change the key.
 
 galdra contact delete <identifier> [--confirm]

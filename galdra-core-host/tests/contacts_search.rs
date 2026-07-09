@@ -24,6 +24,7 @@ fn search_matches_multiple_fields() {
             fluxer_id: Some("fx-user".to_string()),
             discord_id: Some("987654321098765432".to_string()),
             irc_id: Some("nick@libera".to_string()),
+            phone_number: Some("+47 123 45 678".to_string()),
         },
     )
     .expect("add");
@@ -60,6 +61,7 @@ fn search_matches_multiple_fields() {
         contacts::contact_search(&db, "nick@libera").expect("s").len(),
         1
     );
+    assert_eq!(contacts::contact_search(&db, "+47 123").expect("s").len(), 1);
 
     let list = contacts::contact_list(
         &db,

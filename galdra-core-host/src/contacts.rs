@@ -90,6 +90,8 @@ pub struct Identity {
     pub discord_id: Option<String>,
     /// IRC nick or similar (optional).
     pub irc_id: Option<String>,
+    /// Phone number (optional; not verified).
+    pub phone_number: Option<String>,
     /// OpenPGP fingerprint (hex).
     pub pgp_fingerprint: Option<String>,
     /// Raw OpenPGP public key packet bytes.
@@ -139,6 +141,8 @@ pub struct NewContact {
     pub discord_id: Option<String>,
     /// Optional IRC id.
     pub irc_id: Option<String>,
+    /// Optional phone number.
+    pub phone_number: Option<String>,
 }
 
 /// Partial update for an existing contact.
@@ -178,6 +182,8 @@ pub struct ContactUpdate {
     pub discord_id: Option<String>,
     /// New IRC id.
     pub irc_id: Option<String>,
+    /// New phone number.
+    pub phone_number: Option<String>,
 }
 
 /// Filters for listing contacts.
@@ -191,15 +197,15 @@ pub struct ContactFilter {
     pub role: Option<String>,
 }
 
-/// Map identity columns starting at `start` (23 consecutive columns, `id` through `source`).
+/// Map identity columns starting at `start` (24 consecutive columns, `id` through `source`).
 pub(crate) fn identity_from_row_offset(
     row: &rusqlite::Row<'_>,
     start: usize,
 ) -> Result<Identity, rusqlite::Error> {
-    let source_str: String = row.get(start + 22)?;
+    let source_str: String = row.get(start + 23)?;
     let source = KeySource::from_str(&source_str).unwrap_or(KeySource::Manual);
-    let fetched_at_s: Option<String> = row.get(start + 20)?;
-    let expires_at_s: Option<String> = row.get(start + 21)?;
+    let fetched_at_s: Option<String> = row.get(start + 21)?;
+    let expires_at_s: Option<String> = row.get(start + 22)?;
     let fetched_at = match &fetched_at_s {
         None => None,
         Some(s) => DateTime::parse_from_rfc3339(s)
@@ -231,8 +237,9 @@ pub(crate) fn identity_from_row_offset(
         fluxer_id: row.get(start + 15)?,
         discord_id: row.get(start + 16)?,
         irc_id: row.get(start + 17)?,
-        pgp_fingerprint: row.get(start + 18)?,
-        pgp_pubkey: row.get(start + 19)?,
+        phone_number: row.get(start + 18)?,
+        pgp_fingerprint: row.get(start + 19)?,
+        pgp_pubkey: row.get(start + 20)?,
         fetched_at,
         expires_at,
         source,
@@ -319,6 +326,19 @@ fn validate_social_ids(
     Ok(())
 }
 
+fn validate_phone_number(phone: Option<&str>) -> Result<(), GaldraError> {
+    const MAX_PHONE: usize = 32;
+    if let Some(s) = phone {
+        if s.len() > MAX_PHONE {
+            return Err(GaldraError::Config(format!(
+                "phone_number exceeds {} characters",
+                MAX_PHONE
+            )));
+        }
+    }
+    Ok(())
+}
+
 fn row_to_identity(row: &rusqlite::Row<'_>) -> Result<Identity, rusqlite::Error> {
     identity_from_row_offset(row, 0)
 }
@@ -352,6 +372,7 @@ fn validate_new_contact(contact: &NewContact) -> Result<(), GaldraError> {
         contact.discord_id.as_deref(),
         contact.irc_id.as_deref(),
     )?;
+    validate_phone_number(contact.phone_number.as_deref())?;
     Ok(())
 }
 
@@ -365,10 +386,10 @@ pub fn contact_add(db: &mut Db, contact: NewContact) -> Result<Identity, GaldraE
             r"INSERT INTO identities (
             id, display_name, callsign, email, badge_number, organisation, department,
             role, note, dmr_id, radio_affiliation, street, country, postal_code, region,
-            fluxer_id, discord_id, irc_id,
+            fluxer_id, discord_id, irc_id, phone_number,
             pgp_fingerprint, pgp_pubkey, fetched_at, expires_at, source
-        ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18,
-            NULL, NULL, ?19, NULL, 'manual')",
+        ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19,
+            NULL, NULL, ?20, NULL, 'manual')",
             params![
                 id,
                 contact.display_name,
@@ -388,6 +409,7 @@ pub fn contact_add(db: &mut Db, contact: NewContact) -> Result<Identity, GaldraE
                 contact.fluxer_id,
                 contact.discord_id,
                 contact.irc_id,
+                contact.phone_number,
                 now,
             ],
         )
@@ -402,7 +424,7 @@ pub fn contact_get_by_id(db: &Db, id: &str) -> Result<Identity, GaldraError> {
         .prepare(
             r"SELECT id, display_name, callsign, email, badge_number, organisation, department,
             role, note, dmr_id, radio_affiliation, street, country, postal_code, region,
-            fluxer_id, discord_id, irc_id, pgp_fingerprint, pgp_pubkey, fetched_at, expires_at, source
+            fluxer_id, discord_id, irc_id, phone_number, pgp_fingerprint, pgp_pubkey, fetched_at, expires_at, source
             FROM identities WHERE id = ?1",
         )
         .map_err(GaldraError::Database)?;
@@ -419,7 +441,7 @@ pub fn contact_get_by_callsign(db: &Db, callsign: &str) -> Result<Identity, Gald
         .prepare(
             r"SELECT id, display_name, callsign, email, badge_number, organisation, department,
             role, note, dmr_id, radio_affiliation, street, country, postal_code, region,
-            fluxer_id, discord_id, irc_id, pgp_fingerprint, pgp_pubkey, fetched_at, expires_at, source
+            fluxer_id, discord_id, irc_id, phone_number, pgp_fingerprint, pgp_pubkey, fetched_at, expires_at, source
             FROM identities WHERE callsign = ?1",
         )
         .map_err(GaldraError::Database)?;
@@ -439,7 +461,7 @@ pub fn contact_get_by_email(db: &Db, email: &str) -> Result<Identity, GaldraErro
         .prepare(
             r"SELECT id, display_name, callsign, email, badge_number, organisation, department,
             role, note, dmr_id, radio_affiliation, street, country, postal_code, region,
-            fluxer_id, discord_id, irc_id, pgp_fingerprint, pgp_pubkey, fetched_at, expires_at, source
+            fluxer_id, discord_id, irc_id, phone_number, pgp_fingerprint, pgp_pubkey, fetched_at, expires_at, source
             FROM identities WHERE email = ?1",
         )
         .map_err(GaldraError::Database)?;
@@ -457,7 +479,7 @@ pub fn contact_get_by_fluxer_id(db: &Db, fluxer_id: &str) -> Result<Identity, Ga
         .prepare(
             r"SELECT id, display_name, callsign, email, badge_number, organisation, department,
             role, note, dmr_id, radio_affiliation, street, country, postal_code, region,
-            fluxer_id, discord_id, irc_id, pgp_fingerprint, pgp_pubkey, fetched_at, expires_at, source
+            fluxer_id, discord_id, irc_id, phone_number, pgp_fingerprint, pgp_pubkey, fetched_at, expires_at, source
             FROM identities WHERE fluxer_id = ?1",
         )
         .map_err(GaldraError::Database)?;
@@ -477,7 +499,7 @@ pub fn contact_get_by_discord_id(db: &Db, discord_id: &str) -> Result<Identity, 
         .prepare(
             r"SELECT id, display_name, callsign, email, badge_number, organisation, department,
             role, note, dmr_id, radio_affiliation, street, country, postal_code, region,
-            fluxer_id, discord_id, irc_id, pgp_fingerprint, pgp_pubkey, fetched_at, expires_at, source
+            fluxer_id, discord_id, irc_id, phone_number, pgp_fingerprint, pgp_pubkey, fetched_at, expires_at, source
             FROM identities WHERE discord_id = ?1",
         )
         .map_err(GaldraError::Database)?;
@@ -497,7 +519,7 @@ pub fn contact_get_by_irc_id(db: &Db, irc_id: &str) -> Result<Identity, GaldraEr
         .prepare(
             r"SELECT id, display_name, callsign, email, badge_number, organisation, department,
             role, note, dmr_id, radio_affiliation, street, country, postal_code, region,
-            fluxer_id, discord_id, irc_id, pgp_fingerprint, pgp_pubkey, fetched_at, expires_at, source
+            fluxer_id, discord_id, irc_id, phone_number, pgp_fingerprint, pgp_pubkey, fetched_at, expires_at, source
             FROM identities WHERE irc_id = ?1",
         )
         .map_err(GaldraError::Database)?;
@@ -529,7 +551,7 @@ pub fn contact_get_by_pgp_fingerprint_normalized(
         .prepare(
             r"SELECT id, display_name, callsign, email, badge_number, organisation, department,
             role, note, dmr_id, radio_affiliation, street, country, postal_code, region,
-            fluxer_id, discord_id, irc_id, pgp_fingerprint, pgp_pubkey, fetched_at, expires_at, source
+            fluxer_id, discord_id, irc_id, phone_number, pgp_fingerprint, pgp_pubkey, fetched_at, expires_at, source
             FROM identities
             WHERE replace(replace(upper(trim(ifnull(pgp_fingerprint,''))), ' ', ''), ':', '') = ?1",
         )
@@ -550,7 +572,7 @@ pub fn contact_get_by_dmr_id(db: &Db, dmr_id: i64) -> Result<Identity, GaldraErr
         .prepare(
             r"SELECT id, display_name, callsign, email, badge_number, organisation, department,
             role, note, dmr_id, radio_affiliation, street, country, postal_code, region,
-            fluxer_id, discord_id, irc_id, pgp_fingerprint, pgp_pubkey, fetched_at, expires_at, source
+            fluxer_id, discord_id, irc_id, phone_number, pgp_fingerprint, pgp_pubkey, fetched_at, expires_at, source
             FROM identities WHERE dmr_id = ?1",
         )
         .map_err(GaldraError::Database)?;
@@ -619,7 +641,7 @@ pub fn contact_search(db: &Db, query: &str) -> Result<Vec<Identity>, GaldraError
         .prepare(
             r"SELECT id, display_name, callsign, email, badge_number, organisation, department,
             role, note, dmr_id, radio_affiliation, street, country, postal_code, region,
-            fluxer_id, discord_id, irc_id, pgp_fingerprint, pgp_pubkey, fetched_at, expires_at, source
+            fluxer_id, discord_id, irc_id, phone_number, pgp_fingerprint, pgp_pubkey, fetched_at, expires_at, source
             FROM identities
             WHERE display_name LIKE ?1 ESCAPE '\'
                OR IFNULL(callsign, '') LIKE ?1 ESCAPE '\'
@@ -638,6 +660,7 @@ pub fn contact_search(db: &Db, query: &str) -> Result<Vec<Identity>, GaldraError
                OR IFNULL(fluxer_id, '') LIKE ?1 ESCAPE '\'
                OR IFNULL(discord_id, '') LIKE ?1 ESCAPE '\'
                OR IFNULL(irc_id, '') LIKE ?1 ESCAPE '\'
+               OR IFNULL(phone_number, '') LIKE ?1 ESCAPE '\'
             ORDER BY display_name COLLATE NOCASE",
         )
         .map_err(GaldraError::Database)?;
@@ -677,6 +700,7 @@ fn validate_contact_update(update: &ContactUpdate) -> Result<(), GaldraError> {
         update.discord_id.as_deref(),
         update.irc_id.as_deref(),
     )?;
+    validate_phone_number(update.phone_number.as_deref())?;
     Ok(())
 }
 
@@ -705,6 +729,7 @@ pub fn contact_update(
         && update.fluxer_id.is_none()
         && update.discord_id.is_none()
         && update.irc_id.is_none()
+        && update.phone_number.is_none()
     {
         return contact_get_by_id(db, id);
     }
@@ -727,7 +752,8 @@ pub fn contact_update(
                 region = COALESCE(?15, region),
                 fluxer_id = COALESCE(?16, fluxer_id),
                 discord_id = COALESCE(?17, discord_id),
-                irc_id = COALESCE(?18, irc_id)
+                irc_id = COALESCE(?18, irc_id),
+                phone_number = COALESCE(?19, phone_number)
             WHERE id = ?1",
             params![
                 id,
@@ -748,6 +774,7 @@ pub fn contact_update(
                 update.fluxer_id,
                 update.discord_id,
                 update.irc_id,
+                update.phone_number,
             ],
         )
         .map_err(GaldraError::Database)?;
@@ -772,7 +799,7 @@ pub fn contact_list(db: &Db, filter: ContactFilter) -> Result<Vec<Identity>, Gal
     let mut sql = String::from(
         r"SELECT id, display_name, callsign, email, badge_number, organisation, department,
         role, note, dmr_id, radio_affiliation, street, country, postal_code, region,
-            fluxer_id, discord_id, irc_id, pgp_fingerprint, pgp_pubkey, fetched_at, expires_at, source
+            fluxer_id, discord_id, irc_id, phone_number, pgp_fingerprint, pgp_pubkey, fetched_at, expires_at, source
         FROM identities WHERE 1=1",
     );
     if filter.expired {

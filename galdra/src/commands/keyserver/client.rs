@@ -41,6 +41,8 @@ pub struct KeyRecord {
     #[serde(default)]
     pub irc_id: Option<String>,
     #[serde(default)]
+    pub phone_number: Option<String>,
+    #[serde(default)]
     pub street: Option<String>,
     #[serde(default)]
     pub country: Option<String>,

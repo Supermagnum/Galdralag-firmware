@@ -45,6 +45,8 @@ pub struct PushArgs {
     discord_id: Option<String>,
     #[arg(long = "irc-id")]
     irc_id: Option<String>,
+    #[arg(long = "phone-number")]
+    phone_number: Option<String>,
     #[arg(long)]
     street: Option<String>,
     #[arg(long)]
@@ -89,6 +91,8 @@ struct PushPayload<'a> {
     discord_id: Option<&'a str>,
     #[serde(skip_serializing_if = "Option::is_none")]
     irc_id: Option<&'a str>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    phone_number: Option<&'a str>,
     #[serde(skip_serializing_if = "Option::is_none")]
     street: Option<&'a str>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -266,6 +270,7 @@ pub fn run_push(
         fluxer_id: args.fluxer_id.as_deref(),
         discord_id: args.discord_id.as_deref(),
         irc_id: args.irc_id.as_deref(),
+        phone_number: args.phone_number.as_deref(),
         street: args.street.as_deref(),
         country: args.country.as_deref(),
         postal_code: args.postal_code.as_deref(),

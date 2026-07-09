@@ -27,6 +27,7 @@ fn active_members_excludes_expired() {
             fluxer_id: None,
             discord_id: None,
             irc_id: None,
+            phone_number: None,
         },
     )
     .expect("a");

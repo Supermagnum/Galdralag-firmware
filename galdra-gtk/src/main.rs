@@ -406,6 +406,9 @@ fn fill_contacts_list(list: &gtk::ListBox, rows: Vec<IdentityRow>) {
         if let Some(i) = &r.irc_id {
             sub.push_str(&format!(" · IRC {i}"));
         }
+        if let Some(p) = &r.phone_number {
+            sub.push_str(&format!(" · {p}"));
+        }
         list.append(&list_row_title_sub(&title, &sub));
     }
 }

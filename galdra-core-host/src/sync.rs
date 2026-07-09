@@ -203,6 +203,7 @@ mod tests {
                 fluxer_id: None,
                 discord_id: None,
                 irc_id: None,
+                phone_number: None,
             },
         )
         .unwrap();
@@ -246,6 +247,7 @@ mod tests {
                 fluxer_id: None,
                 discord_id: None,
                 irc_id: None,
+                phone_number: None,
             },
         )
         .unwrap();
@@ -275,6 +277,7 @@ mod tests {
                 fluxer_id: None,
                 discord_id: None,
                 irc_id: None,
+                phone_number: None,
             },
         )
         .unwrap();

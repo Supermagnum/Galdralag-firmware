@@ -25,6 +25,7 @@ fn group_create_add_remove_delete() {
             fluxer_id: None,
             discord_id: None,
             irc_id: None,
+            phone_number: None,
         },
     )
     .expect("a");

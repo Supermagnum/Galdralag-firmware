@@ -148,6 +148,7 @@ pub struct CreateContactBody {
     pub fluxer_id: Option<String>,
     pub discord_id: Option<String>,
     pub irc_id: Option<String>,
+    pub phone_number: Option<String>,
 }
 
 #[utoipa::path(
@@ -182,6 +183,7 @@ async fn create_contact(
         fluxer_id: body.fluxer_id,
         discord_id: body.discord_id,
         irc_id: body.irc_id,
+        phone_number: body.phone_number,
     };
     let out = run_db(&state, move |db| contacts::contact_add(db, nc)).await?;
     Ok(Json(out))
@@ -205,6 +207,7 @@ pub struct UpdateContactBody {
     pub fluxer_id: Option<String>,
     pub discord_id: Option<String>,
     pub irc_id: Option<String>,
+    pub phone_number: Option<String>,
 }
 
 async fn update_contact(
@@ -231,6 +234,7 @@ async fn update_contact(
         fluxer_id: body.fluxer_id,
         discord_id: body.discord_id,
         irc_id: body.irc_id,
+        phone_number: body.phone_number,
     };
     let out = run_db(&state, move |db| {
         let c = resolve_identity(db, &id_s)?;

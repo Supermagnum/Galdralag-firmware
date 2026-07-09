@@ -36,6 +36,7 @@ fn migrations_create_expected_tables() {
     assert!(cols.contains(&"fluxer_id".to_string()));
     assert!(cols.contains(&"discord_id".to_string()));
     assert!(cols.contains(&"irc_id".to_string()));
+    assert!(cols.contains(&"phone_number".to_string()));
     assert!(cols.contains(&"source".to_string()));
 
     let mut stmt = db
@@ -59,5 +60,5 @@ fn schema_migrations_records_versions() {
             r.get(0)
         })
         .expect("v");
-    assert!(v >= 7);
+    assert!(v >= 8);
 }
