@@ -70,7 +70,8 @@ fn handle_change_reference<B: OpenPgpBackend>(
         _ => return ResponseApdu::error(StatusWord::WrongParametersP1P2),
     };
     let pw = backend.pw_status_bytes();
-    let pin_len = if pw3 { pw[1] as usize } else { pw[0] as usize };
+    // OpenPGP PW Status Bytes: max PW1 at index 1, max PW3 at index 3.
+    let pin_len = if pw3 { pw[3] as usize } else { pw[1] as usize };
     if pin_len == 0 || pin_len > 127 {
         return ResponseApdu::error(StatusWord::IncorrectParameters);
     }
@@ -221,12 +222,13 @@ fn handle_reset_retry_counter<B: OpenPgpBackend>(
         return ResponseApdu::error(StatusWord::SecurityStatusNotSatisfied);
     }
     let pw = backend.pw_status_bytes();
-    let min_len = pw[0] as usize;
-    if min_len == 0 || min_len > 127 {
+    // OpenPGP: byte 1 is max PW1 length (byte 0 is force-PIN-for-SIG flag).
+    let max_len = pw[1] as usize;
+    if max_len == 0 || max_len > 127 {
         return ResponseApdu::error(StatusWord::IncorrectParameters);
     }
     let new_pin = trim_openpgp_pin_padding(cmd.data.as_slice());
-    if new_pin.len() < min_len {
+    if new_pin.is_empty() || new_pin.len() > max_len {
         return ResponseApdu::error(StatusWord::WrongLength);
     }
     match backend.set_pw1_verifier_admin_only(new_pin) {

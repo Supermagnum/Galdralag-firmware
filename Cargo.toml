@@ -15,6 +15,7 @@ members = [
     "crates/usb-personality",
     "crates/host-tools",
     "crates/security-tests",
+    "services/galdralag-stub",
     "xtask",
     "galdra-core-host",
     "galdra",

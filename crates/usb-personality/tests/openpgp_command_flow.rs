@@ -234,7 +234,7 @@ fn init_vault_default_dos<S: VaultStorage>(do_store: &mut DoStore<S>) {
     let _ = do_store.write(0xC1, c1.as_slice());
     let _ = do_store.write(0xC2, c2.as_slice());
     let _ = do_store.write(0xC3, c3.as_slice());
-    let _ = do_store.write(0xC4, &[5, 8, 3, 3, 3, 3, 3]);
+    let _ = do_store.write(0xC4, &usb_personality::openpgp::DEFAULT_PW_STATUS_BYTES);
     let _ = do_store.write(0x93, &[0x00, 0x00, 0x00]);
 }
 
@@ -308,7 +308,7 @@ impl MockOpenPgp {
         let _ = self.do_store.write(0xC1, c1.as_slice());
         let _ = self.do_store.write(0xC2, c2.as_slice());
         let _ = self.do_store.write(0xC3, c3.as_slice());
-        let _ = self.do_store.write(0xC4, &[5, 8, 3, 3, 3, 3, 3]);
+        let _ = self.do_store.write(0xC4, &usb_personality::openpgp::DEFAULT_PW_STATUS_BYTES);
         let _ = self.do_store.write(0x93, &[0x00, 0x00, 0x00]);
     }
 
@@ -414,7 +414,7 @@ impl OpenPgpBackend for MockOpenPgp {
                 a[..n].copy_from_slice(&v[..n]);
                 a
             })
-            .unwrap_or([5, 8, 3, 3, 3, 3, 3])
+            .unwrap_or(usb_personality::openpgp::DEFAULT_PW_STATUS_BYTES)
     }
 
     fn user_pin_retries_remaining(&self) -> u8 {
@@ -443,10 +443,11 @@ impl OpenPgpBackend for MockOpenPgp {
         old_pin: &[u8],
         new_pin: &[u8],
     ) -> Result<(), OpenPgpBackendError> {
+        // OpenPGP PW Status Bytes: [force, max PW1, max RC, max PW3, ...]
         let max_len = if pw3 {
-            self.pw_status_bytes()[1] as usize
+            self.pw_status_bytes()[3] as usize
         } else {
-            self.pw_status_bytes()[0] as usize
+            self.pw_status_bytes()[1] as usize
         };
         if new_pin.len() > max_len {
             return Err(OpenPgpBackendError::Status(StatusWord::IncorrectParameters));
@@ -468,13 +469,9 @@ impl OpenPgpBackend for MockOpenPgp {
     fn set_pw1_verifier_admin_only(&mut self, new_pin: &[u8]) -> Result<(), OpenPgpBackendError> {
         self.ensure_not_terminated()?;
         let pw = self.pw_status_bytes();
-        let min_len = pw[0] as usize;
-        let max_len = pw[0] as usize;
-        if new_pin.len() < min_len {
+        let max_len = pw[1] as usize;
+        if max_len == 0 || new_pin.is_empty() || new_pin.len() > max_len {
             return Err(OpenPgpBackendError::Status(StatusWord::WrongLength));
-        }
-        if new_pin.len() > max_len {
-            return Err(OpenPgpBackendError::Status(StatusWord::IncorrectParameters));
         }
         self.user_verifier = pin_bytes_to_verifier_digest(new_pin);
         self.persist_pin_hashes()?;

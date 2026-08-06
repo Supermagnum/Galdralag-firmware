@@ -40,7 +40,7 @@ fn init_default_dos<S: VaultStorage>(do_store: &mut DoStore<S>) {
     let _ = do_store.write(0xC1, c1.as_slice());
     let _ = do_store.write(0xC2, c2.as_slice());
     let _ = do_store.write(0xC3, c3.as_slice());
-    let _ = do_store.write(0xC4, &[5, 8, 3, 3, 3, 3, 3]);
+    let _ = do_store.write(0xC4, &[0x00, 5, 0, 8, 3, 3, 3]);
     let _ = do_store.write(0x93, &[0x00, 0x00, 0x00]);
 }
 

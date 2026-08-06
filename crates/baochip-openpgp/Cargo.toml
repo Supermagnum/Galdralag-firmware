@@ -24,7 +24,7 @@ trng = { path = "../../xous-core/services/trng" }
 default = []
 dev-provisioning = []
 trng-pin-fallback = []
-board-dabao = []
+board-dabao = ["bao1x-hal/board-dabao"]
 board-baosec = ["bao1x-hal/board-baosec"]
 
 [lints.rust]

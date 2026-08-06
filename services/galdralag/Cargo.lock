@@ -787,6 +787,8 @@ dependencies = [
  "bao1x-hal",
  "baochip-openpgp",
  "galdr-core",
+ "galdr-vault",
+ "heapless",
  "log",
  "pddb",
  "rkyv",

@@ -1,16 +1,16 @@
 //! Xous-only RRAM / TRNG helpers for OpenPGP USB.
 
-use core::convert::TryInto;
-
 use std::cell::RefCell;
 use std::pin::Pin;
 use std::rc::Rc;
+use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::OnceLock;
 
 use bao1x_api::BOOT1_START;
 use bao1x_hal::rram::Reram;
 use galdr_core::hal::{MonotonicCounter, VaultStorage, ZeroiseController};
 use galdr_core::HalError;
+use galdr_vault::{derive_subkey_sha512, KeyPurpose};
 use pin_policy::{PinPolicyConfig, PinPolicyMachine, ZeroisationTrigger};
 use rand_core::RngCore;
 use trng::Trng;
@@ -18,17 +18,54 @@ use usb_personality::openpgp::do_store::DoStore;
 use usb_personality::openpgp::vault_backend::OpenPgpVaultBackend;
 use usb_personality::openpgp::DO_STORE_REGION_BYTES;
 use utralib::HW_RERAM_MEM;
-use galdr_vault::{derive_subkey_sha512, KeyPurpose};
 use xous::MemoryFlags;
 
 /// Region tag for [`ZeroiseController::zeroise_region`] / PIN breach handling.
 const OPENPGP_ZEROISE_REGION_ID: u32 = 0x4F504700;
 
-static PIN_ZEROISE: OnceLock<Rc<RefCell<BaochipVaultZeroise>>> = OnceLock::new();
+/// Xous cooperative multitasking: this process does not share these cells across OS threads.
+struct ProcessLocal<T>(T);
+// SAFETY: galdralag-service is a single Xous process; these statics are only touched on its
+// cooperative threads, never sent to another address space.
+unsafe impl<T> Sync for ProcessLocal<T> {}
+unsafe impl<T> Send for ProcessLocal<T> {}
+
+static PIN_ZEROISE: OnceLock<ProcessLocal<Rc<RefCell<BaochipVaultZeroise>>>> = OnceLock::new();
+static OPENPGP_RRAM: OnceLock<ProcessLocal<Rc<RefCell<Pin<Box<Reram>>>>>> = OnceLock::new();
+static USER_CTR_PHYS: AtomicUsize = AtomicUsize::new(0);
+static ADMIN_CTR_PHYS: AtomicUsize = AtomicUsize::new(0);
 
 /// Install the shared zeroisation target used by [`BaochipPinZeroise`] (call once before building [`OpenPgpVaultBackend`]).
 pub fn init_pin_zeroise_singleton(z: Rc<RefCell<BaochipVaultZeroise>>) -> Result<(), ()> {
-    PIN_ZEROISE.set(z).map_err(|_| ())
+    PIN_ZEROISE.set(ProcessLocal(z)).map_err(|_| ())
+}
+
+fn install_openpgp_rram(rram: Rc<RefCell<Pin<Box<Reram>>>>, user_ctr_phys: usize, admin_ctr_phys: usize) {
+    USER_CTR_PHYS.store(user_ctr_phys, Ordering::Relaxed);
+    ADMIN_CTR_PHYS.store(admin_ctr_phys, Ordering::Relaxed);
+    let _ = OPENPGP_RRAM.set(ProcessLocal(rram));
+}
+
+fn new_user_counter() -> RramMonotonicCounter {
+    RramMonotonicCounter {
+        rram: OPENPGP_RRAM
+            .get()
+            .expect("OPENPGP_RRAM")
+            .0
+            .clone(),
+        phys: USER_CTR_PHYS.load(Ordering::Relaxed),
+    }
+}
+
+fn new_admin_counter() -> RramMonotonicCounter {
+    RramMonotonicCounter {
+        rram: OPENPGP_RRAM
+            .get()
+            .expect("OPENPGP_RRAM")
+            .0
+            .clone(),
+        phys: ADMIN_CTR_PHYS.load(Ordering::Relaxed),
+    }
 }
 
 /// First byte offset into the on-chip RRAM array where [`Reram::write_slice`] accepts application data.
@@ -234,7 +271,7 @@ pub struct BaochipPinZeroise;
 impl ZeroisationTrigger for BaochipPinZeroise {
     fn trigger_zeroisation(&mut self) {
         if let Some(z) = PIN_ZEROISE.get() {
-            let _ = z.borrow_mut().zeroise_region(OPENPGP_ZEROISE_REGION_ID);
+            let _ = z.0.borrow_mut().zeroise_region(OPENPGP_ZEROISE_REGION_ID);
         }
     }
 }
@@ -497,14 +534,7 @@ pub fn open_or_provision_backend(
     let u_ctr_phys = p_base + user_ctr_logical_off() as usize;
     let a_ctr_phys = p_base + admin_ctr_logical_off() as usize;
 
-    let new_user = || RramMonotonicCounter {
-        rram: rram.clone(),
-        phys: u_ctr_phys,
-    };
-    let new_admin = || RramMonotonicCounter {
-        rram: rram.clone(),
-        phys: a_ctr_phys,
-    };
+    install_openpgp_rram(rram.clone(), u_ctr_phys, a_ctr_phys);
 
     if user_unprov || admin_unprov {
         #[cfg(not(feature = "dev-provisioning"))]
@@ -533,16 +563,10 @@ pub fn open_or_provision_backend(
             admin_pin,
             PinPolicyMachine::new(cfg, BaochipPinZeroise),
             PinPolicyMachine::new(cfg, BaochipPinZeroise),
-            new_user(),
-            new_admin(),
-            || RramMonotonicCounter {
-                rram: rram.clone(),
-                phys: u_ctr_phys,
-            },
-            || RramMonotonicCounter {
-                rram: rram.clone(),
-                phys: a_ctr_phys,
-            },
+            new_user_counter(),
+            new_admin_counter(),
+            new_user_counter,
+            new_admin_counter,
         )?;
         clear_ccid_pin_provision_slots(&rram, p_base)?;
         Ok(backend)
@@ -558,16 +582,10 @@ pub fn open_or_provision_backend(
             aid,
             PinPolicyMachine::new(cfg, BaochipPinZeroise),
             PinPolicyMachine::new(cfg, BaochipPinZeroise),
-            new_user(),
-            new_admin(),
-            || RramMonotonicCounter {
-                rram: rram.clone(),
-                phys: u_ctr_phys,
-            },
-            || RramMonotonicCounter {
-                rram: rram.clone(),
-                phys: a_ctr_phys,
-            },
+            new_user_counter(),
+            new_admin_counter(),
+            new_user_counter,
+            new_admin_counter,
         )
     }
 }

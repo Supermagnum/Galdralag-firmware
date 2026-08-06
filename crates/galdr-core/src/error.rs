@@ -45,4 +45,6 @@ pub enum HalError {
     /// PIN provision records are missing: operator must run USB CDC provisioning (or a documented
     /// development-only path such as `dev-provisioning` / `trng-pin-fallback`).
     NeedsProvisioning,
+    /// Operation is not supported on this platform or bring-up stub (e.g. Dabao without RRAM map).
+    Unsupported,
 }

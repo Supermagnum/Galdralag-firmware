@@ -14,10 +14,19 @@ required-features = ["xous-bsp"]
 
 [features]
 default = []
-# Enable the real Xous CCID daemon (board-specific PDDB / USB HAL features).
-xous-bsp = ["board-baosec"]
-board-baosec = []
-board-dabao = []
+# Enable the real Xous CCID daemon. Pair with exactly one board feature
+# (`board-baosec` or `board-dabao`). `xtask build-galdralag-xous` passes both
+# `xous-bsp` and `board-baosec`.
+xous-bsp = []
+# Forward HAL board selection into path crates (do not hard-wire on deps).
+board-baosec = [
+    "baochip-openpgp/board-baosec",
+    "bao1x-hal/board-baosec",
+]
+board-dabao = [
+    "baochip-openpgp/board-dabao",
+    "bao1x-hal/board-dabao",
+]
 # Deliberate opt-in for MMIO firmware-update reboot (see `reboot::UpdateModeAuthorization`).
 privileged-reboot = []
 
@@ -26,8 +35,10 @@ galdr-core = { path = "../../crates/galdr-core" }
 log = "0.4.14"
 
 [target.'cfg(target_os = "xous")'.dependencies]
-baochip-openpgp = { path = "../../crates/baochip-openpgp", features = ["board-baosec"] }
-bao1x-hal = { path = "../../xous-core/libs/bao1x-hal", features = ["std", "board-baosec"] }
+baochip-openpgp = { path = "../../crates/baochip-openpgp" }
+bao1x-hal = { path = "../../xous-core/libs/bao1x-hal", features = ["std"] }
+galdr-vault = { path = "../../crates/vault" }
+heapless = "0.8"
 ticktimer = { package = "xous-api-ticktimer", version = "0.9.70" }
 usb-personality = { path = "../../crates/usb-personality" }
 xous = "0.9.70"

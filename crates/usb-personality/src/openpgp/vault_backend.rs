@@ -138,6 +138,7 @@ where
             termination: false,
             audit: 0,
         };
+        seed_defaults_if_fresh(&mut s.do_store)?;
         s.load_private_keys()?;
         Ok(s)
     }
@@ -190,6 +191,7 @@ where
             termination: false,
             audit: 0,
         };
+        seed_defaults_if_fresh(&mut s.do_store)?;
         s.load_pin_verifiers_from_storage()?;
         s.load_private_keys()?;
         Ok(s)
@@ -458,6 +460,65 @@ where
     }
 }
 
+/// OpenPGP Card PW Status Bytes (DO `0xC4`) defaults:
+/// `[force=0, max PW1=5, max RC=0, max PW3=8, err=3/3/3]`.
+pub const DEFAULT_PW_STATUS_BYTES: [u8; 7] = [0x00, 5, 0, 8, 3, 3, 3];
+
+/// Seed algorithm attributes, PW status, and signature counter when the DO region is fresh.
+///
+/// Fingerprint DOs (`0xC5`, `0xC6`, `0xCD`) stay empty until keys are generated (valid per spec).
+pub fn init_production_defaults<S: VaultStorage>(
+    do_store: &mut DoStore<S>,
+) -> Result<(), galdr_core::HalError> {
+    let mut oid = Vec::new();
+    for b in curve_oids::BRAINPOOL_P256R1 {
+        oid.push(*b).map_err(|_| galdr_core::HalError::Bus)?;
+    }
+    let c1 = AlgorithmAttributes::Ecdsa {
+        curve_oid: oid.clone(),
+    }
+    .to_bytes()
+    .map_err(|_| galdr_core::HalError::Bus)?;
+    let c2 = AlgorithmAttributes::Ecdh {
+        curve_oid: oid.clone(),
+    }
+    .to_bytes()
+    .map_err(|_| galdr_core::HalError::Bus)?;
+    let c3 = AlgorithmAttributes::Ecdsa { curve_oid: oid }
+        .to_bytes()
+        .map_err(|_| galdr_core::HalError::Bus)?;
+    do_store
+        .write(0xC1, c1.as_slice())
+        .map_err(|_| galdr_core::HalError::Bus)?;
+    do_store
+        .write(0xC2, c2.as_slice())
+        .map_err(|_| galdr_core::HalError::Bus)?;
+    do_store
+        .write(0xC3, c3.as_slice())
+        .map_err(|_| galdr_core::HalError::Bus)?;
+    do_store
+        .write(0xC4, &DEFAULT_PW_STATUS_BYTES)
+        .map_err(|_| galdr_core::HalError::Bus)?;
+    do_store
+        .write(0x93, &[0x00, 0x00, 0x00])
+        .map_err(|_| galdr_core::HalError::Bus)?;
+    Ok(())
+}
+
+fn seed_defaults_if_fresh<S: VaultStorage>(
+    do_store: &mut DoStore<S>,
+) -> Result<(), galdr_core::HalError> {
+    let fresh = match do_store.probe() {
+        Ok(true) => false,
+        Ok(false) => true,
+        Err(_) => true,
+    };
+    if fresh {
+        init_production_defaults(do_store)?;
+    }
+    Ok(())
+}
+
 impl<S, Sp, Sk, T, Cu, Ca, Zu, Za> OpenPgpAudit
     for OpenPgpVaultBackend<S, Sp, Sk, T, Cu, Ca, Zu, Za>
 where
@@ -504,7 +565,7 @@ where
                 a[..n].copy_from_slice(&v[..n]);
                 a
             })
-            .unwrap_or([5, 8, 3, 3, 3, 3, 3])
+            .unwrap_or([0x00, 5, 0, 8, 3, 3, 3])
     }
 
     fn user_pin_retries_remaining(&self) -> u8 {
@@ -534,10 +595,11 @@ where
         new_pin: &[u8],
     ) -> Result<(), OpenPgpBackendError> {
         self.ensure_not_terminated()?;
+        // OpenPGP PW Status Bytes: [force, max PW1, max RC, max PW3, err PW1, err RC, err PW3]
         let max_len = if pw3 {
-            self.pw_status_bytes()[1] as usize
+            self.pw_status_bytes()[3] as usize
         } else {
-            self.pw_status_bytes()[0] as usize
+            self.pw_status_bytes()[1] as usize
         };
         if new_pin.len() > max_len {
             return Err(OpenPgpBackendError::Status(StatusWord::IncorrectParameters));
@@ -559,13 +621,9 @@ where
     fn set_pw1_verifier_admin_only(&mut self, new_pin: &[u8]) -> Result<(), OpenPgpBackendError> {
         self.ensure_not_terminated()?;
         let pw = self.pw_status_bytes();
-        let min_len = pw[0] as usize;
-        let max_len = pw[0] as usize;
-        if new_pin.len() < min_len {
+        let max_len = pw[1] as usize;
+        if max_len == 0 || new_pin.is_empty() || new_pin.len() > max_len {
             return Err(OpenPgpBackendError::Status(StatusWord::WrongLength));
-        }
-        if new_pin.len() > max_len {
-            return Err(OpenPgpBackendError::Status(StatusWord::IncorrectParameters));
         }
         self.user_verifier = pin_bytes_to_verifier_digest(new_pin);
         self.persist_pin_hashes()?;
@@ -1016,7 +1074,6 @@ mod tests {
     use crate::openpgp::apdu::CommandApdu;
     use crate::openpgp::dispatch::handle_apdu;
     use crate::openpgp::do_store::DoStore;
-    use crate::openpgp::dos::{curve_oids, AlgorithmAttributes};
     use crate::openpgp::state::CardState;
     use crate::openpgp::DO_STORE_REGION_BYTES;
     use galdr_core::fake_hal::{FakeMonotonicCounter, FakeTrng, FakeVaultStorage};
@@ -1069,28 +1126,7 @@ mod tests {
     }
 
     fn init_default_dos<S: VaultStorage>(do_store: &mut DoStore<S>) {
-        let mut oid = Vec::new();
-        for b in curve_oids::BRAINPOOL_P256R1 {
-            oid.push(*b).unwrap();
-        }
-        let c1 = AlgorithmAttributes::Ecdsa {
-            curve_oid: oid.clone(),
-        }
-        .to_bytes()
-        .unwrap();
-        let c2 = AlgorithmAttributes::Ecdh {
-            curve_oid: oid.clone(),
-        }
-        .to_bytes()
-        .unwrap();
-        let c3 = AlgorithmAttributes::Ecdsa { curve_oid: oid }
-            .to_bytes()
-            .unwrap();
-        let _ = do_store.write(0xC1, c1.as_slice());
-        let _ = do_store.write(0xC2, c2.as_slice());
-        let _ = do_store.write(0xC3, c3.as_slice());
-        let _ = do_store.write(0xC4, &[5, 8, 3, 3, 3, 3, 3]);
-        let _ = do_store.write(0x93, &[0x00, 0x00, 0x00]);
+        init_production_defaults(do_store).expect("init defaults");
     }
 
     fn mk_backend() -> OpenPgpVaultBackend<

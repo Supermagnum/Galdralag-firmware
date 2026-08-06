@@ -51,6 +51,23 @@ pub trait VaultStorage {
     fn write(&mut self, offset: u64, data: &[u8]) -> Result<(), HalError>;
 }
 
+/// Vault storage stub that rejects every access with [`HalError::Unsupported`].
+///
+/// Used on Dabao bring-up when OpenPGP RRAM mapping fails so the CCID daemon can still start
+/// with a non-vault backend for APDUs that do not need persistent storage.
+#[derive(Clone, Copy, Debug, Default)]
+pub struct UnsupportedVaultStorage;
+
+impl VaultStorage for UnsupportedVaultStorage {
+    fn read(&self, _offset: u64, _out: &mut [u8]) -> Result<(), HalError> {
+        Err(HalError::Unsupported)
+    }
+
+    fn write(&mut self, _offset: u64, _data: &[u8]) -> Result<(), HalError> {
+        Err(HalError::Unsupported)
+    }
+}
+
 /// Programmatic entry into boot1 USB firmware-update mode.
 ///
 /// On Baochip-1x the boot1 stage checks a one-way RRAM counter (`BootWaitCoding`) before

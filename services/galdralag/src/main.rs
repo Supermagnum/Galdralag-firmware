@@ -2,6 +2,12 @@
 //! [`baochip_openpgp`]. PDDB `usb.ccid` keys from provisioning (see xous-core `ccid_store.rs`) are
 //! bridged into RRAM before [`open_or_provision_backend`].
 
+#[cfg(all(feature = "board-dabao", feature = "board-baosec"))]
+compile_error!("enable only one of board-dabao or board-baosec");
+
+#[cfg(all(target_os = "xous", feature = "board-dabao"))]
+mod dabao_stub;
+
 #[cfg(target_os = "xous")]
 mod usb_bao_ipc;
 
@@ -19,7 +25,6 @@ fn main() -> ! {
 #[cfg(target_os = "xous")]
 fn galdralag_ccid_main() -> ! {
     use std::cell::RefCell;
-    use std::io::Read;
     use std::rc::Rc;
 
     use bao1x_hal::rram::Reram;
@@ -33,6 +38,10 @@ fn galdralag_ccid_main() -> ! {
 
     const KEY_USER_LINE: &str = "user_pin_line";
     const KEY_ADMIN_LINE: &str = "admin_pin_line";
+    #[cfg(feature = "board-dabao")]
+    const PDDB_WAIT_RETRIES: u32 = 60;
+    #[cfg(feature = "board-dabao")]
+    const RRAM_MAP_RETRIES: u32 = 3;
 
     log_server::init_wait().unwrap();
     log::set_max_level(log::LevelFilter::Info);
@@ -60,89 +69,253 @@ fn galdralag_ccid_main() -> ! {
     let pddb = pddb::Pddb::new();
 
     let mut reram = Reram::new();
-    map_openpgp_rram_windows(reram.as_mut()).expect("map OpenPGP RRAM");
-    let rram = Rc::new(RefCell::new(reram));
 
-    let mut dispatcher = 'vault: loop {
-        if !ccid_pddb_provisioned(&pddb) {
-            info!("waiting for usb.ccid provisioned sentinel (OKV1)...");
-            ticktimer.sleep_ms(500).ok();
-            continue;
-        }
-
-        let user_line = match read_pddb_key(&pddb, KEY_USER_LINE, 256) {
-            Ok(v) if !v.is_empty() => v,
-            _ => {
-                info!("OKV1 set but user_pin_line missing; retrying");
-                ticktimer.sleep_ms(500).ok();
-                continue;
-            }
-        };
-        let admin_line = match read_pddb_key(&pddb, KEY_ADMIN_LINE, 256) {
-            Ok(v) if !v.is_empty() => v,
-            _ => {
-                info!("OKV1 set but admin_pin_line missing; retrying");
-                ticktimer.sleep_ms(500).ok();
-                continue;
-            }
-        };
-
-        if ccid_pin_hashes_unprovisioned(&rram) {
-            info!("bridging PDDB PIN lines to RRAM provision slots");
-            if let Err(e) = write_provisioning_pins(&rram, &user_line, &admin_line) {
-                log::error!("write_provisioning_pins: {:?}", e);
-                ticktimer.sleep_ms(500).ok();
-                continue;
+    #[cfg(feature = "board-dabao")]
+    let rram_mapped = {
+        let mut ok = false;
+        for attempt in 1..=RRAM_MAP_RETRIES {
+            match map_openpgp_rram_windows(&mut reram) {
+                Ok(()) => {
+                    ok = true;
+                    break;
+                }
+                Err(e) => {
+                    log::error!(
+                        "map OpenPGP RRAM failed (attempt {attempt}/{RRAM_MAP_RETRIES}): {:?}",
+                        e
+                    );
+                    ticktimer.sleep_ms(100).ok();
+                }
             }
         }
-
-        let device_binding = std::env::var("PUBLIC_SERIAL")
-            .expect("PUBLIC_SERIAL")
-            .into_bytes();
-        let mut trng = trng::Trng::new(&xns).expect("trng");
-        let master_key = match load_or_derive_ccid_master_key(&rram, &mut trng, &device_binding) {
-            Ok(k) => k,
-            Err(e) => {
-                log::error!("load_or_derive_ccid_master_key: {:?}", e);
-                ticktimer.sleep_ms(500).ok();
-                continue;
-            }
-        };
-
-        let aid = build_id_aid();
-
-        let first_pin_bridge = ccid_pin_hashes_unprovisioned(&rram);
-        let backend: BaochipVaultBackend = match open_or_provision_backend(
-            rram.clone(),
-            &xns,
-            master_key,
-            aid,
-            &user_line,
-            &admin_line,
-        ) {
-            Ok(b) => b,
-            Err(e) => {
-                log::error!("open_or_provision_backend: {:?}", e);
-                ticktimer.sleep_ms(500).ok();
-                continue;
-            }
-        };
-
-        if first_pin_bridge {
-            // TODO(contact-store): map contact-store RRAM + call ContactStore::provision_fresh
-            // after vault open; treat AlreadyProvisioned as non-fatal, other errors as fatal.
-            info!("first PIN bridge complete; contact-store provision_fresh pending HAL wiring");
+        if !ok {
+            log::warn!(
+                "OpenPGP RRAM mapping unavailable on Dabao; starting CCID with bring-up stub \
+                 (UnsupportedVaultStorage path; vault APDUs return unsupported)"
+            );
         }
-
-        info!("vault ready; connecting to USB stack for CCID");
-        break 'vault OpenPgpCcidDispatcher::new(backend);
+        ok
     };
 
-    let usb_conn = xns
-        .request_connection_blocking(usb_bao_ipc::SERVER_NAME_USB_DEVICE)
-        .expect("USB device server");
+    #[cfg(not(feature = "board-dabao"))]
+    {
+        map_openpgp_rram_windows(&mut reram).expect("map OpenPGP RRAM");
+    }
 
-    ccid_serve_loop(&mut dispatcher, usb_conn);
+    #[cfg(feature = "board-dabao")]
+    if !rram_mapped {
+        let aid = build_id_aid();
+        let backend = dabao_stub::DabaoBringupBackend::new(aid);
+        let mut dispatcher = OpenPgpCcidDispatcher::new(backend);
+        let usb_conn = xns
+            .request_connection_blocking(usb_bao_ipc::SERVER_NAME_USB_DEVICE)
+            .expect("USB device server");
+        info!("vault stub ready; connecting to USB stack for CCID");
+        ccid_serve_loop(&mut dispatcher, usb_conn);
+    }
+
+    // Dabao + RRAM mapped: connect USB immediately and answer IccPowerOn with the bring-up
+    // stub while PDDB / vault init runs. Switch to BaochipVaultBackend once ready.
+    #[cfg(feature = "board-dabao")]
+    {
+        let rram = Rc::new(RefCell::new(reram));
+        let usb_conn = xns
+            .request_connection_blocking(usb_bao_ipc::SERVER_NAME_USB_DEVICE)
+            .expect("USB device server");
+        info!("early USB connect; stub ATR until vault ready");
+
+        let mut stub = OpenPgpCcidDispatcher::new(dabao_stub::DabaoBringupBackend::new(build_id_aid()));
+        let mut last_link = usb_link_status(usb_conn);
+        let vault_wait_start = ticktimer.elapsed_ms();
+        let pddb_wait_ms = (PDDB_WAIT_RETRIES as u64).saturating_mul(500);
+        let mut pin_lines: Option<(Vec<u8>, Vec<u8>)> = None;
+
+        loop {
+            if pin_lines.is_none() {
+                if ccid_pddb_provisioned(&pddb) {
+                    let user_line = read_pddb_key(&pddb, KEY_USER_LINE, 256);
+                    let admin_line = read_pddb_key(&pddb, KEY_ADMIN_LINE, 256);
+                    match (user_line, admin_line) {
+                        (Ok(u), Ok(a)) if !u.is_empty() && !a.is_empty() => {
+                            pin_lines = Some((u, a));
+                        }
+                        _ => {
+                            info!("OKV1 set but pin lines missing; retrying after CCID");
+                        }
+                    }
+                } else if ticktimer.elapsed_ms().saturating_sub(vault_wait_start) >= pddb_wait_ms {
+                    log::warn!(
+                        "PDDB usb.ccid OKV1 not seen after {} x 500ms; continuing without \
+                         PDDB provisioning data (Dabao development defaults)",
+                        PDDB_WAIT_RETRIES
+                    );
+                    // PW Status max PW1=5 / max PW3=8 (see DEFAULT_PW_STATUS_BYTES).
+                    pin_lines = Some((b"12345".to_vec(), b"12345678".to_vec()));
+                }
+            }
+
+            if let Some((ref user_line, ref admin_line)) = pin_lines {
+                let vault_ok = (|| -> Option<BaochipVaultBackend> {
+                    if ccid_pin_hashes_unprovisioned(&rram) {
+                        info!("bridging PIN lines to RRAM provision slots");
+                        if let Err(e) = write_provisioning_pins(&rram, user_line, admin_line) {
+                            log::error!("write_provisioning_pins: {:?}", e);
+                            return None;
+                        }
+                    }
+
+                    let device_binding = std::env::var("PUBLIC_SERIAL")
+                        .unwrap_or_else(|_| "DABAODEV".into())
+                        .into_bytes();
+
+                    let mut trng = match trng::Trng::new(&xns) {
+                        Ok(t) => t,
+                        Err(e) => {
+                            log::error!("trng: {:?}", e);
+                            return None;
+                        }
+                    };
+                    let master_key =
+                        match load_or_derive_ccid_master_key(&rram, &mut trng, &device_binding) {
+                            Ok(k) => k,
+                            Err(e) => {
+                                log::error!("load_or_derive_ccid_master_key: {:?}", e);
+                                return None;
+                            }
+                        };
+
+                    let aid = build_id_aid();
+                    let first_pin_bridge = ccid_pin_hashes_unprovisioned(&rram);
+                    let backend = match open_or_provision_backend(
+                        rram.clone(),
+                        &xns,
+                        master_key,
+                        aid,
+                        user_line,
+                        admin_line,
+                    ) {
+                        Ok(b) => b,
+                        Err(e) => {
+                            log::error!("open_or_provision_backend: {:?}", e);
+                            return None;
+                        }
+                    };
+
+                    if first_pin_bridge {
+                        // TODO(contact-store): map contact-store RRAM + call ContactStore::provision_fresh
+                        // after vault open; treat AlreadyProvisioned as non-fatal, other errors as fatal.
+                        info!(
+                            "first PIN bridge complete; contact-store provision_fresh pending HAL wiring"
+                        );
+                    }
+                    Some(backend)
+                })();
+
+                if let Some(backend) = vault_ok {
+                    info!("vault ready; switching from stub to full OpenPGP backend");
+                    let mut dispatcher = OpenPgpCcidDispatcher::new(backend);
+                    ccid_serve_loop(&mut dispatcher, usb_conn);
+                }
+            }
+
+            // Block for one CCID frame with the stub so IccPowerOn gets an ATR during vault wait.
+            ccid_dispatch_one(&mut stub, usb_conn, &mut last_link);
+        }
+    }
+
+    // Baosec: vault must be ready before USB connect (unchanged sequence).
+    #[cfg(not(feature = "board-dabao"))]
+    {
+        let rram = Rc::new(RefCell::new(reram));
+
+        let mut dispatcher = 'vault: {
+            loop {
+                let (user_line, admin_line) = if ccid_pddb_provisioned(&pddb) {
+                    let user_line = match read_pddb_key(&pddb, KEY_USER_LINE, 256) {
+                        Ok(v) if !v.is_empty() => v,
+                        _ => {
+                            info!("OKV1 set but user_pin_line missing; retrying");
+                            ticktimer.sleep_ms(500).ok();
+                            continue;
+                        }
+                    };
+                    let admin_line = match read_pddb_key(&pddb, KEY_ADMIN_LINE, 256) {
+                        Ok(v) if !v.is_empty() => v,
+                        _ => {
+                            info!("OKV1 set but admin_pin_line missing; retrying");
+                            ticktimer.sleep_ms(500).ok();
+                            continue;
+                        }
+                    };
+                    (user_line, admin_line)
+                } else {
+                    info!("waiting for usb.ccid provisioned sentinel (OKV1)...");
+                    ticktimer.sleep_ms(500).ok();
+                    continue;
+                };
+
+                if ccid_pin_hashes_unprovisioned(&rram) {
+                    info!("bridging PIN lines to RRAM provision slots");
+                    if let Err(e) = write_provisioning_pins(&rram, &user_line, &admin_line) {
+                        log::error!("write_provisioning_pins: {:?}", e);
+                        ticktimer.sleep_ms(500).ok();
+                        continue;
+                    }
+                }
+
+                let device_binding = std::env::var("PUBLIC_SERIAL")
+                    .expect("PUBLIC_SERIAL")
+                    .into_bytes();
+
+                let mut trng = trng::Trng::new(&xns).expect("trng");
+                let master_key =
+                    match load_or_derive_ccid_master_key(&rram, &mut trng, &device_binding) {
+                        Ok(k) => k,
+                        Err(e) => {
+                            log::error!("load_or_derive_ccid_master_key: {:?}", e);
+                            ticktimer.sleep_ms(500).ok();
+                            continue;
+                        }
+                    };
+
+                let aid = build_id_aid();
+
+                let first_pin_bridge = ccid_pin_hashes_unprovisioned(&rram);
+                let backend: BaochipVaultBackend = match open_or_provision_backend(
+                    rram.clone(),
+                    &xns,
+                    master_key,
+                    aid,
+                    &user_line,
+                    &admin_line,
+                ) {
+                    Ok(b) => b,
+                    Err(e) => {
+                        log::error!("open_or_provision_backend: {:?}", e);
+                        ticktimer.sleep_ms(500).ok();
+                        continue;
+                    }
+                };
+
+                if first_pin_bridge {
+                    // TODO(contact-store): map contact-store RRAM + call ContactStore::provision_fresh
+                    // after vault open; treat AlreadyProvisioned as non-fatal, other errors as fatal.
+                    info!(
+                        "first PIN bridge complete; contact-store provision_fresh pending HAL wiring"
+                    );
+                }
+
+                info!("vault ready; connecting to USB stack for CCID");
+                break 'vault OpenPgpCcidDispatcher::new(backend);
+            }
+        };
+
+        let usb_conn = xns
+            .request_connection_blocking(usb_bao_ipc::SERVER_NAME_USB_DEVICE)
+            .expect("USB device server");
+
+        ccid_serve_loop(&mut dispatcher, usb_conn);
+    }
 }
 
 #[cfg(target_os = "xous")]
@@ -192,54 +365,63 @@ fn read_pddb_key(pddb: &pddb::Pddb, name: &str, max: usize) -> std::io::Result<V
 }
 
 #[cfg(target_os = "xous")]
-fn ccid_serve_loop(
-    dispatcher: &mut usb_personality::openpgp::OpenPgpCcidDispatcher<baochip_openpgp::BaochipVaultBackend>,
+fn ccid_dispatch_one<B: usb_personality::openpgp::OpenPgpBackend>(
+    dispatcher: &mut usb_personality::openpgp::OpenPgpCcidDispatcher<B>,
     usb_conn: xous::CID,
-) -> ! {
-    use usb_personality::ccid::{parse_pc_to_rdr, CcidError, CcidStatus};
+    last_link: &mut usb_bao_ipc::UsbDeviceState,
+) {
     use usb_personality::ccid::rdr_to_pc_slot_status;
+    use usb_personality::ccid::{parse_pc_to_rdr, CcidError, CcidStatus};
+    use usb_personality::openpgp::OpenPgpDispatch;
 
-    let mut last_link = usb_link_status(usb_conn);
-
-    loop {
-        let st = usb_link_status(usb_conn);
-        if st != last_link {
-            if st != usb_bao_ipc::UsbDeviceState::Configured {
-                log::info!("USB link not configured ({st:?}); resetting OpenPGP session");
-                dispatcher.on_usb_reset();
-            }
-            last_link = st;
-        }
-
-        let frame = match ccid_rx_deferred(usb_conn) {
-            Ok(f) => f,
-            Err(e) => {
-                log::warn!("CcidRxDeferred: {:?}", e);
-                dispatcher.on_usb_reset();
-                continue;
-            }
-        };
-
-        let rdr = match parse_pc_to_rdr(&frame) {
-            Ok(pc) => dispatcher.handle_ccid(pc),
-            Err(CcidError::LengthMismatch)
-            | Err(CcidError::TooShort)
-            | Err(CcidError::UnknownMessageType)
-            | Err(CcidError::PayloadTooLarge) => {
-                let slot = frame.get(5).copied().unwrap_or(0);
-                let seq = frame.get(6).copied().unwrap_or(0);
-                log::warn!("dropping malformed CCID frame");
-                rdr_to_pc_slot_status(slot, seq, CcidStatus::cmd_not_supported())
-            }
-        };
-
-        let mut data: Vec<u8> = Vec::with_capacity(rdr.len());
-        data.extend_from_slice(rdr.as_slice());
-
-        if let Err(e) = ccid_tx(usb_conn, data) {
-            log::warn!("CcidTx: {:?}", e);
+    let st = usb_link_status(usb_conn);
+    if st != *last_link {
+        if st != usb_bao_ipc::UsbDeviceState::Configured {
+            log::info!("USB link not configured ({st:?}); resetting OpenPGP session");
             dispatcher.on_usb_reset();
         }
+        *last_link = st;
+    }
+
+    let frame = match ccid_rx_deferred(usb_conn) {
+        Ok(f) => f,
+        Err(e) => {
+            log::warn!("CcidRxDeferred: {:?}", e);
+            dispatcher.on_usb_reset();
+            return;
+        }
+    };
+
+    let rdr = match parse_pc_to_rdr(&frame) {
+        Ok(pc) => dispatcher.handle_ccid(pc),
+        Err(CcidError::LengthMismatch)
+        | Err(CcidError::TooShort)
+        | Err(CcidError::UnknownMessageType)
+        | Err(CcidError::PayloadTooLarge) => {
+            let slot = frame.get(5).copied().unwrap_or(0);
+            let seq = frame.get(6).copied().unwrap_or(0);
+            log::warn!("dropping malformed CCID frame");
+            rdr_to_pc_slot_status(slot, seq, CcidStatus::cmd_not_supported())
+        }
+    };
+
+    let mut data: Vec<u8> = Vec::with_capacity(rdr.len());
+    data.extend_from_slice(rdr.as_slice());
+
+    if let Err(e) = ccid_tx(usb_conn, data) {
+        log::warn!("CcidTx: {:?}", e);
+        dispatcher.on_usb_reset();
+    }
+}
+
+#[cfg(target_os = "xous")]
+fn ccid_serve_loop<B: usb_personality::openpgp::OpenPgpBackend>(
+    dispatcher: &mut usb_personality::openpgp::OpenPgpCcidDispatcher<B>,
+    usb_conn: xous::CID,
+) -> ! {
+    let mut last_link = usb_link_status(usb_conn);
+    loop {
+        ccid_dispatch_one(dispatcher, usb_conn, &mut last_link);
     }
 }
 
