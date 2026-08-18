@@ -1,7 +1,9 @@
 //! Minimal Galdralag CCID APDU stub for Dabao bring-up.
 //!
-//! Connects to xous-core `usb-bao1x` CCID transport, answers `IccPowerOn` with an OpenPGP ATR,
-//! answers OpenPGP `SELECT` with AID + `9000`, and logs other APDUs. No PDDB, RRAM, or vault.
+//! Connects to xous-core `usb-bao1x` CCID transport and answers deferred
+//! frames (OpenPGP `SELECT` with AID + `9000`; logs other APDUs).
+//! Does **not** `CcidTx` `IccPowerOn` / `GetSlotStatus`: on the CCID branch those
+//! are answered inline by `usb-bao1x`. No PDDB, RRAM, or vault.
 
 #[cfg(target_os = "xous")]
 mod usb_bao_ipc;
@@ -57,8 +59,8 @@ fn stub_ccid_main() -> ! {
 #[cfg(target_os = "xous")]
 fn ccid_serve_loop(usb_conn: xous::CID) -> ! {
     use usb_personality::ccid::{
-        parse_pc_to_rdr, rdr_to_pc_data_block, rdr_to_pc_parameters, rdr_to_pc_slot_status,
-        CcidError, CcidStatus, PcToRdr,
+        parse_pc_to_rdr, rdr_to_pc_data_block, rdr_to_pc_slot_status, CcidError, CcidStatus,
+        PcToRdr,
     };
     use usb_personality::openpgp::build_aid;
 
@@ -85,15 +87,19 @@ fn ccid_serve_loop(usb_conn: xous::CID) -> ! {
 
         let rdr = match parse_pc_to_rdr(&frame) {
             Ok(PcToRdr::IccPowerOn { slot, seq, .. }) => {
-                log::info!("IccPowerOn slot={slot} seq={seq} -> ATR");
-                rdr_to_pc_parameters(slot, seq)
+                log::debug!(
+                    "IccPowerOn slot={slot} seq={seq}: usb-bao1x answers inline; not CcidTx"
+                );
+                continue;
+            }
+            Ok(PcToRdr::GetSlotStatus { slot, seq }) => {
+                log::debug!(
+                    "GetSlotStatus slot={slot} seq={seq}: usb-bao1x answers inline; not CcidTx"
+                );
+                continue;
             }
             Ok(PcToRdr::IccPowerOff { slot, seq }) => {
                 log::info!("IccPowerOff slot={slot} seq={seq}");
-                rdr_to_pc_slot_status(slot, seq, CcidStatus::ok_active())
-            }
-            Ok(PcToRdr::GetSlotStatus { slot, seq }) => {
-                log::info!("GetSlotStatus slot={slot} seq={seq}");
                 rdr_to_pc_slot_status(slot, seq, CcidStatus::ok_active())
             }
             Ok(PcToRdr::Abort { slot, seq }) => {

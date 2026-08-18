@@ -48,6 +48,35 @@ What ships in-tree for BaoSec / `baosec` images today:
 
 **Evidence:** `services/galdralag/src/main.rs` constructs `OpenPgpCcidDispatcher::new(backend)` and calls `dispatcher.handle_ccid(...)` in-process; CCID uses `xous::send_message` / `Buffer::lend_mut` only to `usb_conn` from `usb_bao_ipc::SERVER_NAME_USB_DEVICE`. No `xous::create_server` in `crates/vault`, `crates/pin-policy`, or `crates/usb-personality`.
 
+### CCID message ownership (Persona A / `dabao-ccid`)
+
+On the xous-core CCID branch ([PR #937](https://github.com/betrusted-io/xous-core/pull/937)), **`usb-bao1x` answers two commands inline in IRQ context** and never queues them to `CcidRxDeferred`:
+
+| PC_to_RDR | Inline in `usb-bao1x` | Reaches `galdralag-service`? |
+|-----------|----------------------|------------------------------|
+| **GetSlotStatus (0x65)** | Yes (SlotStatus OK) | No |
+| **IccPowerOn (0x62)** | Yes (fixed OpenPGP ATR) | No |
+| **XfrBlock / other** | No | Yes → `OpenPgpCcidDispatcher` |
+
+**Policy**
+
+- **Before and after vault open:** transport owns `0x62` / `0x65` while inline answers remain enabled.
+- **Authoritative APDUs:** Galdralag owns all messages delivered via `CcidRxDeferred` (typically `XfrBlock`), including SELECT / VERIFY / GENERATE / PSO, once the vault backend is ready (or the Dabao bring-up stub until then).
+- If product policy later requires Galdralag-owned ATR, that is an **xous-core** change (disable or feature-gate inline IccPowerOn); see [XOUS_CORE_UPSTREAM_REQUESTS.md](XOUS_CORE_UPSTREAM_REQUESTS.md).
+
+**Checked in-tree (not assumed):** grep of `crates/usb-personality`, `services/galdralag`, and `services/galdralag-stub` for `IccPowerOn` / `GetSlotStatus` / `0x62` / `0x65` (CCID message types, not OpenPGP status words). Paths that *can* produce ATR / SlotStatus:
+
+| Location | Role |
+|----------|------|
+| `crates/usb-personality/src/ccid/command.rs` | Parses 0x62 / 0x65 |
+| `PcToRdr::answered_inline_by_usb_bao1x()` | **Opcode-only** (no `#[cfg]`, no runtime transport flag). `true` for 0x62/0x65 on every build. Test: `inline_usb_bao1x_opcodes` |
+| `OpenPgpCcidDispatcher::handle_ccid` | Answers 0x62 (RDR_to_PC_Parameters + ATR) and 0x65 (SlotStatus). Does **not** consult the classifier. Test: `non_xous_ccid_class_answers_inline_opcodes` |
+| `crates/usb-personality/src/ccid/usb_class.rs` `CcidProtocolState::try_dispatch` | Always `handle_ccid`; **does not** call `answered_inline_by_usb_bao1x`. Same test. |
+| `services/galdralag/src/main.rs` `ccid_dispatch_one` | **Only** Xous IPC call site that skips `CcidTx` when the classifier is true |
+| `services/galdralag-stub` CCID loop | Equivalent skip via match arms (not the helper); stub is not in `scripts/build_dabao_ccid_image.sh` |
+
+The classifier is **accidentally safe for now**: it is not transport-aware. Safety depends on call-site discipline (Xous IPC only). A `compile_error!` cannot span `usb-bao1x` and Galdralag (separate processes; Galdralag does not link `usb-bao1x`). Skipping `CcidTx` at the Xous loop is the guard against a double-answer if a 0x62/0x65 frame is ever queued.
+
 **Named IPC messages in section 3–5** (`VaultOpenSession`, `PinSubmit`, `UsbSetPersonality`, …) appear **only as prose** in this document. The closest code is `VaultRequest` in `crates/vault/src/service.rs` (subset, stub, no Xous wiring). `galdr-core` documents the gap explicitly: `todo!("wire vaultd / pind / usbd Xous servers")` in `scaffold_todos.rs`.
 
 ## 3. RRAM vault layout

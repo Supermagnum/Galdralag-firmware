@@ -94,6 +94,8 @@ impl<D: OpenPgpDispatch> CcidProtocolState<D> {
 
         match parse_pc_to_rdr(msg.as_slice()) {
             Ok(pc_msg) => {
+                // Always handle_ccid. Do not consult answered_inline_by_usb_bao1x here:
+                // that helper is opcode-only and is used solely by Xous CcidTx loops.
                 self.tx_buf = self.dispatch.handle_ccid(pc_msg);
                 self.tx_pending = true;
             }
@@ -208,7 +210,15 @@ mod tests {
     use crate::ccid::rdr_to_pc_data_block;
     use crate::ccid::CCID_WIRE_BUF_SIZE;
     use crate::ccid::RDR_TO_PC_DATA_BLOCK;
+    use crate::ccid::RDR_TO_PC_PARAMETERS;
     use crate::ccid::RDR_TO_PC_SLOT_STATUS;
+    use crate::ccid::{atr_openpgp_profile, parse_pc_to_rdr};
+    use crate::openpgp::{
+        OpenPgpAudit, OpenPgpBackend, OpenPgpBackendError, OpenPgpCcidDispatcher, OpenPgpDispatch,
+        OpenPgpKeySlot,
+    };
+    use galdr_vault::KeyPurpose;
+    use heapless::Vec as HVec;
 
     struct MockDispatch {
         pub handle_calls: usize,
@@ -341,5 +351,138 @@ mod tests {
             p.poll_bulk_in_inner(&mut writer);
         }
         assert!(out.len() > 64);
+    }
+
+    /// Backend unused by IccPowerOn / GetSlotStatus in `handle_ccid`.
+    struct AtrOnlyBackend;
+
+    impl OpenPgpAudit for AtrOnlyBackend {
+        fn log_event(&mut self, _code: u32) {}
+    }
+
+    impl OpenPgpBackend for AtrOnlyBackend {
+        fn is_termination_state(&self) -> bool {
+            false
+        }
+        fn aid_bytes(&self) -> &[u8] {
+            &[]
+        }
+        fn pw_status_bytes(&self) -> [u8; 7] {
+            [0; 7]
+        }
+        fn user_pin_retries_remaining(&self) -> u8 {
+            0
+        }
+        fn admin_pin_retries_remaining(&self) -> u8 {
+            0
+        }
+        fn verify_pw1_sign(&mut self, _: &[u8]) -> Result<(), OpenPgpBackendError> {
+            unimplemented!("ATR/slot-status path must not call the vault backend")
+        }
+        fn verify_pw1_other(&mut self, _: &[u8]) -> Result<(), OpenPgpBackendError> {
+            unimplemented!("ATR/slot-status path must not call the vault backend")
+        }
+        fn verify_pw3(&mut self, _: &[u8]) -> Result<(), OpenPgpBackendError> {
+            unimplemented!("ATR/slot-status path must not call the vault backend")
+        }
+        fn change_pin(&mut self, _: bool, _: &[u8], _: &[u8]) -> Result<(), OpenPgpBackendError> {
+            unimplemented!("ATR/slot-status path must not call the vault backend")
+        }
+        fn set_pw1_verifier_admin_only(&mut self, _: &[u8]) -> Result<(), OpenPgpBackendError> {
+            unimplemented!("ATR/slot-status path must not call the vault backend")
+        }
+        fn reset_pw1_retry_counter(&mut self) -> Result<(), OpenPgpBackendError> {
+            unimplemented!("ATR/slot-status path must not call the vault backend")
+        }
+        fn get_do(&self, _: u16) -> Result<HVec<u8, 512>, OpenPgpBackendError> {
+            unimplemented!("ATR/slot-status path must not call the vault backend")
+        }
+        fn put_do(&mut self, _: u16, _: &[u8]) -> Result<(), OpenPgpBackendError> {
+            unimplemented!("ATR/slot-status path must not call the vault backend")
+        }
+        fn algorithm_attributes(&self, _: OpenPgpKeySlot) -> crate::openpgp::AlgorithmAttributes {
+            unimplemented!("ATR/slot-status path must not call the vault backend")
+        }
+        fn pso_sign_hash(&mut self, _: &[u8]) -> Result<HVec<u8, 512>, OpenPgpBackendError> {
+            unimplemented!("ATR/slot-status path must not call the vault backend")
+        }
+        fn pso_decipher(&mut self, _: &[u8]) -> Result<HVec<u8, 512>, OpenPgpBackendError> {
+            unimplemented!("ATR/slot-status path must not call the vault backend")
+        }
+        fn ecdh_dec(
+            &mut self,
+            _: KeyPurpose,
+            _: &[u8],
+        ) -> Result<HVec<u8, 64>, OpenPgpBackendError> {
+            unimplemented!("ATR/slot-status path must not call the vault backend")
+        }
+        fn get_challenge(&mut self, _: usize) -> Result<HVec<u8, 64>, OpenPgpBackendError> {
+            unimplemented!("ATR/slot-status path must not call the vault backend")
+        }
+        fn ed25519_sign(
+            &mut self,
+            _: KeyPurpose,
+            _: &[u8],
+        ) -> Result<HVec<u8, 64>, OpenPgpBackendError> {
+            unimplemented!("ATR/slot-status path must not call the vault backend")
+        }
+        fn x25519_ecdh(
+            &mut self,
+            _: KeyPurpose,
+            _: &[u8],
+        ) -> Result<HVec<u8, 32>, OpenPgpBackendError> {
+            unimplemented!("ATR/slot-status path must not call the vault backend")
+        }
+        fn internal_authenticate(&mut self, _: &[u8]) -> Result<HVec<u8, 512>, OpenPgpBackendError> {
+            unimplemented!("ATR/slot-status path must not call the vault backend")
+        }
+        fn generate_or_read_key(
+            &mut self,
+            _: u8,
+            _: OpenPgpKeySlot,
+        ) -> Result<HVec<u8, 512>, OpenPgpBackendError> {
+            unimplemented!("ATR/slot-status path must not call the vault backend")
+        }
+        fn increment_signature_counter(&mut self) -> Result<(), OpenPgpBackendError> {
+            unimplemented!("ATR/slot-status path must not call the vault backend")
+        }
+        fn on_lock_disconnect(&mut self) {}
+    }
+
+    /// Pair with `ccid::command::tests::inline_usb_bao1x_opcodes`:
+    /// the classifier flags 0x62/0x65, but this path must still emit ATR / SlotStatus.
+    #[test]
+    fn non_xous_ccid_class_answers_inline_opcodes() {
+        let power_on = hdr(0x62, 0, 0, 1, 0, 0, 0);
+        let get_slot = hdr(0x65, 0, 0, 2, 0, 0, 0);
+
+        let parsed_on = parse_pc_to_rdr(&power_on).unwrap();
+        let parsed_slot = parse_pc_to_rdr(&get_slot).unwrap();
+        assert!(parsed_on.answered_inline_by_usb_bao1x());
+        assert!(parsed_slot.answered_inline_by_usb_bao1x());
+
+        let mut dispatcher = OpenPgpCcidDispatcher::new(AtrOnlyBackend);
+        let atr_frame = dispatcher.handle_ccid(parsed_on);
+        assert_eq!(atr_frame[0], RDR_TO_PC_PARAMETERS);
+        assert_eq!(atr_frame[6], 1);
+        let atr = atr_openpgp_profile();
+        assert_eq!(&atr_frame[10..10 + atr.len()], atr);
+
+        let slot_frame = dispatcher.handle_ccid(parsed_slot);
+        assert_eq!(slot_frame[0], RDR_TO_PC_SLOT_STATUS);
+        assert_eq!(slot_frame[6], 2);
+
+        let mut p = CcidProtocolState::new(OpenPgpCcidDispatcher::new(AtrOnlyBackend));
+        p.push_out_bytes(&power_on);
+        assert!(p.tx_pending);
+        assert_eq!(p.tx_buf[0], RDR_TO_PC_PARAMETERS);
+        assert_eq!(p.tx_buf[6], 1);
+        assert_eq!(&p.tx_buf[10..10 + atr.len()], atr);
+
+        let mut p = CcidProtocolState::new(OpenPgpCcidDispatcher::new(AtrOnlyBackend));
+        p.push_out_bytes(&get_slot);
+        assert!(p.tx_pending);
+        assert_eq!(p.tx_buf[0], RDR_TO_PC_SLOT_STATUS);
+        assert_eq!(p.tx_buf[6], 2);
     }
 }

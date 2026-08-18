@@ -26,4 +26,26 @@ Legacy wire values (`key_algo` **`0x05`**, ephemeral curve **`0x03`**, CESS suit
 ### Added
 
 - **Host OpenPGP stale P-512 scan:** `galdra device status` and `galdrad` `GET /device/status` read C1/C2/C3 via PC/SC and warn when any slot still stores BrainpoolP512r1 algorithm attributes from older firmware. `galdra identity fingerprint` and `galdra encrypt` (profiles without ephemeral ECDH) preflight the SIG slot before reading the public key. Read-only; no card writes. See [docs/OPENPGP_CARD.md](docs/OPENPGP_CARD.md).
-- **Documented (not implemented):** PC/SC vendor filter for `device status` — scans any OpenPGP card in the first reader until an FSFE/GnuPG manufacturer ID is assigned for Baochip/Galdralag ([xous-core#875](https://github.com/betrusted-io/xous-core/issues/875)).
+
+### CCID / xous-core targeting (Unreleased)
+
+Labels: **[docs]** no firmware/host behavior change; **[tooling]** build/dev scripts; **[code]** source that can change runtime behavior; **[tracking]** backlog only.
+
+#### Tooling
+
+- **[tooling]** `scripts/check_xous_core_preflight.sh` and `cargo run -p xtask -- check-xous-core` (read-only; expected branch `feature/usb-bao1x-ccid-openpgp`). Failure output states the mismatch and a copy-pasteable `ln -sfn <sibling> ./xous-core`.
+- **[tooling]** `scripts/build_dabao_ccid_image.sh` builds `galdralag-service` and invokes sibling `cargo xtask dabao-ccid <cratespec>` without editing xous-core. Preflight runs first so a stale nested tree cannot produce a silent transport-only-looking image.
+
+#### Docs
+
+- **[docs]** Provisioning (Persona A): root README, `services/galdralag/README.md`, and [docs/HARDWARE_BRINGUP_TEST_PLAN.md](docs/HARDWARE_BRINGUP_TEST_PLAN.md) mark USB CDC two-line PIN provisioning as **legacy / non-Dabao-CCID**; Dabao lab defaults, `baosec`+`ccid-pddb`, and `dev-provisioning` are the documented routes. Plain `dabao-ccid` called out as transport-only.
+- **[docs]** CCID ownership write-up in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md): `usb-bao1x` owns inline GetSlotStatus / IccPowerOn; Galdralag owns deferred XfrBlock APDUs. `answered_inline_by_usb_bao1x()` is **opcode-only** (not transport-aware); skip is Xous IPC only. Tests: `inline_usb_bao1x_opcodes` + `non_xous_ccid_class_answers_inline_opcodes`.
+
+#### Tracking
+
+- **[tracking]** PC/SC vendor filter for `device status` — scans any OpenPGP card in the first reader until an FSFE/GnuPG manufacturer ID is assigned. Firmware `build_aid(0x20A0, …)` misuses the USB VID as AID manufacturer bytes. See [docs/OPENPGP_CARD.md](docs/OPENPGP_CARD.md).
+- **[tracking]** [docs/XOUS_CORE_UPSTREAM_REQUESTS.md](docs/XOUS_CORE_UPSTREAM_REQUESTS.md) for Persona A / ATR / cratespec / libccid items that belong in xous-core.
+
+#### Code
+
+- **[code]** Xous `galdralag-service` and `galdralag-stub` no longer `CcidTx` IccPowerOn (0x62) or GetSlotStatus (0x65) if those frames arrive on `CcidRxDeferred` (`PcToRdr::answered_inline_by_usb_bao1x`). In-process `CcidClass` / `OpenPgpCcidDispatcher` still answers them for non-Xous USB.

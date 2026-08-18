@@ -1,69 +1,119 @@
 # Galdralag Xous CCID daemon (`galdralag-service`)
 
-This crate runs as a **separate Xous process**: it waits until PDDB `usb.ccid` contains the `OKV1`
-provisioning sentinel and PIN lines (written by **`usb-bao1x`** after CDC two-line provisioning),
-bridges those bytes into RRAM via **`baochip_openpgp::write_provisioning_pins`**, opens the vault
-with **`open_or_provision_backend`**, then services **`CcidRxDeferred` / `CcidTx`** against
-**`_Xous USB device driver_`** using the IPC layout from `xous-core/services/usb-bao1x/src/api.rs`
-(types are duplicated in `src/usb_bao_ipc.rs` so this crate does not link `usb-bao1x`, avoiding
-`pddb` feature unification with the USB server in mixed Cargo graphs).
+This crate runs as a **separate Xous process**. It connects to **`usb-bao1x`**
+(`_Xous USB device driver_`) via **`CcidRxDeferred` / `CcidTx`**, dispatches OpenPGP
+APDUs with **`usb_personality`** + **`baochip-openpgp`**, and optionally bridges PIN
+material from PDDB into RRAM.
+
+IPC types are duplicated in `src/usb_bao_ipc.rs` so this crate does **not** link
+`usb-bao1x` (avoids `pddb` feature unification / `svd2utra` clashes in mixed graphs).
+
+## Required xous-core tree
+
+Path dependencies in this manifest (`bao1x-hal`, `pddb`, `trng`, `svd2utra`) resolve
+through **`Galdralag-firmware/xous-core/`** (relative `../../xous-core/...`).
+
+**Image builds** should use a **sibling** checkout (or `XOUS_CORE=...`) of branch
+**`feature/usb-bao1x-ccid-openpgp`**
+([PR #937](https://github.com/betrusted-io/xous-core/pull/937)).
+
+Do **not** assume the nested tree matches the sibling. Preflight fails non-zero if
+`./xous-core` is a stale checkout (missing `CcidRxDeferred = 640`, wrong branch, or
+HEAD mismatch) and prints a copy-pasteable fix, for example:
+
+```
+ERROR: xous-core at `/…/Galdralag-firmware/xous-core` does not match branch `feature/usb-bao1x-ccid-openpgp` — missing expected symbol `CcidRxDeferred = 640`.
+
+Fix (copy-paste from the Galdralag-firmware repository root):
+  mv ./xous-core ./xous-core.stale-nested
+  ln -sfn /path/to/sibling-xous-core ./xous-core
+```
+
+Recommended lab layout (sibling already on `feature/usb-bao1x-ccid-openpgp`):
+
+```bash
+# From Galdralag-firmware root — nested path deps == CCID branch
+ln -sfn ../xous-core ./xous-core
+cargo run -p xtask -- check-xous-core
+```
+
+Preflight (read-only; never edits xous-core):
+
+```bash
+cargo run -p xtask -- check-xous-core
+# or: scripts/check_xous_core_preflight.sh
+```
+
+Anything that requires changing xous-core itself is listed in
+[docs/XOUS_CORE_UPSTREAM_REQUESTS.md](../../docs/XOUS_CORE_UPSTREAM_REQUESTS.md).
+
+## Persona A provisioning (current CCID branch)
+
+On **`dabao-ccid`** images there is **no USB CDC provisioning serial** and **no PDDB
+service** (Dabao has no SPI flash). Galdralag therefore:
+
+1. Connects to USB early and serves CCID (bring-up stub and/or vault).
+2. Waits briefly for PDDB `usb.ccid` / `OKV1` + PIN lines **when PDDB exists** (baosec).
+3. On Dabao timeout without OKV1: uses lab defaults **User `12345` / Admin `12345678`**.
+
+**Legacy (baosec + CDC era):** two-line CDC + PDDB `OKV1` via `galdralag-provision` —
+documented as **legacy / non-Dabao-CCID** in the root README. Feature **`ccid-pddb`** on
+baosec images can still seed PDDB offline.
+
+**Development shortcut:** `dev-provisioning` + env `CCID_USER_PIN` / `CCID_ADMIN_PIN`
+(see `baochip-openpgp`). `trng-pin-fallback` is compile-error with `board-dabao`.
 
 ## Workspace note
 
-`services/galdralag` is listed in the **root workspace `exclude`** list: resolving **`pddb` + `bao1x-hal`**
-from the bundled `xous-core` snapshot alongside the rest of the Galdralag workspace can fail with an
-**`svd2utra`** version conflict. Build this binary from its manifest path against a **matching**
-xous `Cargo.lock` / `[patch.crates-io]` set, for example:
+`services/galdralag` is in the root workspace **`exclude`** list. Build via xtask or
+manifest path:
 
 ```bash
-cargo build --manifest-path services/galdralag/Cargo.toml \
-  --target riscv32imac-unknown-xous-elf \
-  --features xous-bsp --release
+cargo run -p xtask -- build-galdralag-xous release --board dabao
+# or baosec:
+cargo run -p xtask -- build-galdralag-xous release --board baosec
 ```
 
-## Including the daemon in a BaoSec / `baosec` image (no `xous-core` edits)
+## Including the daemon in a flashable image (no xous-core edits)
 
-`xous-core` **`xtask`** registers extra processes via **positional cratespecs** after the image verb:
-`get_cratespecs()` collects those tokens and **`baosec_common`** appends each with
-`builder.add_service(name, LoaderRegion::Swap)` (see `xous-core/xtask/src/main.rs`). A prebuilt ELF is
-specified as **`process_name:absolute_path`** (parsed by `CrateSpec::from` in `xtask/src/builder.rs`).
+### Dabao + CCID + Galdralag (recommended for eval)
 
-Spawn order in **`baosec`** is: `xous-swapper`, `keystore`, then `xous-ticktimer`, `xous-log`,
-`xous-names`, **`usb-bao1x`**, `bao1x-hal-service`, `modals`, **`pddb`**, `bao-video`, then any positional
-cratespecs. **`galdralag-service`** therefore starts after USB and PDDB are already running; the daemon
-still **retries** `Ticktimer` / `XousNames` if scheduled earlier in a custom layout, **waits on PDDB**
-until `usb.ccid` / `OKV1` and PIN lines exist, **opens the vault**, and only then calls
-`request_connection_blocking("_Xous USB device driver_")` and enters the **`CcidRxDeferred`** loop.
+Plain **`cargo xtask dabao-ccid`** is **transport-only** (inline ATR / GetSlotStatus).
+It will **not** reach `gpg --card-status` APDUs until **`galdralag-service`** is passed
+as a positional cratespec (registered as a Flash **service** on current `dabao-ccid`).
 
-**Loader** supplies **`PUBLIC_SERIAL`** to user processes (same as `usb-bao1x`); the CCID server name
-matches `usb-bao1x/src/api.rs`: **`_Xous USB device driver_`**.
-
-From **Galdralag-firmware** root, one command builds the ELF, checks it exists, and prints the
-**`galdralag-service:<absolute_path>`** cratespec (and optionally runs **`cargo xtask baosec`** in your
-**xous-core** tree):
+One-shot helper (Galdralag side only):
 
 ```bash
-# Build, verify artifact, print cratespec; then print the manual baosec line (positional cratespec first).
-cargo run -p xtask -- build-and-register release
-
-# Same, then run the full image build from your xous-core checkout (--extra-flags must be last).
-cargo run -p xtask -- build-and-register release --xous-core /path/to/xous-core --extra-flags --feature board-baosec
+# Default XOUS_CORE = sibling ../xous-core
+scripts/build_dabao_ccid_image.sh
+# or:
+XOUS_CORE=/path/to/feature-usb-bao1x-ccid-openpgp scripts/build_dabao_ccid_image.sh --no-verify
 ```
 
-**`debug`** profile: use **`build-and-register debug`** (or **`debug`** as the first token with the same
-optional flags).
+Manual equivalent:
 
-Lower-level helpers (**`build-galdralag-xous`**, **`print-galdralag-xous-cratespec`**) remain available;
-**`build-and-register`** always runs a fresh **`cargo build`** before emitting a cratespec so a stale ELF
-is never printed.
+```bash
+cargo run -p xtask -- check-xous-core
+cargo run -p xtask -- build-galdralag-xous release --board dabao
+SPEC=$(cargo run -p xtask --quiet -- print-galdralag-xous-cratespec release)
+cd "$XOUS_CORE" && cargo xtask dabao-ccid "$SPEC" --no-verify
+```
 
-In **xous-core** **`xtask`**, positional cratespecs must appear **immediately after** the **`baosec`**
-verb (before any **`--feature`** / other flags). Example:
+### BaoSec + CCID (PDDB available)
 
-`cargo xtask baosec galdralag-service:/abs/path/to/galdralag-service --feature board-baosec`
+```bash
+cargo run -p xtask -- build-and-register release --xous-core /path/to/xous-core
+# Prefer image verb baosec-ccid when invoking xtask yourself:
+#   cargo xtask baosec-ccid galdralag-service:/abs/path/to/galdralag-service
+```
 
-Do **not** use **`--service extra...`** for this case: in `xous-core` xtask, `--service` arguments are
-processed **before** the image recipe and would prepend the process ahead of `xous-swapper` / `keystore`
-(see `main.rs` around `get_flag("--service")`).
+Also: `scripts/build_dabao_image.sh` historically builds **`baosec-ccid`** + cratespec
+(PDDB path; not a pure Dabao recipe).
 
-See also **`docs/RRAM_LAYOUT.md`** and the root **README** provisioning section (**`galdralag-provision`**).
+**Loader** supplies **`PUBLIC_SERIAL`**. Server name matches `usb-bao1x` `api.rs`:
+**`_Xous USB device driver_`**.
+
+See [docs/HARDWARE_BRINGUP_TEST_PLAN.md](../../docs/HARDWARE_BRINGUP_TEST_PLAN.md),
+[docs/ARCHITECTURE.md](../../docs/ARCHITECTURE.md) (CCID ownership), and
+[docs/RRAM_LAYOUT.md](../../docs/RRAM_LAYOUT.md).

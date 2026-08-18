@@ -81,6 +81,7 @@ From the repository root:
 | Command | Use when |
 |---------|----------|
 | `cargo run -p xtask -- check-fw` | Embedded `riscv32imac-unknown-none-elf` compile errors without a full `build` |
+| `cargo run -p xtask -- check-xous-core` | Fail if nested/sibling xous-core is not the CCID branch (prints `ln -sfn` fix) |
 | `cargo run -p xtask -- build-fw` | Full firmware image build for the same triple |
 | `cargo run -p xtask -- test-host` | Broad host-side workspace tests (excluding `xtask`) |
 | `cargo run -p xtask -- test-crypto` | `vault` + `security-tests` with single test thread |
@@ -113,7 +114,7 @@ cargo check -p <crate-name> --target riscv32imac-unknown-none-elf
 
 (Only crates that declare that target in their build will succeed; host-only crates are checked on the host triple instead.)
 
-For **USB CCID on Xous**, see **`crates/baochip-openpgp`**, **`xous-core/services/usb-bao1x`** (feature **`ccid-openpgp`**), optional **`galdralag-service`** ([services/galdralag/README.md](../services/galdralag/README.md), **`cargo run -p xtask -- build-and-register`**), [docs/RRAM_LAYOUT.md](docs/RRAM_LAYOUT.md), and the [README — Known limitations / open work](../README.md#known-limitations--open-work). **GnuPG against real hardware** can still fail at the OS or provisioning layer even when unit tests pass.
+For **USB CCID on Xous**, see **`crates/baochip-openpgp`**, **`xous-core/services/usb-bao1x`** (feature **`ccid-openpgp`**), optional **`galdralag-service`** ([services/galdralag/README.md](../services/galdralag/README.md), **`cargo run -p xtask -- check-xous-core`**, Dabao: **`scripts/build_dabao_ccid_image.sh`**), [docs/RRAM_LAYOUT.md](docs/RRAM_LAYOUT.md), and the [README — Known limitations / open work](../README.md#known-limitations--open-work). **GnuPG against real hardware** can still fail at the OS or provisioning layer even when unit tests pass.
 
 ---
 

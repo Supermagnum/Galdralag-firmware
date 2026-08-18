@@ -89,6 +89,8 @@ Baochip-1x hardware is not generally available yet ([README.md](../README.md); [
 
 Firmware today builds the in-card AID with `build_aid(0x20A0, serial)` in `services/galdralag` (see `crates/usb-personality/src/openpgp/aid.rs`). **`0x20A0` is the project's USB VID** (`USB_VID_GALDRALAG`); it is **not** listed in the public OpenPGP manufacturer registry (for example Nitrokey's registered OpenPGP ID is `0x000F`, separate from its USB VID). Do not use `0x20A0` as a stand-in filter until a real OpenPGP manufacturer ID is assigned for Galdralag/Baochip.
 
+**Tracked TODO (independent of CCID/USB transport):** request/obtain an FSFE/GnuPG-registered manufacturer ID; then filter `galdra device status` on AID bytes 7-8 and replace the `build_aid(0x20A0, …)` placeholder. See [future-todo.md](future-todo.md) and [XOUS_CORE_UPSTREAM_REQUESTS.md](XOUS_CORE_UPSTREAM_REQUESTS.md) §6 (Galdralag-only).
+
 Once that ID exists, host tooling should read tag `0x004F` after SELECT, compare bytes 7-8, and skip C1/C2/C3 stale-P512 scans for foreign cards. Tracked in [docs/future-todo.md](future-todo.md).
 
 ## PIN policy

@@ -114,15 +114,16 @@ fn galdralag_ccid_main() -> ! {
         ccid_serve_loop(&mut dispatcher, usb_conn);
     }
 
-    // Dabao + RRAM mapped: connect USB immediately and answer IccPowerOn with the bring-up
-    // stub while PDDB / vault init runs. Switch to BaochipVaultBackend once ready.
+    // Dabao + RRAM mapped: connect USB immediately. usb-bao1x answers IccPowerOn /
+    // GetSlotStatus inline; this process serves deferred XfrBlock (bring-up stub
+    // until vault is ready, then BaochipVaultBackend).
     #[cfg(feature = "board-dabao")]
     {
         let rram = Rc::new(RefCell::new(reram));
         let usb_conn = xns
             .request_connection_blocking(usb_bao_ipc::SERVER_NAME_USB_DEVICE)
             .expect("USB device server");
-        info!("early USB connect; stub ATR until vault ready");
+        info!("early USB connect; deferred APDUs until vault ready");
 
         let mut stub = OpenPgpCcidDispatcher::new(dabao_stub::DabaoBringupBackend::new(build_id_aid()));
         let mut last_link = usb_link_status(usb_conn);
@@ -218,7 +219,7 @@ fn galdralag_ccid_main() -> ! {
                 }
             }
 
-            // Block for one CCID frame with the stub so IccPowerOn gets an ATR during vault wait.
+            // One deferred CCID frame (XfrBlock / other). 0x62/0x65 are not TXed here.
             ccid_dispatch_one(&mut stub, usb_conn, &mut last_link);
         }
     }
@@ -393,7 +394,15 @@ fn ccid_dispatch_one<B: usb_personality::openpgp::OpenPgpBackend>(
     };
 
     let rdr = match parse_pc_to_rdr(&frame) {
-        Ok(pc) => dispatcher.handle_ccid(pc),
+        Ok(pc) => {
+            if pc.answered_inline_by_usb_bao1x() {
+                log::debug!(
+                    "dropping PC_to_RDR that usb-bao1x answers inline (IccPowerOn/GetSlotStatus); not CcidTx"
+                );
+                return;
+            }
+            dispatcher.handle_ccid(pc)
+        }
         Err(CcidError::LengthMismatch)
         | Err(CcidError::TooShort)
         | Err(CcidError::UnknownMessageType)

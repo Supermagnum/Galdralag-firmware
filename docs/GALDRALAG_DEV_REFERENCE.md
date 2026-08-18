@@ -13,8 +13,9 @@ Host tooling, cryptographic regression tests, and fuzzing entry points for this 
 | Command | Purpose |
 |--------|---------|
 | `cargo run -p xtask -- check-fw` | `cargo check` for embedded crates on `riscv32imac-unknown-none-elf`. |
+| `cargo run -p xtask -- check-xous-core` | Read-only preflight: sibling/nested xous-core must be `feature/usb-bao1x-ccid-openpgp` (opcodes 640/642). See [services/galdralag/README.md](../services/galdralag/README.md). |
 | `cargo run -p xtask -- build-fw` | Same triple, `cargo build`. |
-| `cargo run -p xtask -- build-and-register release` | Build **Xous** `galdralag-service` (`riscv32imac-unknown-xous-elf`), verify ELF, print **`baosec`** cratespec; optional `--xous-core DIR` and trailing `--extra-flags …`. See [services/galdralag/README.md](../services/galdralag/README.md). |
+| `cargo run -p xtask -- build-and-register release` | Build **Xous** `galdralag-service` (`riscv32imac-unknown-xous-elf`) for **baosec**; optional `--xous-core DIR`. Dabao CCID + Galdralag: `scripts/build_dabao_ccid_image.sh`. |
 | `cargo run -p xtask -- test-host` | Host tests for all workspace members except `xtask`. |
 | `cargo run -p xtask -- test-crypto` | `vault` + `security-tests` unit/integration tests. |
 | `cargo run -p xtask -- wycheproof` | Runs vault tests whose names match `wycheproof` (JSON corpora under `tests/data/wycheproof/`). |

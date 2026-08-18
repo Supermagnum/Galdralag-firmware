@@ -26,6 +26,25 @@ pub enum PcToRdr {
     Abort { slot: u8, seq: u8 },
 }
 
+impl PcToRdr {
+    /// Opcode-only classifier: `true` for IccPowerOn (0x62) and GetSlotStatus (0x65).
+    ///
+    /// SAFETY: only skip TX based on this from the Xous IPC loop
+    /// (`galdralag-service` `ccid_dispatch_one`, `galdralag-stub` CCID loop)
+    /// sitting behind `usb-bao1x` inline IRQ answers. Any other caller that
+    /// skips TX when this returns true will drop ATR / SlotStatus with nothing
+    /// else to answer it (including in-process [`super::usb_class::CcidClass`]).
+    ///
+    /// **Not transport-aware.** There is no `#[cfg]`, runtime flag, or usb-bao1x
+    /// session check. Do not call this from
+    /// [`crate::openpgp::OpenPgpCcidDispatcher::handle_ccid`] or `CcidClass`.
+    /// Tests: `inline_usb_bao1x_opcodes` (classifier) and
+    /// `non_xous_ccid_class_answers_inline_opcodes` (`CcidClass` still answers).
+    pub fn answered_inline_by_usb_bao1x(&self) -> bool {
+        matches!(self, Self::IccPowerOn { .. } | Self::GetSlotStatus { .. })
+    }
+}
+
 /// Malformed or unsupported CCID host message.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum CcidError {
@@ -162,5 +181,18 @@ mod tests {
     fn parse_truncated() {
         let m = [0x62u8, 0, 0, 0, 0];
         assert_eq!(parse_pc_to_rdr(&m), Err(CcidError::TooShort));
+    }
+
+    /// Classifier only: 0x62/0x65 are flagged regardless of transport.
+    /// Pair with `usb_class::tests::non_xous_ccid_class_answers_inline_opcodes`,
+    /// which proves `CcidClass` still answers those opcodes.
+    #[test]
+    fn inline_usb_bao1x_opcodes() {
+        let on = parse_pc_to_rdr(&hdr(0x62, 0, 0, 1, 0, 0, 0)).unwrap();
+        let slot = parse_pc_to_rdr(&hdr(0x65, 0, 0, 2, 0, 0, 0)).unwrap();
+        let off = parse_pc_to_rdr(&hdr(0x63, 0, 0, 3, 0, 0, 0)).unwrap();
+        assert!(on.answered_inline_by_usb_bao1x());
+        assert!(slot.answered_inline_by_usb_bao1x());
+        assert!(!off.answered_inline_by_usb_bao1x());
     }
 }

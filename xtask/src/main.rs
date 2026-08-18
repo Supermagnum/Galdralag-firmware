@@ -220,6 +220,24 @@ fn main() {
                 }
             }
         }
+        Some("check-xous-core") => {
+            // Read-only preflight: does not modify xous-core. Script lives under scripts/.
+            // Failure stderr (wrong branch / missing CcidRxDeferred / nested vs sibling)
+            // includes a copy-pasteable `ln -sfn <sibling> ./xous-core` from the script.
+            let script = workspace_root().join("scripts/check_xous_core_preflight.sh");
+            if !script.is_file() {
+                eprintln!("check-xous-core: missing {}", script.display());
+                std::process::exit(1);
+            }
+            let st = Command::new("bash").arg(&script).status();
+            match st {
+                Ok(s) => std::process::exit(s.code().unwrap_or(1)),
+                Err(e) => {
+                    eprintln!("check-xous-core: failed to spawn {}: {e}", script.display());
+                    std::process::exit(1);
+                }
+            }
+        }
         Some("build-and-register") => {
             let rest: Vec<String> = a.collect();
             let (release, xous_core, extra_flags) = match parse_build_and_register_args(&rest) {
@@ -316,7 +334,7 @@ fn main() {
         }
         _ => {
             eprintln!(
-                "usage: cargo run -p xtask -- <build-fw|check-fw|build-galdralag-xous [release|debug] [--board baosec|dabao]|print-galdralag-xous-cratespec [release|debug]|build-galdralag-stub [release|debug]|print-galdralag-stub-cratespec [release|debug]|build-and-register [release|debug] [--xous-core DIR] [--extra-flags TOKEN ...] (extra-flags must be last)|test-session|test-profiles|test-host|test-crypto|test-biometric|test-all [--no-fuzz]|test-openpgp|wycheproof|timing-test [biometric] [--all] [--full] [HARNESS...]|bench-rsa|fuzz [TARGET] [SECS]|fuzz-chacha [SECS]|fuzz-shamir [SECS]>"
+                "usage: cargo run -p xtask -- <build-fw|check-fw|check-xous-core|build-galdralag-xous [release|debug] [--board baosec|dabao]|print-galdralag-xous-cratespec [release|debug]|build-galdralag-stub [release|debug]|print-galdralag-stub-cratespec [release|debug]|build-and-register [release|debug] [--xous-core DIR] [--extra-flags TOKEN ...] (extra-flags must be last)|test-session|test-profiles|test-host|test-crypto|test-biometric|test-all [--no-fuzz]|test-openpgp|wycheproof|timing-test [biometric] [--all] [--full] [HARNESS...]|bench-rsa|fuzz [TARGET] [SECS]|fuzz-chacha [SECS]|fuzz-shamir [SECS]>"
             );
             std::process::exit(2);
         }

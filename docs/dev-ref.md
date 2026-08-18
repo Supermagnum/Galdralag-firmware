@@ -566,6 +566,7 @@ exit as a blocking failure.
 | Command | Action |
 |---------|--------|
 | `cargo run -p xtask -- check-fw` | `cargo check` for `riscv32imac-unknown-none-elf`; verifies no `test-hal` feature active |
+| `cargo run -p xtask -- check-xous-core` | Read-only check that xous-core is the CCID/OpenPGP branch; see [services/galdralag/README.md](../services/galdralag/README.md) |
 | `cargo run -p xtask -- build-fw` | Release build for `riscv32imac-unknown-none-elf` |
 | `cargo run -p xtask -- test-host` | `cargo test --workspace --exclude xtask` |
 | `cargo run -p xtask -- test-psram` | Runs `psram-store` + `vault` unit tests with `test-hal` fake |

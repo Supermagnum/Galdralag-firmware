@@ -29,8 +29,10 @@ Authoritative steps and pin names are in **[Getting Started with Baochip Targets
 ### Relation to this repository
 
 - **`cargo run -p xtask -- build-fw`** here builds **library** crates for `riscv32imac-unknown-none-elf`; it does **not** emit a single ready-to-flash system UF2 by itself.
-- A full token image is produced in your **xous-core** checkout when you build the **`dabao`** (or product) target with **`ccid-openpgp`** enabled as required for this test plan.
-- To register **`galdralag-service`** artifacts with **baosec** after you have a build: **`cargo run -p xtask -- build-and-register release`** (see [services/galdralag/README.md](../services/galdralag/README.md)).
+- For **Dabao CCID + OpenPGP APDUs**, build with **`scripts/build_dabao_ccid_image.sh`** (or `cargo xtask dabao-ccid <galdralag cratespec>` in the sibling xous-core on **`feature/usb-bao1x-ccid-openpgp`**). Plain **`dabao-ccid`** without a cratespec is **transport-only**.
+- Confirm the nested/sibling xous-core trees match before compiling path deps: **`cargo run -p xtask -- check-xous-core`**. On failure the script prints a copy-pasteable `ln -sfn <sibling> ./xous-core`.
+- **Fail-fast image build:** `scripts/build_dabao_ccid_image.sh` runs that preflight *before* any cargo build (unless `--skip-preflight`). To confirm: with `./xous-core` as a stale real checkout (not a symlink), the script must exit at “xous-core preflight” and must **not** print “Build galdralag-service”.
+- BaoSec + PDDB path: **`cargo run -p xtask -- build-and-register release --xous-core …`** (see [services/galdralag/README.md](../services/galdralag/README.md)).
 
 ---
 
@@ -68,6 +70,33 @@ pcsc_scan --version
 gpg --list-keys
 ```
 
+### Host CCID driver (required for Baochip VID:PID)
+
+`usb-bao1x` on Dabao enumerates as **USB VID:PID `1D50:6197`**. Stock **libccid** often
+does **not** list that ID. Until it does, add an entry to the driver bundle Info.plist
+(example approach from xous-core PR #937 discussion):
+
+- Path (Debian/Ubuntu typical): `/usr/lib/pcsc/drivers/ifd-ccid.bundle/Contents/Info.plist`
+- Append `0x1D50` / `0x6197` / friendly name to `ifdVendorID` / `ifdProductID` / `ifdFriendlyName`
+- Restart `pcscd`
+
+Without this step, `pcsc_scan` / `gpg --card-status` may never see the reader.
+
+### Firmware image must include `galdralag-service`
+
+Plain **`cargo xtask dabao-ccid`** (no cratespec) is **transport-only**: inline ATR /
+GetSlotStatus from `usb-bao1x`. It will **not** answer OpenPGP **XfrBlock** APDUs.
+
+Build a Dabao image that registers Galdralag (Galdralag-side script; does not edit xous-core):
+
+```bash
+# Sibling xous-core on feature/usb-bao1x-ccid-openpgp
+cargo run -p xtask -- check-xous-core
+scripts/build_dabao_ccid_image.sh
+```
+
+See [services/galdralag/README.md](../services/galdralag/README.md).
+
 Record the key fingerprints from `--list-keys` output. You will use these
 as encrypt-to targets in step 5.
 
@@ -78,80 +107,83 @@ as encrypt-to targets in step 5.
 Connect the Galdralag device via USB.
 
 ```bash
-# Confirm USB device appears
-lsusb | grep -i "20a0"
-# Expected: Bus ... ID 20a0:42b3 ...
+lsusb | grep -i 1d50   # expect 1d50:6197 after boot
+dmesg --follow         # optional: watch re-enumeration
+```
 
+Confirm the host sees a CCID interface (bInterfaceClass 11) once configured.
+
+---
+
+## 2. PC/SC ATR (transport) then OpenPGP APDUs (Galdralag)
+
+### 2a. Framing / ATR (usb-bao1x)
+
+```bash
 # Confirm pcscd sees the card reader
 pcsc_scan
-# Expected: Galdralag reader slot, ATR printed, card present
-
-# Kill pcsc_scan with Ctrl+C when confirmed
 ```
 
-If `lsusb` does not show `20a0:42b3`, stop here — the CCID personality is not
-enumerating. Check `dmesg | tail -30` for USB errors.
+Expect a reader name and an ATR consistent with the OpenPGP T=1 ATR used by the
+stack (transport may answer IccPowerOn inline). Kill `pcsc_scan` with Ctrl+C when
+confirmed.
 
----
+**Note:** xous-core `tools/ccid_hil/` Python tests exercise **framing / echo** only.
+They are **not** a substitute for GnuPG APDU bring-up.
 
-## 2. Basic card status
+### 2b. Real card application (`gpg --card-status`)
+
+Requires **`galdralag-service`** in the image so `OpenPgpCcidDispatcher` answers
+**XfrBlock** APDUs (SELECT, GET DATA, …). Transport-only images stop at ATR.
 
 ```bash
 gpg --card-status
 ```
 
-Expected output includes:
+Expected on a fresh Galdralag-backed image (fields may vary by firmware revision):
 
-- `Reader ...........: Galdralag Security Token`
-- `Application ID ...: D276000124...` (OpenPGP AID)
-- `Version ..........: 3.4` (or as set in firmware)
-- `Manufacturer .....: Galdralag Project`
-- `Serial number ....: <device serial>`
-- Key slots: `Signature key`, `Encryption key`, `Authentication key` — all showing `[none]` on a fresh device
+- Application ID / OpenPGP version present
+- Key slots may show `[none]` until keygen
+- PIN retries present
+
+If ATR is visible in `pcsc_scan` but `gpg --card-status` hangs or fails with no
+application, the image likely lacks `galdralag-service` (transport-only `dabao-ccid`).
 
 If any field is missing or the AID is wrong, record the actual output and cross-check
-against `crates/usb-personality/src/ccid/mod.rs` constants.
+against OpenPGP AID construction (`build_aid` / manufacturer ID — see
+[OPENPGP_CARD.md](OPENPGP_CARD.md); `0x20A0` is a USB VID placeholder, not an FSFE ID).
 
 ---
 
-## 3. PIN verification
+## 3. PIN verification (Persona A / Dabao CCID)
 
-Set **known** User and Admin PINs **before** CCID exercises using the **USB CDC provisioning** path (first boot only, when the device enumerates as a serial interface instead of the CCID token).
+**Dabao `dabao-ccid` images have no USB CDC provisioning serial and no PDDB.**
+Do **not** expect `galdralag-provision` over `/dev/ttyACM0` on that recipe.
 
-From the Galdralag firmware repository:
-
-```bash
-cargo run -p host-tools --bin galdralag-provision -- \
-  --port /dev/ttyACM0 \
-  --user-pin 'your-user-pin' \
-  --admin-pin 'your-admin-pin'
-```
-
-Omit `--user-pin` / `--admin-pin` to be prompted securely (no echo; `rpassword` — PINs are not placed in shell history). PINs may be up to **32 bytes** each.
-
-**Wire format:** the tool sends **two newline-terminated lines** (user PIN bytes, then admin PIN bytes), matching **xous-core** **`usb-bao1x`**. On Xous, **`usb-bao1x`** writes **PDDB** **`usb.ccid`** (**`OKV1`**, **`user_pin_line`**, **`admin_pin_line`**). If your image includes **`galdralag-service`**, it waits for that sentinel, bridges into **RRAM**, then serves **CCID** via **`usb-bao1x`** ([services/galdralag/README.md](../../services/galdralag/README.md), **`cargo run -p xtask -- build-and-register`**).
-
-When provisioning completes, the device should re-enumerate and present **CCID** / OpenPGP as in step 2. Confirm with:
-
-```bash
-gpg --card-status
-```
-
-Then change PINs if desired (you now know the current values):
+**Lab defaults** (when PDDB `OKV1` is never seen): User PIN **`12345`**, Admin PIN
+**`12345678`** (see `services/galdralag` Dabao wait path). Change them promptly:
 
 ```bash
 gpg --card-edit
-
-# At the gpg/card> prompt:
-admin
-passwd
-# Follow prompts to change User PIN and Admin PIN
+# admin / passwd — set known User and Admin PINs
 quit
 ```
 
-Record any new PINs securely. All subsequent steps require the User PIN.
+**Development shortcut:** build with **`dev-provisioning`** and set **`CCID_USER_PIN`** /
+**`CCID_ADMIN_PIN`** in the environment before first vault open (lab only).
 
-> **Development shortcut:** Firmware built with **`dev-provisioning`** can instead use **`CCID_USER_PIN`** and **`CCID_ADMIN_PIN`** in the environment before first boot (lab only). Do not use this for production tokens.
+**Legacy / baosec path (not Dabao CCID):** if the image has PDDB + optional CDC /
+`ccid-pddb` factory seed, PINs may arrive via PDDB `usb.ccid` (`OKV1`,
+`user_pin_line`, `admin_pin_line`) and `galdralag-provision` — see root README
+“Known limitations”. Prefer documenting that path only for baosec-class images.
+
+Confirm:
+
+```bash
+gpg --card-status
+```
+
+Record any new PINs securely. All subsequent steps require the User PIN.
 
 ---
 
@@ -323,24 +355,21 @@ a bug in Galdralag firmware itself. Report such failures to the **xous-core**
 team at [betrusted-io/xous-core](https://github.com/betrusted-io/xous-core).
 
 Repeat the full sequence below for **each** configured PIN attempt threshold:
-**3**, **5**, **7**, and **10**. Each run requires a **fresh** flash and
-first-boot provision so the threshold is written at provision time (default
-**3** when using `galdralag-provision` alone; for **5**, **7**, or **10**, use
-the provision path that persists `max_pin_attempts` — see
+**3**, **5**, **7**, and **10**. Each run requires a **fresh** flash and a known
+PIN state so the threshold is written at provision / vault-open time (default
+**3** for Dabao lab defaults; for **5**, **7**, or **10**, use the path that
+persists `max_pin_attempts` — see
 [PIN attempt policy](GALDRA-TOOL.md#pin-attempt-policy) in `docs/GALDRA-TOOL.md`).
+
+**Note:** Dabao CCID has **no** `galdralag-provision` CDC path. Use section 3
+defaults / `dev-provisioning`, or a baosec PDDB seed if that is your image.
 
 ### 10.1. Provision and baseline crypto check
 
-1. Flash firmware per **Flash firmware** above.
-2. Complete first-boot PIN provisioning via `galdralag-provision` (section 3):
-
-   ```bash
-   cargo run -p host-tools --bin galdralag-provision -- \
-     --port /dev/ttyACM0 \
-     --user-pin 'your-test-user-pin' \
-     --admin-pin 'your-test-admin-pin'
-   ```
-
+1. Flash firmware per **Flash firmware** above (image **with** `galdralag-service`).
+2. Establish known User/Admin PINs per **section 3** (Dabao defaults, change via
+   `gpg --card-edit` → `passwd`, or `dev-provisioning` env vars). Do **not**
+   expect CDC `galdralag-provision` on `dabao-ccid`.
 3. Confirm CCID enumeration (`gpg --card-status`).
 4. Generate on-device keys (section 4).
 5. Encrypt a test payload and decrypt it successfully (section 6) to confirm
@@ -392,9 +421,10 @@ material was zeroised, not merely access-blocked.
 
 ### 10.5. Re-provision to clean state
 
-1. Re-flash or follow the product recovery path so the device accepts
-   first-boot provisioning again.
-2. Run `galdralag-provision` as in step 10.1.
+1. Re-flash or follow the product recovery path so the device accepts a fresh
+   vault / PIN state again (Dabao: re-flash image with `galdralag-service`).
+2. Re-establish PINs as in section 3 / step 10.1 (defaults or `dev-provisioning`;
+   baosec may still use PDDB / legacy CDC if that image provides them).
 3. Confirm `gpg --card-status` shows a consistent fresh card (no stale key
    fingerprints, PIN retries at provisioned maximum, no blocked state).
 
@@ -436,9 +466,10 @@ Update `docs/TEST_RESULTS.md` with:
 
 ## Known pre-production gaps (do not treat as test failures)
 
-- **Operator PIN UX:** TRNG-generated first-boot PINs are not displayed on device.
-  Workaround for bring-up: use `gpg --card-edit` → `passwd` after provisioning.
-  See `docs/future-todo.md` section 0.
+- **Plain `dabao-ccid` without cratespec:** transport-only; ATR may work, GnuPG APDUs will not until `galdralag-service` is in the image (`scripts/build_dabao_ccid_image.sh`).
+- **libccid VID:PID:** host may need `1D50:6197` in Info.plist (section 0).
+- **OpenPGP manufacturer ID:** AID uses USB VID `0x20A0` as a placeholder; see [OPENPGP_CARD.md](OPENPGP_CARD.md) and [XOUS_CORE_UPSTREAM_REQUESTS.md](XOUS_CORE_UPSTREAM_REQUESTS.md) §6.
+- **Operator PIN UX:** Dabao uses lab defaults or `dev-provisioning`; change with `gpg --card-edit` → `passwd`. TRNG first-boot PINs (where enabled) are not displayed on device. See `docs/future-todo.md` section 0.
 - **PIN lockout / zeroisation:** Full manual verification (section 10) supersedes
   simulation and `docs/TEST_RESULTS.md` section 11; section 11 is a quick smoke
   test only.
