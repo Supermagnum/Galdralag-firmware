@@ -6,8 +6,8 @@
 
 This project is **registered with the [Open Invention Network (OIN)](https://openinventionnetwork.com/)**. OIN is a defensive patent pool: members cross-license Linux-related patents so participants can ship and use open-source software with reduced patent exposure.
 
-Status: Waiting for hardware to arrive for testing.
-https://www.crowdsupply.com/baochip/dabao/updates/our-campaign-has-launched
+Status: Waiting for:
+https://github.com/betrusted-io/xous-core/pull/937
 
 
 ## Table of contents
