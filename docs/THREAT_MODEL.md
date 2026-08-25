@@ -193,4 +193,5 @@ The following **`usb-bao1x`** opcodes are **implemented** in the vendored dispat
 ## See also
 
 - [GLOSSARY.md](GLOSSARY.md)
+- [DUAL_KEY_QUORUM.md](DUAL_KEY_QUORUM.md) — integrator responsibility boundary for two- (or N-) hardware-key quorum; not enforced by firmware
 - [NFC_PN532_INTEGRATION.md](NFC_PN532_INTEGRATION.md) — optional NFC quorum narrative; not a core USB threat boundary

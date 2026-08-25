@@ -469,6 +469,7 @@ was only known to those who understood.
 | [docs/KEY_LIFECYCLE.md](docs/KEY_LIFECYCLE.md) | Key generation, import, export policy, rotation, zeroisation, Shamir (as reflected in `vault` / OpenPGP) |
 | [docs/OPENPGP_CARD.md](docs/OPENPGP_CARD.md) | OpenPGP card application, GnuPG/CCID host setup, key slots, algorithms, udev |
 | [docs/CIPHER_PROFILES.md](docs/CIPHER_PROFILES.md) | Cipher profile system and configuration |
+| [docs/DUAL_KEY_QUORUM.md](docs/DUAL_KEY_QUORUM.md) | Two- (or N-) hardware-key quorum as an integrator extension pattern on Shamir and OpenPGP; not enforced by firmware |
 | [docs/CIPHER_PROFILE_SECURITY.md](docs/CIPHER_PROFILE_SECURITY.md) | Security considerations: cleartext profile identifiers, traffic analysis, BrainpoolP384r1 outer-wrapper rationale, encrypted identifiers, wildcard property |
 | [docs/CESS_CONFORMANCE.md](docs/CESS_CONFORMANCE.md) | [CESS](https://github.com/Supermagnum/CESS/tree/main) alignment: Mode A wire layout, `suite_id` from [ALGORITHM-REGISTRY.md — lookup table](https://github.com/Supermagnum/CESS/blob/main/ALGORITHM-REGISTRY.md#cipher-suite-identifier-lookup-table), deviation register (retained AES/SHA-2 vs CESS-CORE), roadmap |
 | [crates/cess](crates/cess) | CESS Mode A: HKDF-BLAKE3 (`derive_k_outer`, `hkdf_blake3`), ChaCha outer seal/open, `suite_id \|\| inner_blob` layout; see [CESS_CONFORMANCE.md](docs/CESS_CONFORMANCE.md) |
@@ -658,6 +659,7 @@ Different parts of this project align with different standards. **GnuPG interope
 | **USB CCID** — talking to the device as a smart card reader | USB CCID device class | **Yes** — class drivers |
 | **OpenPGP message format** — encrypted files, mail, key packets | RFC 4880 (and updates) | **Yes on the host** — GnuPG uses this; the card does not parse mail |
 | **Shamir K-of-N** — split / recover long-term key material in the vault | Not in OpenPGP card spec; not in GnuPG | **No** — firmware and provisioning tools only; not a `gpg --card-edit` operation (see [Shamir and full-disk encryption](#shamir-secret-sharing-and-drive-encryption)) |
+| **Dual-hardware-key / quorum authorization** — two (or N) tokens required before a consumer acts (drive unlock, door release, privileged ops) | Not in OpenPGP card spec | **No** — **supported extension pattern** for integrators using Shamir and/or multiple OpenPGP auths; enforcement belongs to the downstream system ([docs/DUAL_KEY_QUORUM.md](docs/DUAL_KEY_QUORUM.md)) |
 | **Authenticated ephemeral ECDH** — forward-secret session protocol on the token | Not in OpenPGP card spec | **No** — token-specific; not a GnuPG card command |
 | **Cipher profile system** — named symmetric **cascades** (stack independent ciphers on top of each other; **up to four** layers, **three** is a supported depth) and related policy | Not in OpenPGP card spec | **No** — firmware / host token tools |
 | **microSD decoy / mass-storage personas** — uninformed-host USB behaviour | Not in OpenPGP card spec | **No** — separate USB personality code paths |
@@ -739,6 +741,17 @@ That lines up with what this project already stacks: **aes-gcm** / **chacha20pol
 | **Where to reconstruct** | Air-gapped machine, HSM policy, or controlled environment — not on untrusted shared hosts |
 
 Operational key handling for LUKS and full-disk encryption is security-sensitive; follow vendor and distribution guidance and threat models for your environment.
+
+**Two-hardware-key / quorum authorization** (requiring two separate physical tokens
+or share-holders before a critical operation) is a **supported extension pattern**,
+not a firmware feature. Galdralag supplies Shamir K-of-N primitives
+([`vault::shamir`](crates/vault/src/shamir.rs), [`galdra shamir`](docs/CIPHER_PROFILES.md))
+and single-token OpenPGP authentication; a **downstream** LUKS wrapper, access
+panel, or custom daemon must enforce quorum, session windows, and secure
+reconstruction. That boundary, reference 2-of-N workflows, and security notes for
+integrators are in [docs/DUAL_KEY_QUORUM.md](docs/DUAL_KEY_QUORUM.md). This is
+possible with existing primitives today; orchestration is intentionally left to
+the consumer — not a roadmap commitment from this repository.
 
 ### Shamir plus Brainpool: example and institutional fit
 

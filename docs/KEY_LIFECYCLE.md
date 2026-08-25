@@ -100,3 +100,4 @@ see [TEST_RESULTS.md](TEST_RESULTS.md).
 - [OPENPGP_CARD.md](OPENPGP_CARD.md)
 - [API_REFERENCE.md](API_REFERENCE.md)
 - [EPHEMERAL_SESSION.md](EPHEMERAL_SESSION.md) — long-term vs ephemeral keys for sessions
+- [DUAL_KEY_QUORUM.md](DUAL_KEY_QUORUM.md) — two- (or N-) token quorum as an integrator extension pattern on Shamir; not enforced by firmware
