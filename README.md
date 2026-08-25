@@ -9,10 +9,16 @@ This project is **registered with the [Open Invention Network (OIN)](https://ope
 Status: Waiting for:
 https://github.com/betrusted-io/xous-core/pull/937
 
+## Security notice: Shamir host split (fixed; prior shares compromised)
+
+**If you used `galdra shamir split`, `galdrad` `/shamir/split`, or the GTK split UI before commit `d8628017dfd07afd352e7384b53f9e06b80ce41a`:** those shares were generated with a **fixed-seed RNG**. One share plus public source code was enough to recover the full secret; the K-of-N threshold did **not** protect you. **Re-provision affected keys and re-split with a fixed build.** Full impact, version range, and remediation: [docs/SECURITY_ADVISORY_SHAMIR_RNG.md](docs/SECURITY_ADVISORY_SHAMIR_RNG.md).
+
+---
 
 ## Table of contents
 
 - [Open Invention Network](#open-invention-network)
+- [Security notice: Shamir host split](#security-notice-shamir-host-split-fixed-prior-shares-compromised)
 - [What this is](#what-this-is)
   - [Galdra contact metadata](#galdra-contact-metadata)
   - [What this firmware is (and is not)](#what-this-firmware-is-and-is-not)
@@ -1173,7 +1179,7 @@ Nothing is implemented in-tree.
 | Three-factor authentication | **Possession:** USB token; **knowledge:** on-device PIN (`pin-policy`); optional **biometric** not implemented — [docs/THREE_FACTOR_AUTH.md](docs/THREE_FACTOR_AUTH.md) |
 | RRAM counters and audit trail | Monotonic HAL for PIN (and future stateful PQ signatures); profile audit records and in-RAM OpenPGP audit hook — append-only NV audit log **not** implemented — [docs/AUDIT_LOG.md](docs/AUDIT_LOG.md), [docs/RRAM_LAYOUT.md](docs/RRAM_LAYOUT.md) |
 | Constant-time operations | All secret comparisons via `subtle`; verified by dudect harnesses |
-| test-hal never in production | Enforced by `check-fw` xtask |
+| test-hal never in production | Enforced by `check-fw` (firmware) and `check-host` (release host binaries) |
 
 ### PIN policy
 

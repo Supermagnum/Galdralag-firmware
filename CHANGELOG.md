@@ -4,6 +4,11 @@ All notable changes to this project are documented in this file.
 
 ## Unreleased
 
+### Security
+
+- **Shamir host split RNG (critical):** Production host Shamir split (`galdra shamir split`, `galdrad` `POST /shamir/split`, `galdra-gtk` split UI) used `FakeTrng::from_seed(0x5F4D_414D_4952)` for polynomial coefficients. With GF(256) XOR arithmetic, **one share plus public source code recovered the full secret**; K-of-N threshold did not apply. Introduced in commit `ec9faa90e1be5c5bc656245e786c87ccf564a971` (2026-06-18); fixed in commit `d8628017dfd07afd352e7384b53f9e06b80ce41a`. **Any shares produced before the fix commit must be treated as compromised** — re-provision and re-split affected keys. See [docs/SECURITY_ADVISORY_SHAMIR_RNG.md](docs/SECURITY_ADVISORY_SHAMIR_RNG.md).
+- **Fix:** `OsRng` on the production path; `ShamirSplitRng` trait restricts approved entropy sources; `test-hal` removed from `galdra-core-host` release dependencies; `xtask check-host` verifies release host builds; regression tests for non-determinism and cross-secret independence.
+
 ### Removed
 
 - **In-tree `bp512` crate** (`crates/bp512`): BrainpoolP512r1 curve arithmetic that was authored in this repository and incorrectly described elsewhere as an audited RustCrypto crate. Field/scalar math reused the upstream `primefield` / `crypto-bigint` stack, but the curve definition, constants wiring, and vault integration were project-maintained and not independently audited.
@@ -40,11 +45,13 @@ Labels: **[docs]** no firmware/host behavior change; **[tooling]** build/dev scr
 
 - **[docs]** Provisioning (Persona A): root README, `services/galdralag/README.md`, and [docs/HARDWARE_BRINGUP_TEST_PLAN.md](docs/HARDWARE_BRINGUP_TEST_PLAN.md) mark USB CDC two-line PIN provisioning as **legacy / non-Dabao-CCID**; Dabao lab defaults, `baosec`+`ccid-pddb`, and `dev-provisioning` are the documented routes. Plain `dabao-ccid` called out as transport-only.
 - **[docs]** CCID ownership write-up in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md): `usb-bao1x` owns inline GetSlotStatus / IccPowerOn; Galdralag owns deferred XfrBlock APDUs. `answered_inline_by_usb_bao1x()` is **opcode-only** (not transport-aware); skip is Xous IPC only. Tests: `inline_usb_bao1x_opcodes` + `non_xous_ccid_class_answers_inline_opcodes`.
+- **[docs]** [docs/HARDWARE_BRINGUP_TEST_PLAN.md](docs/HARDWARE_BRINGUP_TEST_PLAN.md) lab run 2026-08-18: pyusb smoke — inline GetSlotStatus/IccPowerOn OK; deferred XfrBlock SELECT timeout (`galdralag-stub` image).
 
 #### Tracking
 
 - **[tracking]** PC/SC vendor filter for `device status` — scans any OpenPGP card in the first reader until an FSFE/GnuPG manufacturer ID is assigned. Firmware `build_aid(0x20A0, …)` misuses the USB VID as AID manufacturer bytes. See [docs/OPENPGP_CARD.md](docs/OPENPGP_CARD.md).
-- **[tracking]** [docs/XOUS_CORE_UPSTREAM_REQUESTS.md](docs/XOUS_CORE_UPSTREAM_REQUESTS.md) for Persona A / ATR / cratespec / libccid items that belong in xous-core.
+- **[tracking]** [docs/XOUS_CORE_UPSTREAM_REQUESTS.md](docs/XOUS_CORE_UPSTREAM_REQUESTS.md) for Persona A / ATR / cratespec / libccid items that belong in xous-core. Lab 2026-08-18: `pcscd` `WriteUSB` timeout after ATR (section 7); Phase 2 stub image same failure (section 8).
+- **[tooling]** `scripts/build_dabao_ccid_stub_image.sh` — dabao-ccid + `galdralag-stub` for isolated XfrBlock/SELECT transport tests (section 13 of bring-up plan).
 
 #### Code
 

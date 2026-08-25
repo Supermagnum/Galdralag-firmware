@@ -18,7 +18,7 @@ cipher-profile = { path = "../crates/cipher-profile" }
 cess = { path = "../crates/cess" }
 heapless = { workspace = true }
 ephemeral-session = { path = "../crates/ephemeral-session" }
-galdr-core = { path = "../crates/galdr-core", features = ["test-hal"] }
+galdr-core = { path = "../crates/galdr-core", features = ["host"] }
 hex = { workspace = true }
 ldap3 = { workspace = true }
 pcsc = { workspace = true, optional = true }

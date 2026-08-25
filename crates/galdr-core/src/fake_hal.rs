@@ -1,6 +1,8 @@
 //! Test-only HAL doubles. Enable with `galdr-core` feature **`test-hal`** (see crate `dev-dependencies`).
 //!
-//! **Never enable `test-hal` in production firmware images.**
+//! **Never enable `test-hal` in production firmware or release host binaries.**
+//! `FakeTrng` implements [`crate::hal::ShamirSplitRng`] only under `test-hal`; production
+//! Shamir split must use `OsRng` (host) or platform [`crate::hal::HardwareTrng`] (device).
 
 extern crate alloc;
 

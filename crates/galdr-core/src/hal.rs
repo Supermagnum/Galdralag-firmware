@@ -33,6 +33,38 @@ pub trait HardwareTrng: RngCore + CryptoRng {}
 
 impl<T: RngCore + CryptoRng> HardwareTrng for T {}
 
+mod shamir_split_rng {
+    /// Sealed marker: only types explicitly approved in this crate may implement [`super::ShamirSplitRng`].
+    pub trait Sealed {}
+}
+
+/// Entropy source approved for Shamir polynomial coefficients.
+///
+/// Production split paths must use OS or hardware TRNG (`OsRng` on host via the `host` feature,
+/// platform [`HardwareTrng`] on device). Test doubles ([`crate::fake_hal::FakeTrng`]) implement this
+/// only when the `test-hal` feature is enabled.
+///
+/// **Future firmware Shamir split must use the platform [`HardwareTrng`] service** (ring-oscillator
+/// TRNG on Baochip-1x), never a fixed seed or LCG. Add an explicit `ShamirSplitRng` implementation
+/// in this crate when on-device split is wired.
+pub trait ShamirSplitRng: HardwareTrng + shamir_split_rng::Sealed {}
+
+#[cfg(feature = "test-hal")]
+impl shamir_split_rng::Sealed for crate::fake_hal::FakeTrng {}
+
+#[cfg(feature = "test-hal")]
+impl ShamirSplitRng for crate::fake_hal::FakeTrng {}
+
+#[cfg(feature = "host")]
+mod host_shamir_rng {
+    use super::shamir_split_rng;
+    use super::ShamirSplitRng;
+
+    impl shamir_split_rng::Sealed for rand::rngs::OsRng {}
+
+    impl ShamirSplitRng for rand::rngs::OsRng {}
+}
+
 /// Boot0 / secure controller path that performs TRNG-sourced multi-pass overwrite of sensitive regions.
 ///
 /// **Security role:** ties policy breaches (signature failure, PIN exhaustion extension per Baochip

@@ -14,6 +14,13 @@ fn main() {
     match a.next().as_deref() {
         Some("build-fw") => run_embedded(&["build"]),
         Some("check-fw") => run_embedded(&["check"]),
+        Some("check-host") => {
+            std::process::exit(if test_all::run_host_check(Path::new(".")) {
+                0
+            } else {
+                1
+            });
+        }
         Some("test-profiles") => {
             let st = Command::new("cargo")
                 .args(["test", "-p", "cipher-profile", "--", "--test-threads=1"])
@@ -334,7 +341,7 @@ fn main() {
         }
         _ => {
             eprintln!(
-                "usage: cargo run -p xtask -- <build-fw|check-fw|check-xous-core|build-galdralag-xous [release|debug] [--board baosec|dabao]|print-galdralag-xous-cratespec [release|debug]|build-galdralag-stub [release|debug]|print-galdralag-stub-cratespec [release|debug]|build-and-register [release|debug] [--xous-core DIR] [--extra-flags TOKEN ...] (extra-flags must be last)|test-session|test-profiles|test-host|test-crypto|test-biometric|test-all [--no-fuzz]|test-openpgp|wycheproof|timing-test [biometric] [--all] [--full] [HARNESS...]|bench-rsa|fuzz [TARGET] [SECS]|fuzz-chacha [SECS]|fuzz-shamir [SECS]>"
+                "usage: cargo run -p xtask -- <build-fw|check-fw|check-host|check-xous-core|build-galdralag-xous [release|debug] [--board baosec|dabao]|print-galdralag-xous-cratespec [release|debug]|build-galdralag-stub [release|debug]|print-galdralag-stub-cratespec [release|debug]|build-and-register [release|debug] [--xous-core DIR] [--extra-flags TOKEN ...] (extra-flags must be last)|test-session|test-profiles|test-host|test-crypto|test-biometric|test-all [--no-fuzz]|test-openpgp|wycheproof|timing-test [biometric] [--all] [--full] [HARNESS...]|bench-rsa|fuzz [TARGET] [SECS]|fuzz-chacha [SECS]|fuzz-shamir [SECS]>"
             );
             std::process::exit(2);
         }
