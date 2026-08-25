@@ -90,7 +90,7 @@ mathematics. [`galdra-core-host/shamir_ops`](../galdra-core-host/src/shamir_ops.
 orchestrates **export → split on host** or **recover on host → import**. This is
 **not** a purely on-token lifecycle stage.
 
-**Host split entropy:** Production split uses `OsRng` and requires [`ShamirSplitRng`](../crates/galdr-core/src/hal.rs). Shares created by host tools **before commit `d8628017dfd07afd352e7384b53f9e06b80ce41a`** must be treated as compromised ([SECURITY_ADVISORY_SHAMIR_RNG.md](SECURITY_ADVISORY_SHAMIR_RNG.md)).
+**Host split entropy:** Production split uses `OsRng` and requires [`ShamirSplitRng`](../crates/galdr-core/src/hal.rs). Shares created by host tools **before commit `7db5e08851b2f0c48b65a00caa579f1d5ec077dd`** must be treated as compromised ([SECURITY_ADVISORY_SHAMIR_RNG.md](SECURITY_ADVISORY_SHAMIR_RNG.md)).
 
 **Vectors / tests:** `crates/vault/tests/key_lifecycle.rs`, Shamir fuzz targets —
 see [TEST_RESULTS.md](TEST_RESULTS.md).

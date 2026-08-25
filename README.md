@@ -11,7 +11,7 @@ https://github.com/betrusted-io/xous-core/pull/937
 
 ## Security notice: Shamir host split (fixed; prior shares compromised)
 
-**If you used `galdra shamir split`, `galdrad` `/shamir/split`, or the GTK split UI before commit `d8628017dfd07afd352e7384b53f9e06b80ce41a`:** those shares were generated with a **fixed-seed RNG**. One share plus public source code was enough to recover the full secret; the K-of-N threshold did **not** protect you. **Re-provision affected keys and re-split with a fixed build.** Full impact, version range, and remediation: [docs/SECURITY_ADVISORY_SHAMIR_RNG.md](docs/SECURITY_ADVISORY_SHAMIR_RNG.md).
+**If you used `galdra shamir split`, `galdrad` `/shamir/split`, or the GTK split UI before commit `7db5e08851b2f0c48b65a00caa579f1d5ec077dd`:** those shares were generated with a **fixed-seed RNG**. One share plus public source code was enough to recover the full secret; the K-of-N threshold did **not** protect you. **Re-provision affected keys and re-split with a fixed build.** Full impact, version range, and remediation: [docs/SECURITY_ADVISORY_SHAMIR_RNG.md](docs/SECURITY_ADVISORY_SHAMIR_RNG.md).
 
 ---
 

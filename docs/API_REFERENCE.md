@@ -60,7 +60,7 @@ Nothing in the OpenPGP card path exposes Shamir as a standard GnuPG command; see
 |------|-------------|
 | `ShamirShareExport` | Profile name, `threshold`, `total`, `index`, `value` (`ZeroizingShareBytes`), fingerprint, RFC3339 timestamp. |
 | `ShamirShareExport::to_armoured` / `from_armoured` | PEM-like **GALDRA SHARE** ASCII format for files and QR payloads. |
-| `shamir_split_key(device, profile, slot)` | Loads signing key material via `Device::export_signing_key_shamir_material`, runs `vault::shamir::shamir_split` with **`OsRng`** (OS CSPRNG), builds armoured exports. Requires profile with `shamir.is_active()`. **Prior to commit `d8628017dfd07afd352e7384b53f9e06b80ce41a`**, this path used a fixed `FakeTrng` seed and was **critically vulnerable** — see [SECURITY_ADVISORY_SHAMIR_RNG.md](SECURITY_ADVISORY_SHAMIR_RNG.md). |
+| `shamir_split_key(device, profile, slot)` | Loads signing key material via `Device::export_signing_key_shamir_material`, runs `vault::shamir::shamir_split` with **`OsRng`** (OS CSPRNG), builds armoured exports. Requires profile with `shamir.is_active()`. **Prior to commit `7db5e08851b2f0c48b65a00caa579f1d5ec077dd`**, this path used a fixed `FakeTrng` seed and was **critically vulnerable** — see [SECURITY_ADVISORY_SHAMIR_RNG.md](SECURITY_ADVISORY_SHAMIR_RNG.md). |
 | `shamir_recover_key(device, shares, slot)` | Parses `ShamirShare` from exports, `shamir_recover`, checks 32-byte result, `Device::import_shamir_recovered_signing_key`. |
 
 ### Host: `galdra_core_host::device::Device`

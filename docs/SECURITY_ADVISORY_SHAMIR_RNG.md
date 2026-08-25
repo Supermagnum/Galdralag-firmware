@@ -1,6 +1,6 @@
 # Security advisory: Shamir split used fixed-seed RNG (host)
 
-**Status:** Fixed in commit `d8628017dfd07afd352e7384b53f9e06b80ce41a`. Treat all shares produced before that commit as compromised.
+**Status:** Fixed in commit `7db5e08851b2f0c48b65a00caa579f1d5ec077dd`. Treat all shares produced before that commit as compromised.
 
 ## Summary
 
@@ -10,7 +10,7 @@ Host-side Shamir secret splitting (`galdra shamir split`, `galdrad` `POST /shami
 
 | Introduced | Fixed |
 |------------|-------|
-| Commit `ec9faa90e1be5c5bc656245e786c87ccf564a971` (2026-06-18) | Commit `d8628017dfd07afd352e7384b53f9e06b80ce41a` |
+| Commit `ec9faa90e1be5c5bc656245e786c87ccf564a971` (2026-06-18) | Commit `7db5e08851b2f0c48b65a00caa579f1d5ec077dd` |
 
 Any release or build that includes the vulnerable `galdra-core-host/src/shamir_ops.rs` behaviour before the fix is affected. Firmware-only builds that never call host split are not a separate exposure vector for **new** splits, but keys already split on a vulnerable host remain compromised.
 
@@ -40,6 +40,6 @@ Recovery-only workflows (`shamir recover`) that consumed already-compromised sha
 
 ## References
 
-- [CHANGELOG.md](../CHANGELOG.md) — security entry (fix commit `d8628017dfd07afd352e7384b53f9e06b80ce41a`)
+- [CHANGELOG.md](../CHANGELOG.md) — security entry (fix commit `7db5e08851b2f0c48b65a00caa579f1d5ec077dd`)
 - [API_REFERENCE.md](API_REFERENCE.md) — host Shamir orchestration
 - [THREAT_MODEL.md](THREAT_MODEL.md) — T11

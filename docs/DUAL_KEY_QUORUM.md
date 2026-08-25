@@ -74,7 +74,7 @@ common for "two people must cooperate" policies.
 2. **Generate or import** the long-term signing key on **token A** (slot 0).
 3. On token A (unlocked), run **`galdra shamir split`** with that profile. The host exports key material once, runs `shamir_split` with **OS entropy** ([`shamir_ops.rs`](../galdra-core-host/src/shamir_ops.rs)), and writes **three** armoured share files.
 
-**Security note:** Shares produced by host split **before commit `d8628017dfd07afd352e7384b53f9e06b80ce41a`** used a fixed-seed test RNG and **do not** satisfy the K-of-N threshold in practice. Re-split affected keys; see [SECURITY_ADVISORY_SHAMIR_RNG.md](SECURITY_ADVISORY_SHAMIR_RNG.md).
+**Security note:** Shares produced by host split **before commit `7db5e08851b2f0c48b65a00caa579f1d5ec077dd`** used a fixed-seed test RNG and **do not** satisfy the K-of-N threshold in practice. Re-split affected keys; see [SECURITY_ADVISORY_SHAMIR_RNG.md](SECURITY_ADVISORY_SHAMIR_RNG.md).
 4. **Distribute shares** to three custodians (people, sites, or **separate tokens**). Operational best practice: **one share per token or offline medium**, not all shares on one laptop.
 5. **Destroy or re-key** the full secret on token A if policy requires that no single device retains the whole key after split (integrator procedure; not automated by firmware today).
 

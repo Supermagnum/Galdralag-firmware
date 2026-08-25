@@ -6,7 +6,7 @@ All notable changes to this project are documented in this file.
 
 ### Security
 
-- **Shamir host split RNG (critical):** Production host Shamir split (`galdra shamir split`, `galdrad` `POST /shamir/split`, `galdra-gtk` split UI) used `FakeTrng::from_seed(0x5F4D_414D_4952)` for polynomial coefficients. With GF(256) XOR arithmetic, **one share plus public source code recovered the full secret**; K-of-N threshold did not apply. Introduced in commit `ec9faa90e1be5c5bc656245e786c87ccf564a971` (2026-06-18); fixed in commit `d8628017dfd07afd352e7384b53f9e06b80ce41a`. **Any shares produced before the fix commit must be treated as compromised** — re-provision and re-split affected keys. See [docs/SECURITY_ADVISORY_SHAMIR_RNG.md](docs/SECURITY_ADVISORY_SHAMIR_RNG.md).
+- **Shamir host split RNG (critical):** Production host Shamir split (`galdra shamir split`, `galdrad` `POST /shamir/split`, `galdra-gtk` split UI) used `FakeTrng::from_seed(0x5F4D_414D_4952)` for polynomial coefficients. With GF(256) XOR arithmetic, **one share plus public source code recovered the full secret**; K-of-N threshold did not apply. Introduced in commit `ec9faa90e1be5c5bc656245e786c87ccf564a971` (2026-06-18); fixed in commit `7db5e08851b2f0c48b65a00caa579f1d5ec077dd`. **Any shares produced before the fix commit must be treated as compromised** — re-provision and re-split affected keys. See [docs/SECURITY_ADVISORY_SHAMIR_RNG.md](docs/SECURITY_ADVISORY_SHAMIR_RNG.md).
 - **Fix:** `OsRng` on the production path; `ShamirSplitRng` trait restricts approved entropy sources; `test-hal` removed from `galdra-core-host` release dependencies; `xtask check-host` verifies release host builds; regression tests for non-determinism and cross-secret independence.
 
 ### Removed
