@@ -58,7 +58,7 @@ integrator's responsibility.
 | **Secure reconstruction environment** | Host `shamir_ops` runs wherever the integrator invokes it; air-gap and network isolation are not token responsibilities |
 | **Binding a share to a physical token** | Exported shares are files; proving share *i* came from token *A* (not a forged host copy) requires integrator-side attestation, fingerprints, and procedural controls |
 | **Partial-quorum and replay handling** | What happens when only one of two holders appears, or the same share is replayed, is consumer logic |
-| **Audit logging for privileged actions** | Token audit hooks may exist in design; **quorum unlock events** (who, when, which shares) belong on the system that acts on the secret |
+| **Audit logging for privileged actions** | Token audit hooks may exist in design; **quorum unlock events** must record **which key or token** was used and **when** — see [Audit logging](#audit-logging) and [AUDIT_LOG.md](AUDIT_LOG.md) |
 
 ---
 
@@ -127,6 +127,7 @@ attach quorum logic.
 - Each tap: OpenPGP **VERIFY PIN** + **SIGN** challenge or present a **Shamir share** record bound to that token's fingerprint.
 - Panel verifies quorum, then pulses strike / sends unlock credential.
 - **NFC** transport and panel software are **design-only** today ([NFC_PN532_INTEGRATION.md](NFC_PN532_INTEGRATION.md)); firmware does not implement NFC or door logic.
+- **Regulated physical access** (e.g. **medicine vaults**, controlled substance storage, evidence lockers): same quorum pattern; **accountability logging** — which credential unlocked **which compartment** at **what time** — is typically mandatory. See [Audit logging](#audit-logging).
 
 ### Custom daemon gating a privileged action
 
@@ -134,6 +135,24 @@ attach quorum logic.
   - `K` successful **`pcsc`** / OpenPGP authentications from **distinct** tokens, or
   - `K` Shamir shares + optional PIN on each token export path.
 - Daemon holds **no** long-term secret; it only verifies quorum and emits an short-lived capability token.
+
+### Administrative access to critical IT infrastructure
+
+- **Example (not shipped):** dual control for **privileged administrative access** to
+  systems that hold or protect sensitive information — **firewalls**, **bastion /
+  jump hosts**, **configuration management** endpoints, **backup consoles**, or
+  **servers** storing regulated or classified data.
+- Each administrator holds **one token** (or one Shamir share). A **policy gateway**
+  or **privileged access management (PAM)** integration requires **K-of-N** evidence
+  before opening an SSH session, VPN admin role, firewall rule change, or break-glass
+  console — for example two independent OpenPGP **SIGN** operations on a challenge,
+  or reconstruction of a **break-glass credential** from **two shares** on an
+  isolated workstation.
+- Galdralag supplies **per-token authentication** and optional **share export**;
+  the **firewall, server OS, or PAM product** must enforce quorum, session length,
+  and audit. This pattern addresses **insider risk** and **single-operator mistakes**
+  on critical infrastructure; it does **not** replace network segmentation, patching,
+  or monitoring.
 
 ---
 
@@ -170,10 +189,35 @@ serial X" over CCID for Shamir export (host tooling maturity varies; see
 
 ### Audit logging
 
-The **downstream system** should log: timestamp, action requested, quorum satisfied
-(yes/no), **identities** (OpenPGP key IDs or operator IDs), share indices used
-(not share **values**), and failure reasons. Token firmware audit trails, where
-present, complement but do not replace consumer-side logs for door or volume events.
+Integrators building quorum systems for **IT infrastructure**, **physical access**
+(medicine vaults, secure storage, doors), or **privileged operations** must be able
+to **log which key or token was used to unlock or gain entry, and at what time**.
+This is a **downstream requirement**, not something Galdralag firmware enforces
+today, but the **identifiers exist** for integrators to bind into logs:
+
+| Log field (integrator) | Typical source |
+|------------------------|----------------|
+| **Timestamp** | Gateway / PAM / panel clock (UTC; NTP-synced in production) |
+| **Action** | e.g. `vault_unlock`, `door_release`, `firewall_admin_session`, `luks_activate` |
+| **Asset** | Door ID, server hostname, volume UUID, medicine vault compartment |
+| **Credential used** | OpenPGP **key fingerprint** or **key ID**, token **serial**, Shamir **share index** (not share value), operator or custodian ID |
+| **Quorum outcome** | Satisfied / denied / partial; which of **K** identities participated |
+| **Failure reason** | Wrong PIN, timeout, duplicate share, policy mismatch |
+
+**Why this matters:** Regulated environments (healthcare controlled storage, financial
+systems, critical infrastructure) need **non-repudiation of access events** — who
+(or which token) opened what, when — without storing PINs or share **values** in
+logs. Each Galdralag token can be mapped to a **stable public identity** (OpenPGP
+fingerprint, optional [Galdralag fingerprint](GLOSSARY.md#g) when profile policy
+allows) so audit records name **which physical key** was presented, not only
+"authentication succeeded."
+
+**Firmware today:** OpenPGP operations can be correlated with key identity on the
+**host** (`gpg --card-status`, PC/SC ATR + application data). A **persistent
+on-device append-only audit log** is **not implemented** — see
+[AUDIT_LOG.md](AUDIT_LOG.md). Quorum gateways and PAM integrations should treat
+**their own tamper-evident log store** as the system of record until device-side
+retrieval exists.
 
 Align consumer threat modelling with [THREAT_MODEL.md](THREAT_MODEL.md) (e.g. **T11**
 / **T12** for Shamir share theft thresholds).
@@ -239,6 +283,7 @@ libnfc FFI).
 - [KEY_LIFECYCLE.md](KEY_LIFECYCLE.md) — Shamir export/import lifecycle (host-orchestrated)
 - [CIPHER_PROFILES.md](CIPHER_PROFILES.md) — `ShamirConfig`, built-in profiles, `galdra shamir` commands
 - [THREAT_MODEL.md](THREAT_MODEL.md) — assets, Shamir share theft (**T11**, **T12**), NFC narrative boundary
+- [AUDIT_LOG.md](AUDIT_LOG.md) — profile audit hooks; accountability logging requirement for access/unlock
 - [README — Shamir secret sharing and drive encryption](../README.md#shamir-secret-sharing-and-drive-encryption)
 - [README — Standards vs. firmware-specific features](../README.md#standards-vs-firmware-specific-features)
 - [NFC_PN532_INTEGRATION.md](NFC_PN532_INTEGRATION.md) — optional NFC + quorum **narrative** (not firmware)

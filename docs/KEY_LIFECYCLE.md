@@ -101,3 +101,4 @@ see [TEST_RESULTS.md](TEST_RESULTS.md).
 - [API_REFERENCE.md](API_REFERENCE.md)
 - [EPHEMERAL_SESSION.md](EPHEMERAL_SESSION.md) — long-term vs ephemeral keys for sessions
 - [DUAL_KEY_QUORUM.md](DUAL_KEY_QUORUM.md) — two- (or N-) token quorum as an integrator extension pattern on Shamir; not enforced by firmware
+- [AUDIT_LOG.md](AUDIT_LOG.md) — profile audit records, OpenPGP audit hook, accountability logging for access/unlock (integrator requirement)

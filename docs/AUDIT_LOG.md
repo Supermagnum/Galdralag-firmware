@@ -10,6 +10,7 @@ hypothetical **persistent on-device audit log**.
 - [OpenPGP backend audit hook](#openpgp-backend-audit-hook)
 - [Persistent RRAM audit log](#persistent-rram-audit-log)
 - [Retention and host retrieval](#retention-and-host-retrieval)
+- [Accountability logging for access and unlock (integrator requirement)](#accountability-logging-for-access-and-unlock-integrator-requirement)
 - [Firmware build-gate audit entries](#firmware-build-gate-audit-entries)
 
 ---
@@ -56,6 +57,36 @@ There is **no** append-only **RRAM audit region** with documented entry format,
 rotation, or cryptographic sealing in this repository. Future work would need:
 event type enum, payload encoding, monotonic entry index, and tamper-evidence
 policy — **none** of which are specified in code reviewed for this document.
+
+---
+
+## Accountability logging for access and unlock (integrator requirement)
+
+Organisations deploying Galdralag in **quorum** or **dual-control** schemes — for
+**IT infrastructure** (firewalls, servers, bastions), **physical access** (medicine
+vaults, controlled storage, secure doors), or **privileged break-glass** — typically
+require that **IT and infrastructure systems can log which key was used to unlock or
+gain entry, and at what time**.
+
+This repository **does not ship** a turnkey access-log product. The **requirement**
+belongs to the **downstream gateway, PAM layer, or panel software** that consumes
+token authentication or Shamir reconstruction. Integrators should record at minimum:
+
+- **Timestamp** (UTC)
+- **Target asset** (hostname, volume, door or vault ID)
+- **Credential identity** — OpenPGP key fingerprint / key ID, token serial, or Shamir
+  share index bound to a named custodian (**never** the share value or PIN)
+- **Outcome** (granted / denied) and, for quorum flows, **which of K keys** participated
+
+OpenPGP card sessions expose enough **public** identity on the host for correlation
+(`gpg --card-status`, PC/SC). Shamir share armour includes a **key fingerprint**
+header ([`ShamirShareExport`](../galdra-core-host/src/shamir_ops.rs)). Reference
+patterns and compliance-oriented notes: [DUAL_KEY_QUORUM.md — Audit logging](DUAL_KEY_QUORUM.md#audit-logging).
+
+Until [persistent RRAM audit log](#persistent-rram-audit-log) exists, treat **host
+or gateway logs** as the accountability system of record and protect them with
+tamper-evidence and retention policy appropriate to your sector (healthcare, finance,
+critical infrastructure).
 
 ---
 
