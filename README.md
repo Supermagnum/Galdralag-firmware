@@ -353,6 +353,11 @@ This firmware is written in Rust, a systems programming language designed
 to be as fast and low-level as C or C++, but with a fundamentally different
 approach to safety.
 
+Every dependency is classified as **unchanged upstream** (crates.io as published),
+**altered or vendored in-tree** (pinned copy or workspace patch), or **created by this
+project** (firmware, host, and tooling crates). The full inventory, roles, and
+dependency graph are in **[docs/CRATE_DEPENDENCIES.md](docs/CRATE_DEPENDENCIES.md)**.
+
 ### Memory Safety
 
 A large share of security-relevant bugs in industry codebases come from **memory unsafety** (buffer overflows, use-after-free, null dereferences, and similar). Microsoft's MSRC has **repeatedly reported** that roughly **70% of CVEs addressed in their own products** fall into this category; the **Chrome** team has published similar proportions for Chrome. Those figures describe **those vendors' products**, not a universal law for all firmware, but they illustrate why memory-safe languages matter.
@@ -380,7 +385,7 @@ This codebase applies common Rust patterns for secrets; they are **not** automat
 
 ### Auditable by design
 
-**`unsafe`** must be **spelled out** in source, which narrows manual review. **Dependencies:** this project's cryptographic policy favours **audited Rust crates** (RustCrypto and others); see the table in [Cryptographic dependency policy](#cryptographic-dependency-policy) — not every dependency is from a single umbrella project.
+**`unsafe`** must be **spelled out** in source, which narrows manual review. **Dependencies:** this project's cryptographic policy favours **audited Rust crates** (RustCrypto and others); see the table in [Cryptographic dependency policy](#cryptographic-dependency-policy) — not every dependency is from a single umbrella project. For the complete crate list and whether each dependency is unchanged, altered/vendored, or project-authored, see **[docs/CRATE_DEPENDENCIES.md](docs/CRATE_DEPENDENCIES.md)**.
 
 ### What Rust does not prevent
 
