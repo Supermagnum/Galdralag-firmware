@@ -41,6 +41,7 @@ https://github.com/betrusted-io/xous-core/pull/937
 - [docs/BIOMETRIC_API.md](docs/BIOMETRIC_API.md)
 - [docs/HARDWARE_BRINGUP_TEST_PLAN.md](docs/HARDWARE_BRINGUP_TEST_PLAN.md)
 - [docs/KEY_LIFECYCLE.md](docs/KEY_LIFECYCLE.md)
+- [docs/DUAL_KEY_QUORUM.md](docs/DUAL_KEY_QUORUM.md)
 - [docs/RRAM_LAYOUT.md](docs/RRAM_LAYOUT.md)
 - [docs/THREE_FACTOR_AUTH.md](docs/THREE_FACTOR_AUTH.md)
 - [docs/THREAT_MODEL.md](docs/THREAT_MODEL.md)
