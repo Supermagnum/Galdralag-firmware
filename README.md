@@ -41,7 +41,6 @@ https://github.com/betrusted-io/xous-core/pull/937
 - [docs/BIOMETRIC_API.md](docs/BIOMETRIC_API.md)
 - [docs/HARDWARE_BRINGUP_TEST_PLAN.md](docs/HARDWARE_BRINGUP_TEST_PLAN.md)
 - [docs/KEY_LIFECYCLE.md](docs/KEY_LIFECYCLE.md)
-- [docs/DUAL_KEY_QUORUM.md](docs/DUAL_KEY_QUORUM.md)
 - [docs/RRAM_LAYOUT.md](docs/RRAM_LAYOUT.md)
 - [docs/THREE_FACTOR_AUTH.md](docs/THREE_FACTOR_AUTH.md)
 - [docs/THREAT_MODEL.md](docs/THREAT_MODEL.md)
@@ -75,6 +74,7 @@ https://github.com/betrusted-io/xous-core/pull/937
   - [Uninstall host tools](#uninstall-host-tools)
 - [Key capabilities](#key-capabilities)
   - [What makes this token unusual](#what-makes-this-token-unusual)
+  - [Dual-hardware-key quorum (integrator pattern)](#dual-hardware-key-quorum-integrator-pattern)
   - [Cryptographic capabilities](#cryptographic-capabilities)
     - [Asymmetric / key agreement](#asymmetric--key-agreement)
     - [Symmetric / AEAD](#symmetric--aead)
@@ -169,6 +169,8 @@ Crate-level exclusions aligned with the same constraints are listed under **[Cra
 The **OpenPGP / CCID** application logic is in **`crates/usb-personality`**. On **Xous**, the USB service that exposes CCID is **`usb-bao1x`** (in your **xous-core** checkout), built with feature **`ccid-openpgp`**, using **`crates/baochip-openpgp`** for the OpenPGP RRAM window and provisioning. Layout: [docs/RRAM_LAYOUT.md](docs/RRAM_LAYOUT.md). Pre-production gaps (operator PIN UX, platform map sign-off): [Known limitations / open work](#known-limitations--open-work).
 
 The overall goal remains a complete, tested, open-source hardware security token firmware: **OpenPGP card–style behaviour** for GnuPG over CCID (see [OpenPGP and GnuPG compatibility](#openpgp-and-gnupg-compatibility)), plus **additional on-device features** not currently defined by the OpenPGP card standard — ephemeral ECDH with forward secrecy, Shamir K-of-N, cipher-agnostic profiles, microSD decoy volume — as summarised in [Standards vs. firmware-specific features](#standards-vs-firmware-specific-features). All on open RTL with a reproducible bootloader.
+
+For deployments that need **two separate physical tokens** (or **K-of-N** share-holders) before unlocking servers, firewalls, medicine vaults, or encrypted volumes, see [Dual-hardware-key quorum (integrator pattern)](#dual-hardware-key-quorum-integrator-pattern) under [Key capabilities](#key-capabilities). Each device is **one** credential source; quorum enforcement is **your** access gateway, PAM layer, or panel — not this firmware.
 
 ### Signed firmware (Ed25519, boot0)
 
@@ -1023,7 +1025,9 @@ The items below are **Galdralag firmware capabilities**, not requirements of the
 - **Shamir K-of-N secret sharing on-device** — the long-term key can be
   split into N shares requiring K to reconstruct, with no single holder able
   to recover the key alone. To the project authors' knowledge, no commercial
-  token provides this as a first-class feature either.
+  token provides this as a first-class feature either. **Dual-control** (two
+  tokens required before a door opens or a volume mounts) is **not** enforced
+  here; see [Dual-hardware-key quorum (integrator pattern)](#dual-hardware-key-quorum-integrator-pattern).
 
 - **Cipher-agnostic profile system** — symmetric ciphers, ECDHE curves, and
   Shamir configuration are combined into named, auditable profiles. For bulk
@@ -1080,6 +1084,37 @@ The items below are **Galdralag firmware capabilities**, not requirements of the
 
 - **Fully open stack** — CERN-OHL-W-2.0 RTL, open schematics, reproducible
   bootloader, Rust/Xous OS, IRIS-inspectable silicon.
+
+### Dual-hardware-key quorum (integrator pattern)
+
+**What it is:** A way for organisations to require **two (or K-of-N) separate
+physical tokens or share-holders** before a **downstream system** unlocks something
+critical — encrypted disks, **firewall or server admin** sessions, **medicine
+vaults**, secure doors, or other privileged actions.
+
+**What Galdralag provides:** Each token is **one independent credential**:
+OpenPGP card authentication (token + PIN) and, via host tooling, **Shamir share
+export** of long-term key material ([`vault::shamir`](crates/vault/src/shamir.rs),
+[`galdra shamir`](docs/CIPHER_PROFILES.md)). Stable **public identities** (OpenPGP
+fingerprints, token serials) support audit records of **which key was used, when**.
+
+**What Galdralag does not provide:** The firmware and host tools **do not block**
+sign, decrypt, or unlock until two tokens are present together. **Quorum
+enforcement**, session time windows, secure reconstruction environment, and
+tamper-evident **access logs** are the **integrator's** job — LUKS unlock daemon,
+privileged access management (PAM), door/panel software, or custom policy gateway.
+
+**Typical pattern:** Split a master unlock secret **2-of-3** (or similar); custodian
+A holds share 1 on token A, custodian B holds share 2 on token B; at unlock time
+the gateway collects **K** shares or **K** token signatures, reconstructs or
+authorizes **once**, then zeroises the secret. Alternative: two OpenPGP **SIGN**
+operations on a challenge within a time window, with no Shamir reconstruction.
+
+This is a **supported extension pattern** using existing primitives — **not** a
+shipped product feature and **not** a roadmap commitment. Design, responsibility
+boundaries, security notes, and accountability logging: [docs/DUAL_KEY_QUORUM.md](docs/DUAL_KEY_QUORUM.md).
+See also [Shamir secret sharing and drive encryption](#shamir-secret-sharing-and-drive-encryption)
+and [docs/AUDIT_LOG.md](docs/AUDIT_LOG.md).
 
 ### Cryptographic capabilities
 
