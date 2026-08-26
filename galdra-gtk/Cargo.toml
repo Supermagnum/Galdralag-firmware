@@ -8,7 +8,7 @@ description = "GTK4 desktop client for Galdra (Cargo binary name galdra-gtk; tal
 [dependencies]
 base64 = { version = "0.22", default-features = false, features = ["std"] }
 clap = { workspace = true, features = ["derive", "env"] }
-dirs = "5"
+dirs = "6"
 gtk = { workspace = true }
 reqwest = { workspace = true, default-features = false, features = ["blocking", "json", "rustls-tls"] }
 serde = { workspace = true }
