@@ -54,7 +54,7 @@ bp384 = { version = "0.14.0-rc.8", default-features = false, features = ["arithm
 # Enables `elliptic_curve::ecdh` for vault ECDH (must match bp256's elliptic-curve version).
 elliptic-curve = { version = "0.14.0-rc.29", default-features = false, features = ["ecdh", "sec1", "pkcs8"] }
 ecdsa = { version = "0.17.0-rc.16", default-features = false, features = ["digest", "der", "algorithm"] }
-ff = { version = "0.13", default-features = false }
+ff = { version = "0.14", default-features = false }
 heapless = { version = "0.8", default-features = false }
 usb-device = { version = "0.3.2", default-features = false }
 signature = { version = "3.0.0-rc.10", default-features = false, features = ["digest"] }
