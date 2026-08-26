@@ -1,0 +1,124 @@
+# GitHub Actions: host test suite + dependency audit.
+#
+# PR/push to main: test-all (--no-fuzz), cargo-audit (three lockfiles),
+# firmware-check (riscv32 + optional galdralag path-dep tree).
+#
+# test-all-full (fuzz included) is weekly, not a PR gate: twelve cargo-fuzz
+# targets at 30s each plus dudect already runs ~15–20 minutes on a quiet
+# host. Weekly is enough to notice bitrot without blocking every Dependabot
+# bump. Trigger manually with workflow_dispatch if needed.
+#
+# cargo audit --file does not need xous-core. services/galdralag Cargo.toml
+# path-depends on ./xous-core (see README ln -sfn). firmware-check clones
+# betrusted-io/xous-core @ feature/usb-bao1x-ccid-openpgp for that compile.
+# If that clone fails, firmware-check fails loudly — it does not drop the
+# galdralag lockfile from cargo-audit.
+
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  schedule:
+    - cron: "0 3 * * 1"
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: 1
+
+jobs:
+  test-all:
+    name: test-all
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: riscv32imac-unknown-none-elf
+      - uses: Swatinem/rust-cache@v2
+      - name: Install host libraries
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            pkg-config \
+            libpcsclite-dev \
+            libssl-dev \
+            libgtk-4-dev
+      - name: test-all --no-fuzz
+        run: cargo run -p xtask -- test-all --no-fuzz
+
+  cargo-audit:
+    name: cargo-audit
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-audit
+      # Three lockfiles, separately. Ignores only from .cargo/audit.toml
+      # (documented in docs/THREAT_MODEL.md). Informational warnings do not fail.
+      - name: Audit root Cargo.lock
+        run: cargo audit --file Cargo.lock
+      - name: Audit services/galdralag/Cargo.lock
+        run: cargo audit --file services/galdralag/Cargo.lock
+      - name: Audit fuzz/Cargo.lock
+        run: cargo audit --file fuzz/Cargo.lock
+
+  firmware-check:
+    name: firmware-check
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: riscv32imac-unknown-none-elf
+      - uses: Swatinem/rust-cache@v2
+      - name: cargo check galdr-vault (riscv32imac-unknown-none-elf)
+        run: cargo check -p galdr-vault --target riscv32imac-unknown-none-elf
+      - name: check-fw (default)
+        run: cargo run -p xtask -- check-fw
+      - name: check-fw (pq-signatures)
+        run: cargo run -p xtask -- check-fw --features pq-signatures
+      - name: Checkout xous-core for galdralag path deps
+        uses: actions/checkout@v4
+        with:
+          repository: betrusted-io/xous-core
+          ref: feature/usb-bao1x-ccid-openpgp
+          path: xous-core
+      - name: cargo check services/galdralag (host, path deps resolved)
+        run: cargo check --manifest-path services/galdralag/Cargo.toml
+
+  test-all-full:
+    name: test-all-full
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@nightly
+        with:
+          targets: riscv32imac-unknown-none-elf
+      - uses: Swatinem/rust-cache@v2
+      - name: Install host libraries
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            pkg-config \
+            libpcsclite-dev \
+            libssl-dev \
+            libgtk-4-dev
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-fuzz
+      - name: test-all (with fuzz)
+        run: cargo run -p xtask -- test-all

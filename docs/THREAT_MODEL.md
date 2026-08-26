@@ -67,6 +67,7 @@ Each row: **Attacker capability** → **Outcome** → **Mitigation** → **Cavea
 | **T12** | Theft of **K** or more Shamir shares | Can reconstruct protected secret | Operational: distribute shares across boundaries; wrap shares for recipients | No technical mitigation once **K** shares leak — organisational controls only. |
 | **T13** | **Coercion** (user forced to PIN/biometric) | Attacker obtains legitimate authentication | **None** by cryptography | Universal limitation of PIN/biometric systems; policy and legal controls apply. |
 | **T14** | **Quantum** adversary (Shor’s algorithm) against RSA/ECC | Confidentiality/agreement based on affected classical asymmetric primitives breaks **when** large-scale quantum computers exist | PQ signatures **feature-gated** (unaudited crates); ML-KEM / ML-DSA / SLH-DSA **pending** audited `no_std` integration ([PQ_SIGNATURES.md](PQ_SIGNATURES.md)) | **Open** risk for long-lived traffic sealed only with vulnerable primitives. |
+| **T15** | Network attacker with precise timing of RSA PKCS#1 v1.5 / related padding operations (**Marvin**, RUSTSEC-2023-0071 / CVE-2023-49092) | Potential RSA private-key recovery via timing side-channel in the `rsa` 0.9.x crate | Host dudect harnesses cover selected RSA OAEP/PSS paths; no patched **0.9.x** exists; **0.10** is a breaking upgrade not yet evaluated | **Accepted known limitation** until `rsa` 0.10 (or a replacement) is reviewed. Still reported by `cargo audit`. See [Tracked dependency advisories](#tracked-dependency-advisories-ci-cargo-audit-allow-list). |
 
 ---
 
@@ -77,6 +78,7 @@ Each row: **Attacker capability** → **Outcome** → **Mitigation** → **Cavea
 - **Malicious `galdrad` / host shim** bypassing biometric intent until **both** host session-token enforcement **and** on-device CCID caller-auth are complete (**T7**).
 - **Physical attacks** without independent silicon evaluation (**T8**); on-device **vaultd/pind/usbd process boundaries** are not an active mitigation until implemented.
 - **Post-quantum** adversaries against classical asymmetric cryptography used today (**T14**).
+- **Marvin timing** against `rsa` 0.9.10 (**T15**) until a breaking 0.10 migration lands.
 - **Logic bugs**, wrong protocols, and integration mistakes — Rust reduces memory unsafety, **not** incorrect security logic.
 - **Correct cryptographic signature** on the **wrong** policy or **wrong** signing key trust anchor (**T9**).
 - **RRAM / flash wear** leading to data loss — endurance on Baochip-1x **not** characterised here.
@@ -103,6 +105,21 @@ Each row: **Attacker capability** → **Outcome** → **Mitigation** → **Cavea
 - **Independent expert review** is **strongly** recommended before any **production** deployment claim.
 
 This section must **remain** unless and until a **published**, **independent** audit exists — then it should be **updated** with a pointer to that report, **not** removed silently.
+
+---
+
+## Tracked dependency advisories (CI `cargo-audit` allow-list)
+
+`cargo audit` in GitHub Actions (`.github/workflows/ci.yml`) **fails on vulnerabilities** except the IDs listed in `.cargo/audit.toml`. Every ignore **must** have a row here. Removing an ignore without an upgrade is a security regression.
+
+A GitHub Dependabot UI “closed” state is **not** a fix. As of 2026-08-26, all three lockfiles still pin **`rsa` 0.9.10** and `cargo audit` still reports **RUSTSEC-2023-0071**. If the GitHub alert was closed, that was a dismissal/UI artefact — reopen it.
+
+| Advisory | Crate | Why CI ignores it | What would retire the ignore |
+|----------|-------|-------------------|------------------------------|
+| **RUSTSEC-2023-0071** | `rsa` 0.9.10 | No patched 0.9.x. Marvin timing (**T15**). Production vault/OpenPGP RSA paths; dudect monitors OAEP/PSS harnesses. | Evaluate and land `rsa` 0.10 (breaking) or a replacement crate. |
+| **RUSTSEC-2026-0119** | `hickory-proto` 0.24.4 | Transitive via `sequoia-net` 0.30.x (`hickory-client`/`hickory-resolver` = `0.24`). Fix is ≥0.26.1 (semver wall). Network DoS on optional WKD/keyserver, not on-token key material. | `sequoia-net` release that takes Hickory ≥0.26. |
+| **RUSTSEC-2026-0194**, **RUSTSEC-2026-0195** | `quick-xml` 0.28.2 | Firmware **build-time** only (`svd2utra` → `utralib`). Not in the device CCID/APDU runtime path. | Bump `svd2utra`/Xous toolchain so the lockfile gets `quick-xml` ≥0.41. |
+| **RUSTSEC-2026-0233**, **RUSTSEC-2026-0234**, **RUSTSEC-2026-0235** | `rkyv` 0.8.16 | Firmware IPC (`pddb`/`trng`/`galdralag-service`). Tracked as a **separate** lockfile bump to ≥0.8.17 (not bundled with this CI work). | Dedicated `services/galdralag` `rkyv` 0.8.17 bump and Xous IPC retest. |
 
 ---
 

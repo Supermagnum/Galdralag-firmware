@@ -8,8 +8,13 @@ All notable changes to this project are documented in this file.
 
 - **`sequoia-openpgp` 1.22 → 2.4.1 (RUSTSEC-2025-0136):** Upgraded host OpenPGP stack (`sequoia-openpgp` **2.4.1**, `sequoia-net` **0.30.1** in lockstep). Upstream `aes_key_unwrap` could panic (or OOM-panic) on a crafted PKESK/SKESK with a too-short wrapped key; fixed in sequoia-openpgp ≥ 2.1.0. Reachable from `galdra` / `galdrad` / `galdra-core-host` decrypt and related OpenPGP paths. No GHSA filed here — this is an upstream advisory.
 - **`rand` 0.8.5 → 0.8.8 (RUSTSEC-2026-0097):** Workspace pin and lockfile; also refresh transitive `rand` 0.9.2 → 0.9.5 and 0.10.0 → 0.10.2. The advisory is an unsound `thread_rng`/logger reseed case; production Shamir split uses `OsRng`.
+- **`rsa` 0.9.10 / RUSTSEC-2023-0071 (Marvin):** Still pinned; no 0.9.x fix. GitHub alert “closed” is not a version fix. Documented as **T15** in [docs/THREAT_MODEL.md](docs/THREAT_MODEL.md); CI `cargo-audit` allow-lists this ID only with that note.
 - **Shamir host split RNG (critical):** Production host Shamir split (`galdra shamir split`, `galdrad` `POST /shamir/split`, `galdra-gtk` split UI) used `FakeTrng::from_seed(0x5F4D_414D_4952)` for polynomial coefficients. With GF(256) XOR arithmetic, **one share plus public source code recovered the full secret**; K-of-N threshold did not apply. Introduced in commit `ec9faa90e1be5c5bc656245e786c87ccf564a971` (2026-06-18); fixed in commit `7db5e08851b2f0c48b65a00caa579f1d5ec077dd`. **Any shares produced before the fix commit must be treated as compromised** — re-provision and re-split affected keys. See [docs/SECURITY_ADVISORY_SHAMIR_RNG.md](docs/SECURITY_ADVISORY_SHAMIR_RNG.md).
 - **Fix:** `OsRng` on the production path; `ShamirSplitRng` trait restricts approved entropy sources; `test-hal` removed from `galdra-core-host` release dependencies; `xtask check-host` verifies release host builds; regression tests for non-determinism and cross-secret independence.
+
+### Added
+
+- **GitHub Actions CI** (`.github/workflows/ci.yml`): `test-all --no-fuzz`, `cargo-audit` on all three lockfiles, and firmware `riscv32` checks on every PR and push to `main`. Weekly scheduled `test-all` with fuzz. See [docs/THREAT_MODEL.md](docs/THREAT_MODEL.md) for `cargo-audit` allow-list.
 
 ### Changed
 
