@@ -89,8 +89,8 @@ rsa = { version = "0.9.10", default-features = false, features = ["sha2"] }
 # Galdra host tool (pinned; run `cargo audit` after changes)
 clap = { version = "4.5.28", features = ["derive"] }
 rusqlite = { version = "0.31.0", features = ["bundled-sqlcipher"] }
-sequoia-openpgp = { version = "1.21.0", default-features = false, features = ["crypto-rust", "allow-experimental-crypto", "compression", "allow-variable-time-crypto"] }
-sequoia-net = { version = "0.28.0", default-features = false }
+sequoia-openpgp = { version = "2.4.1", default-features = false, features = ["crypto-rust", "allow-experimental-crypto", "compression", "allow-variable-time-crypto"] }
+sequoia-net = { version = "0.30.1", default-features = false }
 rusb = "0.9.4"
 rpassword = "7.3.1"
 serialport = { version = "4.6.0", default-features = false }

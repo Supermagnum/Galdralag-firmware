@@ -101,7 +101,7 @@ Used by `galdra`, `galdrad`, `galdra-gtk`, `galdra-core-host`, and `host-tools`:
 |-------|------|
 | `clap` | CLI parsing (`galdra`, `xtask`, host-tools) |
 | `rusqlite` | Local contacts/groups/audit database |
-| `sequoia-openpgp`, `sequoia-net` | OpenPGP packet handling and keyserver fetch |
+| `sequoia-openpgp` **2.4.1**, `sequoia-net` **0.30.1** | OpenPGP packet handling and keyserver/WKD fetch (host); pinned in workspace `Cargo.toml` |
 | `pcsc` | Smart-card reader access (optional feature) |
 | `tokio`, `axum`, `tower`, `tower-http`, `tracing` | `galdrad` REST server |
 | `utoipa`, `utoipa-swagger-ui` | OpenAPI for `galdrad` |

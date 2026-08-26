@@ -120,7 +120,7 @@ fn opt_trim_nonempty(s: Option<&String>) -> Option<&str> {
 pub fn cert_emails_sorted(cert: &Cert) -> Vec<String> {
     let set: BTreeSet<String> = cert
         .userids()
-        .filter_map(|uids| uids.email_normalized().ok().flatten())
+        .filter_map(|uids| uids.userid().email_normalized().ok().flatten())
         .collect();
     set.into_iter().collect()
 }
