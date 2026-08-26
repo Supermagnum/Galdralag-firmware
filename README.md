@@ -189,6 +189,7 @@ Not every test runs in every command; that is intentional.
 - **`xtask` not in the default workspace test:** The common recipe is `cargo test --workspace --exclude xtask` because `xtask` is a build-orchestration crate. Run `cargo test -p xtask` when you want its tests.
 - **Tests marked `#[ignore]`:** These are skipped unless you pass `--ignored` (and any needed crate filters). Reasons include: coverage that is already exercised in focused unit tests (e.g. post-drop zeroization), **slow** cases (e.g. RSA key generation), and **hardware or token-dependent** flows in host tools such as `galdra` that need a connected device or fixtures.
 - **`test-all --no-fuzz`:** Skips the **cargo-fuzz** step to keep CI or quick runs short and to avoid requiring a nightly toolchain for that step; run `cargo run -p xtask -- test-all` without `--no-fuzz`, or invoke fuzz targets separately (see [`fuzz/README.md`](fuzz/README.md)).
+- **`test-all --no-dudect`:** Skips the **dudect** timing suite (~15–20 minutes). Pull-request CI uses this flag. Run `cargo run -p xtask -- timing-test` or `test-all` without `--no-dudect` for the timing gate. Weekly CI (`test-all-full`) still runs dudect.
 - **Conformance vector suites:** Some groups are not executed (for example certain AES-GCM Wycheproof cases); see [`docs/TEST_RESULTS.md`](docs/TEST_RESULTS.md) for what is in scope.
 
 One can also check integrity of crates with this when the pr is closed:
