@@ -1205,9 +1205,9 @@ dependencies = [
 
 [[package]]
 name = "serpent"
-version = "0.6.0-rc.3"
+version = "0.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "239e2eb5603664d597ceae0893aa2174fe9791805dd294f835e171294c4588e9"
+checksum = "940b28a5f6693dd27b89c8a36c496814f50b66f22a1a83950f52c2029676c59c"
 dependencies = [
  "cipher 0.5.1",
 ]
