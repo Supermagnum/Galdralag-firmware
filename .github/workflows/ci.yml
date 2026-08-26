@@ -9,10 +9,12 @@
 # bump. Trigger manually with workflow_dispatch if needed.
 #
 # cargo audit --file does not need xous-core. services/galdralag Cargo.toml
-# path-depends on ./xous-core (see README ln -sfn). firmware-check clones
-# betrusted-io/xous-core @ feature/usb-bao1x-ccid-openpgp for that compile.
-# If that clone fails, firmware-check fails loudly — it does not drop the
-# galdralag lockfile from cargo-audit.
+# path-depends on ./xous-core. The README branch
+# `feature/usb-bao1x-ccid-openpgp` is **not** on public betrusted-io/xous-core
+# (only `main`/`dev` exist). CI therefore does **not** clone xous-core and
+# does **not** `cargo check` the galdralag workspace. The galdralag
+# **lockfile is still audited** in the cargo-audit job. Local image builds
+# keep using `ln -sfn ../xous-core ./xous-core`.
 
 name: CI
 
@@ -89,14 +91,6 @@ jobs:
         run: cargo run -p xtask -- check-fw
       - name: check-fw (pq-signatures)
         run: cargo run -p xtask -- check-fw --features pq-signatures
-      - name: Checkout xous-core for galdralag path deps
-        uses: actions/checkout@v4
-        with:
-          repository: betrusted-io/xous-core
-          ref: feature/usb-bao1x-ccid-openpgp
-          path: xous-core
-      - name: cargo check services/galdralag (host, path deps resolved)
-        run: cargo check --manifest-path services/galdralag/Cargo.toml
 
   test-all-full:
     name: test-all-full
