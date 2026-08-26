@@ -797,19 +797,19 @@ pub fn router(state: AppState) -> Router {
         .route("/health", get(health))
         .route("/contacts", get(list_contacts).post(create_contact))
         .route(
-            "/contacts/:id",
+            "/contacts/{id}",
             get(get_contact)
                 .patch(update_contact)
                 .delete(delete_contact),
         )
         .route("/groups", get(list_groups).post(create_group))
-        .route("/groups/:name", get(get_group))
-        .route("/groups/:name/members", post(add_group_members))
-        .route("/groups/:name/members/:id", delete(remove_group_member))
+        .route("/groups/{name}", get(get_group))
+        .route("/groups/{name}/members", post(add_group_members))
+        .route("/groups/{name}/members/{id}", delete(remove_group_member))
         .route("/device/status", get(device_status))
         .route("/audit", get(list_audit))
         .route("/profiles", get(list_profiles).post(create_profile))
-        .route("/profiles/:name", get(get_profile).delete(delete_profile))
+        .route("/profiles/{name}", get(get_profile).delete(delete_profile))
         .route("/shamir/split", post(shamir_split_handler))
         .route("/shamir/recover", post(shamir_recover_handler))
         .route("/shamir/share-info", get(shamir_share_info))
