@@ -14,7 +14,7 @@ ignore = [
     # Firmware build-dep (svd2utra), not CCID runtime.
     "RUSTSEC-2026-0194",
     "RUSTSEC-2026-0195",
-    # Firmware IPC; separate rkyv 0.8.17 bump.
+    # Firmware IPC: services/galdralag/Cargo.lock still on rkyv 0.8.16.
     "RUSTSEC-2026-0233",
     "RUSTSEC-2026-0234",
     "RUSTSEC-2026-0235",

@@ -67,23 +67,29 @@ These are declared in the root [`Cargo.toml`](../Cargo.toml) under `[workspace.d
 
 | Crate | Role in this project |
 |-------|----------------------|
-| `aes-gcm` | AES-256-GCM AEAD (vault sealing, OpenPGP paths) |
-| `chacha20poly1305` | ChaCha20-Poly1305 AEAD |
-| `aead` | AEAD trait glue |
-| `hkdf`, `pbkdf2`, `hmac` | Key derivation and MAC |
-| `sha1`, `sha2`, `sha3`, `blake2`, `blake3` | Digests and KDF inputs |
-| `ed25519-dalek`, `x25519-dalek` | Ed25519 / X25519 (OpenPGP AUT/DEC slots) |
+| `aes-gcm` **0.11** | AES-256-GCM AEAD (vault sealing, contact-store, cascade layers) |
+| `chacha20poly1305` **0.11** | ChaCha20-Poly1305 AEAD (vault, CESS outer, cascade inner) |
+| `aead` **0.6** | AEAD traits (`AeadInOut`; hybrid-array keys/nonces) |
+| `hkdf` **0.13**, `pbkdf2` **0.13**, `hmac` **0.13** | Key derivation and MAC |
+| `sha1`/`sha2`/`sha3` **0.11**, `blake2`, `blake3` | Digests and KDF inputs |
+| `ed25519-dalek`, `x25519-dalek` **3.0** | Ed25519 / X25519 (OpenPGP AUT/DEC slots); X25519 keeps `default-features = false` |
 | `p256`, `p384` | NIST curves where OpenPGP compatibility requires them |
 | `bp256`, `bp384` | Brainpool P-256 / P-384 (primary curve family) |
-| `elliptic-curve`, `ecdsa`, `signature`, `ff` | ECDSA and curve arithmetic |
+| `elliptic-curve`, `ecdsa`, `signature`, `ff` **0.14** | ECDSA and curve arithmetic |
 | `rsa` | Vault library RSA (OAEP/PSS; PKCS#1 v1.5 sign/verify). Not used by OpenPGP card PSO. |
 | `camellia`, `serpent`, `twofish` | Cascade cipher layers in vault profiles |
-| `vsss-rs` | Shamir secret sharing (split/recover) |
+| `vsss-rs` **6.0** | Shamir secret sharing (split/recover) |
 | `zeroize` | Secure zeroisation of sensitive buffers |
 | `subtle` | Constant-time comparisons (`Choice`, `ConstantTimeEq`) |
 | `rand_core`, `rand` | CSPRNG interfaces (host tests and tooling) |
 
 **Exception — `subtle`:** The workspace applies `[patch.crates-io] subtle = { path = "crates/subtle-vendored" }`. That directory is a **vendored copy** of the upstream `subtle` crate (same API; pinned in-tree for reproducible builds). It is **not** project-authored crypto logic.
+
+Workspace majors above are declared in root [`Cargo.toml`](../Cargo.toml). Exact patch versions live in `Cargo.lock`. After AEAD major bumps, prefer re-running cascade-critical tests by name (RFC 8439, CESS cascade KAT, cascade integration, dudect ChaCha/AES-GCM tag checks) rather than relying only on aggregate `test-all`.
+
+### Dependabot and `fuzz/`
+
+Dependabot scans the **root** Cargo workspace only. It must **not** scan nested `fuzz/` (see `.github/dependabot.yml`): vault-fuzz path-depends on crates that use `foo.workspace = true`, and Dependabot then rewrites root pins. Refresh `fuzz/Cargo.lock` in the same PR as any root crypto bump.
 
 ### Embedded / `no_std` utilities
 
@@ -103,8 +109,8 @@ Used by `galdra`, `galdrad`, `galdra-gtk`, `galdra-core-host`, and `host-tools`:
 | `rusqlite` | Local contacts/groups/audit database |
 | `sequoia-openpgp` **2.4.1**, `sequoia-net` **0.30.1** | OpenPGP packet handling and keyserver/WKD fetch (host); pinned in workspace `Cargo.toml` |
 | `pcsc` | Smart-card reader access (optional feature) |
-| `tokio`, `axum`, `tower`, `tower-http`, `tracing` | `galdrad` REST server |
-| `utoipa`, `utoipa-swagger-ui` | OpenAPI for `galdrad` |
+| `tokio`, `axum` **0.8**, `tower`, `tower-http`, `tracing` | `galdrad` REST server |
+| `utoipa`, `utoipa-swagger-ui` **9** | OpenAPI for `galdrad` |
 | `reqwest`, `ldap3` | HTTP and LDAP key discovery |
 | `serde`, `serde_json`, `toml`, `chrono`, `uuid` | Config and persistence |
 | `gtk` (gtk4), `libadwaita` | `galdra-gtk` desktop UI |
@@ -206,7 +212,7 @@ These are excluded from the workspace lockfile because they depend on **xous-cor
 | Item | Notes |
 |------|--------|
 | `psram-store` | Optional decoy/microSD volume — design in [Psram.md](Psram.md); not a workspace member yet |
-| `fuzz/` targets | libFuzzer binaries; depend on workspace crates but are not libraries |
+| `fuzz/` targets | libFuzzer binaries; depend on workspace crates but are not libraries. Not Dependabot-scanned — refresh `fuzz/Cargo.lock` with root bumps (see above). |
 | **xous-core** | External checkout (`betrusted-io/xous-core`); provides kernel, `usb-bao1x`, PDDB |
 
 ---
