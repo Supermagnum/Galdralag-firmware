@@ -20,7 +20,7 @@ inventing product features not present in source.
 
 - OpenPGP **SIG / DEC / AUT** keys are generated through the [`OpenPgpBackend`](../crates/usb-personality/src/openpgp/backend.rs) surface; [`OpenPgpVaultBackend`](../crates/usb-personality/src/openpgp/vault_backend.rs) uses [`HardwareTrng`](../crates/galdr-core/src/hal.rs) and persists **sealed** private blobs at fixed offsets ([`layout`](../crates/vault/src/layout.rs)).
 - **Brainpool / Ed25519 / X25519** paths follow [`vault`](../crates/vault/src) crypto helpers; nonces and AEAD wrapping use TRNG where the API requires it (`sealed_key`, ChaCha, etc.).
-- **RSA** keys use [`vault_store_rsa_key`](../crates/vault/src/rsa_vault.rs) with ChaCha wrapping and per-slot HKDF labels (`KeyPurpose::RsaKeyWrap`).
+- **RSA** keys use [`vault_store_rsa_key`](../crates/vault/src/rsa_vault.rs) with ChaCha wrapping and per-slot HKDF labels (`KeyPurpose::RsaKeyWrap`). This vault helper is **not** used by OpenPGP card GENERATE or PSO; RSA-attributed SIG/DEC/AUT slots fail closed ([OPENPGP_CARD.md](OPENPGP_CARD.md)).
 
 > **Hardware caveat:** TRNG quality and side-channel behaviour must be validated
 > on silicon per product requirements. See [HARDWARE_VERIFICATION.md](HARDWARE_VERIFICATION.md).

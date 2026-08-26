@@ -11,4 +11,5 @@ alwaysApply: false
 - `cargo run -p xtask -- test-all` **rewrites** [docs/TEST_RESULTS.md](docs/TEST_RESULTS.md) via `build_markdown` in `xtask/src/test_all.rs`.
 - After changing the **layout or sections** of `TEST_RESULTS.md`, **update `build_markdown`** so the next `test-all` run does not revert manual edits.
 - **`test-all --no-fuzz`** skips cargo-fuzz (long run); do not run full fuzz unless the user asks.
+- **`test-all --no-dudect`** skips dudect (also long); pull-request CI uses this. Local default `test-all` still runs dudect.
 - Pipeline summary is the **single source of truth** for pass/fail rows; follow the HTML comment **maintenance contract** at the top of `TEST_RESULTS.md`.
