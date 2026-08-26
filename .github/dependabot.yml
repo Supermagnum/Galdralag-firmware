@@ -15,8 +15,7 @@ updates:
       - dependency-name: hickory-client
       - dependency-name: hickory-resolver
 
-  - package-ecosystem: cargo
-    directory: /fuzz
-    schedule:
-      interval: weekly
-    open-pull-requests-limit: 5
+  # Do not scan /fuzz. vault-fuzz is a nested workspace that path-depends on
+  # crates using `foo.workspace = true`. Dependabot then rewrites the root
+  # workspace pins (hkdf, ff, x25519-dalek, ...) and breaks firmware CI.
+  # Refresh fuzz/Cargo.lock in the same PR as the root bump.

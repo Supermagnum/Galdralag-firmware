@@ -19,8 +19,6 @@ use crate::timing_cascade::{
 use crate::timing_pbkdf2::bench_timing_pbkdf2;
 use crate::timing_sha2::{bench_timing_sha256, bench_timing_sha512};
 use crate::timing_sha3::{bench_timing_sha3_256, bench_timing_sha3_512};
-use hmac::digest::generic_array::typenum::U32;
-use hmac::digest::generic_array::GenericArray;
 use rand::prelude::*;
 use std::hint::black_box;
 use std::io::Write;
@@ -35,9 +33,7 @@ fn subtle_ct_eq_bytes_32(a: &[u8], b: &[u8]) {
     let b = black_box(b);
     let mut acc = Choice::from(1u8);
     for i in (0..a.len()).step_by(32) {
-        let ga = GenericArray::<u8, U32>::from_slice(black_box(&a[i..i + 32]));
-        let gb = GenericArray::<u8, U32>::from_slice(black_box(&b[i..i + 32]));
-        acc &= ga.ct_eq(gb);
+        acc &= black_box(&a[i..i + 32]).ct_eq(black_box(&b[i..i + 32]));
     }
     black_box(acc);
 }
@@ -118,8 +114,6 @@ fn bench_subtle_eq_u256() -> CtSummary {
 fn bench_timing_chacha_tag_check() -> CtSummary {
     use chacha20poly1305::aead::{Aead, KeyInit, Payload};
     use chacha20poly1305::{ChaCha20Poly1305, Key, Nonce};
-    use hmac::digest::generic_array::typenum::U16;
-    use hmac::digest::generic_array::GenericArray;
     let key = *Key::from_slice(&[0x5Au8; 32]);
     let nonce = *Nonce::from_slice(&[0u8; 12]);
     let cipher = ChaCha20Poly1305::new(&key);
@@ -147,9 +141,7 @@ fn bench_timing_chacha_tag_check() -> CtSummary {
         runner.run_one(c, move || {
             let a = black_box(a);
             let b = black_box(b);
-            let ga = GenericArray::<u8, U16>::from_slice(&a);
-            let gb = GenericArray::<u8, U16>::from_slice(&b);
-            black_box(ga.ct_eq(gb));
+            black_box(a.ct_eq(&b));
         });
     }
     let (l, r) = runner.left_right();
@@ -159,8 +151,6 @@ fn bench_timing_chacha_tag_check() -> CtSummary {
 fn bench_timing_aes_gcm_tag_check() -> CtSummary {
     use aes_gcm::aead::{Aead, KeyInit, Payload};
     use aes_gcm::{Aes256Gcm, Key, Nonce};
-    use hmac::digest::generic_array::typenum::U16;
-    use hmac::digest::generic_array::GenericArray;
     let key = *Key::<Aes256Gcm>::from_slice(&[0x3Cu8; 32]);
     let nonce = *Nonce::from_slice(&[1u8; 12]);
     let cipher = Aes256Gcm::new(&key);
@@ -186,9 +176,7 @@ fn bench_timing_aes_gcm_tag_check() -> CtSummary {
         runner.run_one(c, move || {
             let a = black_box(a);
             let b = black_box(b);
-            let ga = GenericArray::<u8, U16>::from_slice(&a);
-            let gb = GenericArray::<u8, U16>::from_slice(&b);
-            black_box(ga.ct_eq(gb));
+            black_box(a.ct_eq(&b));
         });
     }
     let (l, r) = runner.left_right();
@@ -201,7 +189,7 @@ fn bench_timing_hmac_verify() -> CtSummary {
     type HmacSha256 = Hmac<Sha256>;
     let key = [0x0Bu8; 32];
     let msg = b"hmac dudect verify path";
-    let mut mac = <HmacSha256 as Mac>::new_from_slice(&key).expect("key");
+    let mut mac = <HmacSha256 as hmac::digest::KeyInit>::new_from_slice(&key).expect("key");
     mac.update(msg);
     let tag = mac.finalize().into_bytes();
     let tag_good: [u8; 32] = tag.into();
@@ -223,9 +211,7 @@ fn bench_timing_hmac_verify() -> CtSummary {
         runner.run_one(c, move || {
             let a = black_box(a);
             let b = black_box(b);
-            let ga = GenericArray::<u8, U32>::from_slice(&a);
-            let gb = GenericArray::<u8, U32>::from_slice(&b);
-            black_box(ga.ct_eq(gb));
+            black_box(a.ct_eq(&b));
         });
     }
     let (l, r) = runner.left_right();
@@ -265,9 +251,6 @@ fn bench_timing_hkdf_derive() -> CtSummary {
 
 fn bench_timing_ed25519_verify() -> CtSummary {
     use ed25519_dalek::{Signer, SigningKey};
-    use hmac::digest::generic_array::typenum::U32;
-    use hmac::digest::generic_array::GenericArray;
-    use subtle::ConstantTimeEq;
     let sk = SigningKey::from_bytes(&[7u8; 32]);
     let msg = b"ed25519 dudect verify";
     let sig_good = sk.sign(msg).to_bytes();
@@ -287,11 +270,7 @@ fn bench_timing_ed25519_verify() -> CtSummary {
     let mut runner = CtRunner::default();
     for (c, a, b) in work {
         runner.run_one(c, move || {
-            let a0 = GenericArray::<u8, U32>::from_slice(&a[..32]);
-            let a1 = GenericArray::<u8, U32>::from_slice(&a[32..]);
-            let b0 = GenericArray::<u8, U32>::from_slice(&b[..32]);
-            let b1 = GenericArray::<u8, U32>::from_slice(&b[32..]);
-            let _ = a0.ct_eq(b0) & a1.ct_eq(b1);
+            let _ = a[..32].ct_eq(&b[..32]) & a[32..].ct_eq(&b[32..]);
         });
     }
     let (l, r) = runner.left_right();
@@ -324,9 +303,7 @@ fn bench_timing_x25519_ecdh() -> CtSummary {
         runner.run_one(c, move || {
             let a = black_box(a);
             let b = black_box(b);
-            let ga = GenericArray::<u8, U32>::from_slice(&a);
-            let gb = GenericArray::<u8, U32>::from_slice(&b);
-            black_box(ga.ct_eq(gb));
+            black_box(a.ct_eq(&b));
         });
     }
     let (l, r) = runner.left_right();
@@ -603,9 +580,7 @@ fn bench_timing_serpent_tag_check() -> CtSummary {
         runner.run_one(c, move || {
             let a = black_box(a);
             let b = black_box(b);
-            let ga = GenericArray::<u8, U32>::from_slice(&a);
-            let gb = GenericArray::<u8, U32>::from_slice(&b);
-            black_box(ga.ct_eq(gb));
+            black_box(a.ct_eq(&b));
         });
     }
     let (l, r) = runner.left_right();
@@ -642,9 +617,7 @@ fn bench_timing_camellia_tag_check() -> CtSummary {
         runner.run_one(c, move || {
             let a = black_box(a);
             let b = black_box(b);
-            let ga = GenericArray::<u8, U32>::from_slice(&a);
-            let gb = GenericArray::<u8, U32>::from_slice(&b);
-            black_box(ga.ct_eq(gb));
+            black_box(a.ct_eq(&b));
         });
     }
     let (l, r) = runner.left_right();
@@ -653,8 +626,6 @@ fn bench_timing_camellia_tag_check() -> CtSummary {
 
 fn bench_timing_twofish_tag_check() -> CtSummary {
     use galdr_vault::twofish_cipher::{twofish_encrypt, TwofishKey, TwofishNonce, TWOFISH_TAG_LEN};
-    use hmac::digest::generic_array::typenum::U32;
-    use hmac::digest::generic_array::GenericArray;
     let key = TwofishKey::from_raw_cipher_mac_for_test([0x2Fu8; 32], [0x3Eu8; 32]);
     let nonce = TwofishNonce::from_counter(0);
     let aad = b"twofish aad";
@@ -681,9 +652,7 @@ fn bench_timing_twofish_tag_check() -> CtSummary {
         runner.run_one(c, move || {
             let a = black_box(a);
             let b = black_box(b);
-            let ga = GenericArray::<u8, U32>::from_slice(&a);
-            let gb = GenericArray::<u8, U32>::from_slice(&b);
-            black_box(ga.ct_eq(gb));
+            black_box(a.ct_eq(&b));
         });
     }
     let (l, r) = runner.left_right();

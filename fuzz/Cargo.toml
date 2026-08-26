@@ -19,7 +19,7 @@ ed25519-dalek = { version = "2", default-features = false, features = ["rand_cor
 biometric-api = { path = "../crates/biometric-api" }
 pin-policy = { path = "../crates/pin-policy" }
 usb-personality = { path = "../crates/usb-personality" }
-x25519-dalek = { version = "2.0", default-features = false, features = ["static_secrets"] }
+x25519-dalek = { version = "3.0", default-features = false, features = ["static_secrets"] }
 
 [[bin]]
 name = "biometric_dispatch"

@@ -10,7 +10,7 @@ use galdr_vault::brainpool384::BrainpoolP384PublicKey;
 use galdr_vault::brainpool384::BrainpoolP384Scalar;
 use heapless::Vec;
 use hkdf::Hkdf;
-use hmac::{Hmac, Mac};
+use hmac::{Hmac, KeyInit, Mac};
 use sha2::Sha256;
 use zeroize::{Zeroize, ZeroizeOnDrop, Zeroizing};
 
@@ -228,11 +228,11 @@ fn hkdf_extract_sha256(salt: &[u8], ikm: &[u8]) -> [u8; 32] {
     type HmacSha256 = Hmac<Sha256>;
     if salt.is_empty() {
         let key = [0u8; 32];
-        let mut mac = <HmacSha256 as Mac>::new_from_slice(&key).expect("hmac key");
+        let mut mac = <HmacSha256 as KeyInit>::new_from_slice(&key).expect("hmac key");
         mac.update(ikm);
         return mac.finalize().into_bytes().into();
     }
-    let mut mac = <HmacSha256 as Mac>::new_from_slice(salt).expect("hmac key");
+    let mut mac = <HmacSha256 as KeyInit>::new_from_slice(salt).expect("hmac key");
     mac.update(ikm);
     mac.finalize().into_bytes().into()
 }

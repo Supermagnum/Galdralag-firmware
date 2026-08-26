@@ -9,7 +9,7 @@ use aes_gcm::KeyInit as _;
 use aes_gcm::{Aes256Gcm, Key, Nonce};
 use biometric_api::Modality;
 use hkdf::Hkdf;
-use hmac::{Hmac, Mac};
+use hmac::{Hmac, KeyInit, Mac};
 use sha2::Digest;
 use sha2::Sha256;
 use subtle::ConstantTimeEq;
@@ -137,7 +137,7 @@ pub fn generate_session_token(
     timestamp: u64,
 ) -> [u8; 32] {
     let mut mac =
-        <Hmac<Sha256> as Mac>::new_from_slice(hmac_key.as_slice()).expect("HMAC key length");
+        <Hmac<Sha256> as KeyInit>::new_from_slice(hmac_key.as_slice()).expect("HMAC key length");
     mac.update(nonce.as_slice());
     mac.update(device_id);
     mac.update(timestamp.to_be_bytes().as_slice());

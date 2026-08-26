@@ -1007,7 +1007,9 @@ where
                 AlgorithmAttributes::Ecdh { curve_oid }
                     if curve_oid.as_slice() == curve_oids::CURVE25519 =>
                 {
-                    let secret = StaticSecret::random_from_rng(&mut self.trng);
+                    let mut seed = [0u8; 32];
+                    self.trng.fill_bytes(&mut seed);
+                    let secret = StaticSecret::from(seed);
                     let public = X25519PublicKey::from(&secret);
                     self.persist_private_key(KeyPurpose::OpenPgpDec, secret.as_bytes())?;
                     self.dec_key = None;

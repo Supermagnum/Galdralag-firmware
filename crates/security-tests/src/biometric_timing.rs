@@ -12,8 +12,6 @@ use biometric_api::{
 };
 use biometric_vault::{decrypt_template, encrypt_template, verify_session_token};
 use ed25519_dalek::{Signer, SigningKey};
-use hmac::digest::generic_array::typenum::U32;
-use hmac::digest::generic_array::GenericArray;
 use subtle::ConstantTimeEq;
 
 use crate::dudect_sample_counts::samples_for_harness;
@@ -116,11 +114,7 @@ pub fn bench_dudect_signature_verify_constant_time() -> CtSummary {
             // signature (R || S). A full `verify_match_payload_signature` hot loop would run
             // CBOR plus Ed25519 verify 100k times and dominates wall time; unequal verify outcomes
             // are also not a valid dudect pair (see `timing_ed25519_verify` in `dudect_harnesses`).
-            let a0 = GenericArray::<u8, U32>::from_slice(&sig[..32]);
-            let a1 = GenericArray::<u8, U32>::from_slice(&sig[32..]);
-            let b0 = GenericArray::<u8, U32>::from_slice(&sig_good[..32]);
-            let b1 = GenericArray::<u8, U32>::from_slice(&sig_good[32..]);
-            black_box(a0.ct_eq(b0) & a1.ct_eq(b1));
+            black_box(sig[..32].ct_eq(&sig_good[..32]) & sig[32..].ct_eq(&sig_good[32..]));
         });
     }
     let (l, r) = runner.left_right();
