@@ -28,6 +28,6 @@ mod scaffold_todos;
 
 pub use error::{GaldrError, HalError};
 pub use hal::{
-    HardwareTrng, MonotonicCounter, RebootController, UnsupportedVaultStorage, VaultStorage,
-    ZeroiseController,
+    HardwareTrng, MonotonicCounter, RebootController, ShamirSplitRng, UnsupportedVaultStorage,
+    VaultStorage, ZeroiseController,
 };

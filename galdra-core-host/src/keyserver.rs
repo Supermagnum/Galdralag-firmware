@@ -5,7 +5,6 @@ use sequoia_net::reqwest::Client;
 use sequoia_net::wkd;
 use sequoia_net::KeyServer;
 use sequoia_openpgp::packet::UserID;
-use sequoia_openpgp::parse::Parse;
 use sequoia_openpgp::Cert;
 use std::time::Duration;
 
@@ -23,7 +22,8 @@ fn userid_from_query(query: &str) -> Result<UserID, GaldraError> {
     if query.contains('@') {
         UserID::from_address(None, None, query).map_err(|e| GaldraError::KeyFetch(e.to_string()))
     } else {
-        UserID::from_bytes(query.as_bytes()).map_err(|e| GaldraError::KeyFetch(e.to_string()))
+        // Non-email HKP queries (fingerprint / keyid / free text): opaque User ID value.
+        Ok(UserID::from(query.as_bytes()))
     }
 }
 
@@ -92,6 +92,6 @@ pub async fn wkd_fetch(email: &str, timeout: Duration) -> Result<Cert, GaldraErr
 /// First normalized e-mail address from certificate User IDs, if any.
 pub fn cert_first_email(cert: &Cert) -> Option<String> {
     cert.userids()
-        .filter_map(|uids| uids.email_normalized().ok().flatten())
+        .filter_map(|uids| uids.userid().email_normalized().ok().flatten())
         .next()
 }

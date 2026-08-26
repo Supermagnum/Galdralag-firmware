@@ -9,10 +9,16 @@ This project is **registered with the [Open Invention Network (OIN)](https://ope
 Status: Waiting for:
 https://github.com/betrusted-io/xous-core/pull/937
 
+## Security notice: Shamir host split (fixed; prior shares compromised)
+
+**If you used `galdra shamir split`, `galdrad` `/shamir/split`, or the GTK split UI before commit `7db5e08851b2f0c48b65a00caa579f1d5ec077dd`:** those shares were generated with a **fixed-seed RNG**. One share plus public source code was enough to recover the full secret; the K-of-N threshold did **not** protect you. **Re-provision affected keys and re-split with a fixed build.** Full impact, version range, and remediation: [docs/SECURITY_ADVISORY_SHAMIR_RNG.md](docs/SECURITY_ADVISORY_SHAMIR_RNG.md).
+
+---
 
 ## Table of contents
 
 - [Open Invention Network](#open-invention-network)
+- [Security notice: Shamir host split](#security-notice-shamir-host-split-fixed-prior-shares-compromised)
 - [What this is](#what-this-is)
   - [Galdra contact metadata](#galdra-contact-metadata)
   - [What this firmware is (and is not)](#what-this-firmware-is-and-is-not)
@@ -347,6 +353,11 @@ This firmware is written in Rust, a systems programming language designed
 to be as fast and low-level as C or C++, but with a fundamentally different
 approach to safety.
 
+Every dependency is classified as **unchanged upstream** (crates.io as published),
+**altered or vendored in-tree** (pinned copy or workspace patch), or **created by this
+project** (firmware, host, and tooling crates). The full inventory, roles, and
+dependency graph are in **[docs/CRATE_DEPENDENCIES.md](docs/CRATE_DEPENDENCIES.md)**.
+
 ### Memory Safety
 
 A large share of security-relevant bugs in industry codebases come from **memory unsafety** (buffer overflows, use-after-free, null dereferences, and similar). Microsoft's MSRC has **repeatedly reported** that roughly **70% of CVEs addressed in their own products** fall into this category; the **Chrome** team has published similar proportions for Chrome. Those figures describe **those vendors' products**, not a universal law for all firmware, but they illustrate why memory-safe languages matter.
@@ -374,7 +385,7 @@ This codebase applies common Rust patterns for secrets; they are **not** automat
 
 ### Auditable by design
 
-**`unsafe`** must be **spelled out** in source, which narrows manual review. **Dependencies:** this project's cryptographic policy favours **audited Rust crates** (RustCrypto and others); see the table in [Cryptographic dependency policy](#cryptographic-dependency-policy) — not every dependency is from a single umbrella project.
+**`unsafe`** must be **spelled out** in source, which narrows manual review. **Dependencies:** this project's cryptographic policy favours **audited Rust crates** (RustCrypto and others); see the table in [Cryptographic dependency policy](#cryptographic-dependency-policy) — not every dependency is from a single umbrella project. For the complete crate list and whether each dependency is unchanged, altered/vendored, or project-authored, see **[docs/CRATE_DEPENDENCIES.md](docs/CRATE_DEPENDENCIES.md)**.
 
 ### What Rust does not prevent
 
@@ -1173,7 +1184,7 @@ Nothing is implemented in-tree.
 | Three-factor authentication | **Possession:** USB token; **knowledge:** on-device PIN (`pin-policy`); optional **biometric** not implemented — [docs/THREE_FACTOR_AUTH.md](docs/THREE_FACTOR_AUTH.md) |
 | RRAM counters and audit trail | Monotonic HAL for PIN (and future stateful PQ signatures); profile audit records and in-RAM OpenPGP audit hook — append-only NV audit log **not** implemented — [docs/AUDIT_LOG.md](docs/AUDIT_LOG.md), [docs/RRAM_LAYOUT.md](docs/RRAM_LAYOUT.md) |
 | Constant-time operations | All secret comparisons via `subtle`; verified by dudect harnesses |
-| test-hal never in production | Enforced by `check-fw` xtask |
+| test-hal never in production | Enforced by `check-fw` (firmware) and `check-host` (release host binaries) |
 
 ### PIN policy
 

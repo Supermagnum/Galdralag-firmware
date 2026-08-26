@@ -3,7 +3,7 @@
 use core::ops::{Add, Mul};
 
 use ff::Field;
-use galdr_core::hal::HardwareTrng;
+use galdr_core::hal::ShamirSplitRng;
 use heapless::Vec;
 use vsss_rs::Gf256;
 use zeroize::{Zeroize, ZeroizeOnDrop};
@@ -89,7 +89,9 @@ impl ShamirSecret {
 ///
 /// Returns Err if parameters violate these constraints or if the TRNG fails.
 /// The caller is responsible for distributing shares securely.
-pub fn shamir_split<T: HardwareTrng>(
+///
+/// Requires [`ShamirSplitRng`]: production paths must not use fixed-seed or predictable RNGs.
+pub fn shamir_split<T: ShamirSplitRng>(
     secret: &[u8],
     k: u8,
     n: u8,
@@ -286,6 +288,17 @@ fn sort_shares_by_index(shares: &mut Vec<&ShamirShare, 255>) {
 
 #[cfg(test)]
 mod tests {
+    //! Shamir unit tests.
+    //!
+    //! **Attack succeeds (test-only, documents the bug class):**
+    //! `fixed_seed_xor_attack_succeeds_with_fake_trng_documents_vulnerability_class` uses
+    //! `FakeTrng` with a shared fixed seed and asserts the XOR single-share trick **recovers**
+    //! the secret. Requires `galdr-core/test-hal` in dev-dependencies only; not reachable from
+    //! host CLI/API/GUI binaries (`xtask check-host` enforces this).
+    //!
+    //! **Attack fails (production path):** see `galdra-core-host::shamir_ops` tests
+    //! (`production_split_cross_secret_xor_attack_fails`, OsRng).
+
     use super::*;
     use galdr_core::fake_hal::FakeTrng;
 
@@ -378,6 +391,27 @@ mod tests {
             shamir_split(&long, 2, 3, &mut trng),
             Err(ShamirError::SecretTooLong)
         ));
+    }
+
+    #[test]
+    fn fixed_seed_xor_attack_succeeds_with_fake_trng_documents_vulnerability_class(
+    ) -> Result<(), ShamirError> {
+        let secret = [0xA5u8; 32];
+        let dummy = [0x00u8; 32];
+        let seed = 0x5F4D_414D_4952u64;
+        let mut t1 = FakeTrng::from_seed(seed);
+        let mut t2 = FakeTrng::from_seed(seed);
+        let shares_s = shamir_split(&secret, 2, 3, &mut t1)?;
+        let shares_d = shamir_split(&dummy, 2, 3, &mut t2)?;
+        let mut recovered = [0u8; 32];
+        for i in 0..32 {
+            recovered[i] = shares_s[0].value()[i] ^ shares_d[0].value()[i] ^ dummy[i];
+        }
+        assert_eq!(
+            recovered, secret,
+            "FakeTrng fixed seed: XOR trick recovers secret (bug class; must not ship in production)"
+        );
+        Ok(())
     }
 
     #[test]

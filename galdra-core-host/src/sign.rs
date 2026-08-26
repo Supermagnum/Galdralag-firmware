@@ -26,7 +26,7 @@ impl<'a> VerificationHelper for VerifyCertsHelper<'a> {
         for c in self.certs {
             let matches = ids.iter().any(|id| {
                 id.aliases(KeyHandle::from(c.fingerprint()))
-                    || c.keys().any(|k| id.aliases(KeyHandle::from(k.keyid())))
+                    || c.keys().any(|k| id.aliases(KeyHandle::from(k.key().keyid())))
             });
             if matches {
                 out.push(c.clone());
@@ -56,6 +56,7 @@ pub fn sign_openpgp_detached<S: sequoia_openpgp::crypto::Signer + Send + Sync>(
     {
         let message = Message::new(&mut sink);
         let mut signer = Signer::new(message, signer)
+            .map_err(|e| GaldraError::OpenPgp(e.to_string()))?
             .detached()
             .build()
             .map_err(|e| GaldraError::OpenPgp(e.to_string()))?;

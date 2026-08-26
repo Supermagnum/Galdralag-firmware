@@ -173,19 +173,22 @@ pub fn run(workspace_root: &Path, skip_fuzz: bool) -> i32 {
     let commit = git_head(workspace_root).unwrap_or_else(|| "unknown".to_string());
     let xtask_ver = env!("CARGO_PKG_VERSION");
 
-    eprintln!("test-all: 1/15 check-fw (default features)");
+    eprintln!("test-all: 1/16 check-fw (default features)");
     log.push_step(
         "check-fw (default)",
         run_embedded_check(workspace_root, &["check"], false),
     );
 
-    eprintln!("test-all: 2/15 check-fw (pq-signatures)");
+    eprintln!("test-all: 2/16 check-fw (pq-signatures)");
     log.push_step(
         "check-fw (pq-signatures)",
         run_embedded_check(workspace_root, &["check"], true),
     );
 
-    eprintln!("test-all: 3/15 cargo test --workspace --exclude xtask");
+    eprintln!("test-all: 3/16 check-host (release, no test-hal)");
+    log.push_step("check-host (release)", run_host_check(workspace_root));
+
+    eprintln!("test-all: 4/16 cargo test --workspace --exclude xtask");
     let ws_out = cargo_output(
         workspace_root,
         &["test", "--workspace", "--exclude", "xtask"],
@@ -200,7 +203,7 @@ pub fn run(workspace_root: &Path, skip_fuzz: bool) -> i32 {
     let (u_pass, u_fail, u_ign) = aggregate_test_lines(&ws_text);
     log.push_step("unit tests (workspace)", ws_ok && u_fail == 0);
 
-    eprintln!("test-all: 4/15 wycheproof (vault)");
+    eprintln!("test-all: 5/16 wycheproof (vault)");
     log.push_step(
         "wycheproof",
         cargo_ok(
@@ -209,7 +212,7 @@ pub fn run(workspace_root: &Path, skip_fuzz: bool) -> i32 {
         ),
     );
 
-    eprintln!("test-all: 5/15 rfc_vectors");
+    eprintln!("test-all: 5/16 rfc_vectors");
     log.push_step(
         "rfc_vectors",
         cargo_ok(
@@ -218,7 +221,7 @@ pub fn run(workspace_root: &Path, skip_fuzz: bool) -> i32 {
         ),
     );
 
-    eprintln!("test-all: 6/15 bsi_brainpool");
+    eprintln!("test-all: 6/16 bsi_brainpool");
     log.push_step(
         "bsi_brainpool",
         cargo_ok(
@@ -227,7 +230,7 @@ pub fn run(workspace_root: &Path, skip_fuzz: bool) -> i32 {
         ),
     );
 
-    eprintln!("test-all: 7/15 nist_cavp");
+    eprintln!("test-all: 7/16 nist_cavp");
     log.push_step(
         "nist_cavp",
         cargo_ok(
@@ -236,7 +239,7 @@ pub fn run(workspace_root: &Path, skip_fuzz: bool) -> i32 {
         ),
     );
 
-    eprintln!("test-all: 8/15 kat_vectors");
+    eprintln!("test-all: 8/16 kat_vectors");
     log.push_step(
         "kat_vectors",
         cargo_ok(
@@ -245,7 +248,7 @@ pub fn run(workspace_root: &Path, skip_fuzz: bool) -> i32 {
         ),
     );
 
-    eprintln!("test-all: 9/15 key_lifecycle");
+    eprintln!("test-all: 9/16 key_lifecycle");
     log.push_step(
         "key_lifecycle",
         cargo_ok(
@@ -254,7 +257,7 @@ pub fn run(workspace_root: &Path, skip_fuzz: bool) -> i32 {
         ),
     );
 
-    eprintln!("test-all: 10/15 pin_lifecycle");
+    eprintln!("test-all: 10/16 pin_lifecycle");
     log.push_step(
         "pin_lifecycle",
         cargo_ok(
@@ -263,13 +266,13 @@ pub fn run(workspace_root: &Path, skip_fuzz: bool) -> i32 {
         ),
     );
 
-    eprintln!("test-all: 11/15 usb-personality");
+    eprintln!("test-all: 11/16 usb-personality");
     log.push_step(
         "usb-personality",
         cargo_ok(workspace_root, &["test", "-p", "usb-personality", "-q"]),
     );
 
-    eprintln!("test-all: 12/15 biometric-api/vault + mocks");
+    eprintln!("test-all: 12/16 biometric-api/vault + mocks");
     log.push_step(
         "biometric",
         cargo_ok(
@@ -293,7 +296,7 @@ pub fn run(workspace_root: &Path, skip_fuzz: bool) -> i32 {
         ),
     );
 
-    eprintln!("test-all: 13/15 zeroise_simulation");
+    eprintln!("test-all: 13/16 zeroise_simulation");
     log.push_step(
         "zeroise_simulation",
         cargo_ok(
@@ -311,7 +314,7 @@ pub fn run(workspace_root: &Path, skip_fuzz: bool) -> i32 {
         ),
     );
 
-    eprintln!("test-all: 14/15 timing-test (dudect_galdr)");
+    eprintln!("test-all: 14/16 timing-test (dudect_galdr)");
     let (timing_ok, dudect_report) = run_dudect_galdr(workspace_root);
     log.push_step("timing-test", timing_ok);
 
@@ -319,13 +322,13 @@ pub fn run(workspace_root: &Path, skip_fuzz: bool) -> i32 {
     let mut fuzz_notes: Vec<String> = Vec::new();
     let fuzz_skipped = skip_fuzz;
     if skip_fuzz {
-        eprintln!("test-all: 15/15 cargo-fuzz — skipped (--no-fuzz)");
+        eprintln!("test-all: 15/16 cargo-fuzz — skipped (--no-fuzz)");
         fuzz_notes.push(
             "Skipped: run without --no-fuzz to execute all fuzz targets (30s each).".to_string(),
         );
         log.push_step("cargo-fuzz (skipped)", true);
     } else {
-        eprintln!("test-all: 15/15 cargo-fuzz (30s per target)");
+        eprintln!("test-all: 15/16 cargo-fuzz (30s per target)");
         let fuzz_dir = workspace_root.join("fuzz");
         if fuzz_dir.join("Cargo.toml").is_file() {
             for bin in FUZZ_BINS {
@@ -481,6 +484,51 @@ fn count_wycheproof_aes_gcm(root: &Path) -> Option<(u32, u32)> {
         }
     }
     Some((n128, n256))
+}
+
+const HOST_RELEASE_PACKAGES: &[&str] = &["galdra", "galdrad", "galdra-gtk", "galdra-core-host"];
+
+pub fn run_host_check(root: &Path) -> bool {
+    for pkg in HOST_RELEASE_PACKAGES {
+        if !cargo_ok(root, &["check", "--release", "-p", pkg]) {
+            eprintln!("check-host: cargo check --release -p {pkg} failed");
+            return false;
+        }
+    }
+    for pkg in HOST_RELEASE_PACKAGES {
+        if host_tree_has_test_hal(root, pkg) {
+            eprintln!(
+                "check-host: {pkg} resolves galdr-core with test-hal (forbidden in release host builds)"
+            );
+            return false;
+        }
+    }
+    true
+}
+
+fn host_tree_has_test_hal(root: &Path, pkg: &str) -> bool {
+    let output = match Command::new("cargo")
+        .current_dir(root)
+        .args(["tree", "-p", pkg, "--format", "{p} {f}", "-e", "features"])
+        .output()
+    {
+        Ok(o) if o.status.success() => o,
+        Ok(o) => {
+            eprintln!(
+                "check-host: cargo tree -p {pkg} failed: {}",
+                String::from_utf8_lossy(&o.stderr)
+            );
+            return true;
+        }
+        Err(e) => {
+            eprintln!("check-host: cargo tree -p {pkg} failed: {e}");
+            return true;
+        }
+    };
+    let text = String::from_utf8_lossy(&output.stdout);
+    text.lines().any(|line| {
+        line.contains("galdr-core") && line.split_whitespace().any(|tok| tok.contains("test-hal"))
+    })
 }
 
 fn run_embedded_check(root: &Path, sub: &[&str], pq: bool) -> bool {
@@ -731,7 +779,11 @@ fn build_markdown(
     ));
     s.push_str(&format!(
         "| Firmware check (pq-signatures) | `cargo run -p xtask -- check-fw --features pq-signatures` | {} |\n",
-        pf(step_ok(steps, "pq-signatures"))
+        pf(step_ok(steps, "check-fw (pq-signatures)"))
+    ));
+    s.push_str(&format!(
+        "| Host release check (no test-hal) | `cargo run -p xtask -- check-host` | {} |\n",
+        pf(step_ok(steps, "check-host (release)"))
     ));
     s.push_str(&format!(
         "| Unit tests (workspace) | `cargo test --workspace --exclude xtask` | {unit_row} |\n"

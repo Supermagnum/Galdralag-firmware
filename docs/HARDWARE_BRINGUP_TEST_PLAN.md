@@ -462,6 +462,72 @@ Update `docs/TEST_RESULTS.md` with:
 - `gpg --card-status` full output (copy-paste)
 - Any unexpected behaviour and `dmesg` excerpts if relevant
 
+### Lab run 2026-08-18 (Dabao HBZFHW)
+
+**Image:** Galdralag `9ae9405` + sibling xous-core `80921c682` (`feature/usb-bao1x-ccid-openpgp`) via `scripts/build_dabao_ccid_image.sh`. Process list included `galdralag-service` (PID 8). UF2 signed with **developer** keys (`devkey/dev.key`, `devkey/dev-pq.key`), not production.
+
+**Flash:** Device was already `1d50:6196` boot1 (`BAOCHIP` on `/dev/sdd1`). Copied `loader.uf2` / `xous.uf2` / `apps.uf2`; serial `boot` at 1 000 000 baud. Re-enumerated as `1d50:6197` Dabao. Console drop after `boot` was expected.
+
+| Section | Result | Notes |
+|---------|--------|--------|
+| 0 Pre-flight (host tools) | PASS | `gpg` 2.4.4, `pcscd` active, `pcsc_scan` present. libccid Info.plist already had `0x1D50` / `0x6197` / `Baochip Dabao CCID`. |
+| 0 Image includes galdralag-service | PASS | Built with cratespec; not plain transport-only `dabao-ccid`. |
+| 1 Enumeration | PASS | After boot: `Bus 001 Device 007` then after replug `Device 015`: `1d50:6197` Baochip Dabao, serial `HBZFHW`. Interfaces: HID U2F, HID keyboard, **CCID (class 11)**. |
+| 2a `pcsc_scan` ATR | PASS (first scan after plug only) | Reader `Baochip Dabao CCID (HBZFHW) 00 00`, **Card inserted**, ATR `3B DA 18 FF 81 B1 FE 75 1F 03 00 31 C5 73 C0 01 40 00 90 00 0C` (OpenPGP T=1). |
+| 2b `gpg --card-status` | FAIL | `gpg: selecting card failed: Ingen slik enhet` / `OpenPGP-kort er ikke tilgjengelig`. `gpg-connect-agent 'SCD LEARN'`: `ERR 100663406 Card removed`. `opensc-tool`: `Card not present`. |
+| 3 PIN | N/A | Not attempted (no card application session). |
+| 4–11 crypto / lockout | N/A | Blocked on 2b. |
+
+**Divergence from docs:** Transport ATR works; OpenPGP APDUs via GnuPG do not. After a successful ATR scan (or a GnuPG attempt), later `pcsc_scan` shows **Status unavailable** and `pcscd` logs `WriteUSB() write failed (...): LIBUSB_ERROR_TIMEOUT` / `Card not transacted: 612`. A physical unplug/replug restores ATR once; `sudo systemctl restart pcscd` alone did not. Host `scdaemon.conf` has `disable-ccid` (PC/SC path). `apps.uf2` was 9728 bytes (stub); application code was in `xous.uf2`.
+
+**Do not treat as confirmed root cause:** timeout could be host `pcscd` polling, USB bulk OUT, or Galdralag `XfrBlock` handling. See [XOUS_CORE_UPSTREAM_REQUESTS.md](XOUS_CORE_UPSTREAM_REQUESTS.md).
+
+### Isolated stub retest 2026-08-18 (Phase 2)
+
+**Image:** `scripts/build_dabao_ccid_stub_image.sh` — xous-core `80921c682` + **`galdralag-stub`** (PID 8; SELECT APDU stub only, no vault/PDDB). Fresh flash from boot1 (`6196` / `BAOCHIP`); UF2 hashes verified on volume.
+
+| Check | Result | Notes |
+|-------|--------|--------|
+| 2a `pcsc_scan` ATR | PASS then FAIL | First pass: Card inserted + same OpenPGP ATR. Within same `pcsc_scan` session: **Status unavailable** (same as full `galdralag-service` image). |
+| 2b `opensc-tool` / `gpg --card-status` | FAIL | Card not present / `Ingen slik enhet`. |
+| Handler invoked? | **Ruled out (vault)** | Identical pcscd pattern with minimal stub — not Galdralag vault/dispatch specific. |
+| Pyusb smoke (pcscd stopped, replug) | **Partial** | GetSlotStatus + IccPowerOn **OK**; XfrBlock SELECT **timeout** — deferred path only. See section 13. |
+| Pyusb marker stub (2026-08-18) | **FAIL** | Stub returns fixed `CA FE 90 00` for any XfrBlock. Result: XfrBlock bulk OUT OK (26 B), bulk IN **timeout** (no marker). Post-failure GetSlotStatus bulk IN also times out. **Stub not observable on host** → deferred IPC / `CcidTx` / bulk IN path broken upstream. |
+
+**Conclusion:** Failure occurs after inline ATR / during host CCID polling, before a successful deferred `XfrBlock` round-trip via PC/SC. Next: direct pyusb bulk test (stop `pcscd` first) or xous-core `irq-pending-trace` on device. See section 13 below.
+
+### CCID diagnostic logging (Phase 1, in tree)
+
+`galdralag-service` `ccid_dispatch_one` logs at **info**: `CcidRxDeferred` frame header, opcode/slot/seq, `handle_ccid` response size, `CcidTx OK` / failure. Runtime `dabao-ccid` has **no USB CDC** — logs go to `xous-log` (UART), not the host. Rebuild with `scripts/build_dabao_ccid_image.sh` to pick up logging.
+
+---
+
+## 13. Isolated XfrBlock test (stub image, optional)
+
+Use when `galdralag-service` fails but you need to separate **transport** from **full OpenPGP handler**.
+
+1. Build: `scripts/build_dabao_ccid_stub_image.sh` (registers **`galdralag-stub`**, not `galdralag-service`).
+2. Flash `loader.uf2` + `xous.uf2` (+ `apps.uf2` if present) via boot1; `boot` on serial at 1 000 000 baud.
+3. Unplug/replug; **`sudo systemctl restart pcscd`** (recommended after every flash).
+4. **Option A (PC/SC):** `pcsc_scan` (expect ATR once), then `opensc-tool --reader 0 --name` or `gpg --card-status` **without** leaving `pcsc_scan` running.
+5. **Option B (pyusb, bypasses pcscd):** stop **both** service and socket, replug, run smoke script:
+   ```bash
+   sudo systemctl stop pcscd.service pcscd.socket
+   # unplug/replug Dabao; confirm: lsusb -d 1d50:6197
+   scripts/dabao_ccid_pyusb_smoke.sh
+   sudo systemctl start pcscd.socket pcscd.service
+   ```
+   Do **not** use raw `find_ccid_device()` — HID `usbhid` on ifaces 1/2 makes `set_configuration()` Resource busy.
+
+**USB-only diagnosis (no separate UART adapter):**
+
+- **Option 1 — boot serial:** `ttyACM0` exists on boot1 (`6196`) only. Runtime **`6197` has no ttyACM`** (no USB CDC on dabao-ccid). Console capture during CCID tests is **not available** on the flashing cable alone.
+- **Option 2 — stub marker:** Diagnostic stub returns **`CA FE 90 00`** for every deferred `XfrBlock`. Marker in smoke bulk IN → stub invoked + `CcidTx` OK; timeout → deferred IPC path never completed (upstream §8).
+- **Option 3 — smoke script:** Reports bulk OUT vs bulk IN separately; GetSlotStatus probe after XfrBlock failure.
+
+**Interpret Option B:** GetSlotStatus + IccPowerOn OK but XfrBlock timeout → inline path works; deferred `CcidRxDeferred` / `CcidTx` does not complete. All three OK (look for `CA FE 90 00` marker) → stub path works; focus on pcscd/libccid.
+6. If stub **passes** pyusb but PC/SC fails: host `pcscd`/libccid interaction.
+
 ---
 
 ## Known pre-production gaps (do not treat as test failures)

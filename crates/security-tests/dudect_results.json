@@ -2,7 +2,7 @@
   "dudect_session_token_verify_constant_time": {
     "samples": 100000,
     "status": "PASS",
-    "t": -3.2234910529894014
+    "t": -2.18195267806288
   },
   "dudect_signature_verify_constant_time": {
     "samples": 100000,

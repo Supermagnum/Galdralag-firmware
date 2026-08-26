@@ -366,6 +366,40 @@ fn read_pddb_key(pddb: &pddb::Pddb, name: &str, max: usize) -> std::io::Result<V
 }
 
 #[cfg(target_os = "xous")]
+fn ccid_log_pc_to_rdr(pc: &usb_personality::ccid::PcToRdr) {
+    use usb_personality::ccid::PcToRdr;
+
+    match pc {
+        PcToRdr::IccPowerOn { slot, seq, power_select } => {
+            log::info!(
+                "CcidRxDeferred IccPowerOn slot={slot} seq={seq} power_select={power_select} \
+                 (usb-bao1x inline; skip CcidTx)"
+            );
+        }
+        PcToRdr::GetSlotStatus { slot, seq } => {
+            log::info!(
+                "CcidRxDeferred GetSlotStatus slot={slot} seq={seq} \
+                 (usb-bao1x inline; skip CcidTx)"
+            );
+        }
+        PcToRdr::IccPowerOff { slot, seq } => {
+            log::info!("CcidRxDeferred IccPowerOff slot={slot} seq={seq}");
+        }
+        PcToRdr::Abort { slot, seq } => {
+            log::info!("CcidRxDeferred Abort slot={slot} seq={seq}");
+        }
+        PcToRdr::XfrBlock { slot, seq, apdu } => {
+            let preview = apdu.len().min(16);
+            log::info!(
+                "CcidRxDeferred XfrBlock slot={slot} seq={seq} apdu_len={} apdu_prefix={:02x?}",
+                apdu.len(),
+                &apdu.as_slice()[..preview]
+            );
+        }
+    }
+}
+
+#[cfg(target_os = "xous")]
 fn ccid_dispatch_one<B: usb_personality::openpgp::OpenPgpBackend>(
     dispatcher: &mut usb_personality::openpgp::OpenPgpCcidDispatcher<B>,
     usb_conn: xous::CID,
@@ -387,21 +421,27 @@ fn ccid_dispatch_one<B: usb_personality::openpgp::OpenPgpBackend>(
     let frame = match ccid_rx_deferred(usb_conn) {
         Ok(f) => f,
         Err(e) => {
-            log::warn!("CcidRxDeferred: {:?}", e);
+            log::warn!("CcidRxDeferred wait failed: {:?}", e);
             dispatcher.on_usb_reset();
             return;
         }
     };
 
+    log::info!(
+        "CcidRxDeferred frame {} bytes header={:02x?}",
+        frame.len(),
+        &frame[..frame.len().min(10)]
+    );
+
     let rdr = match parse_pc_to_rdr(&frame) {
         Ok(pc) => {
+            ccid_log_pc_to_rdr(&pc);
             if pc.answered_inline_by_usb_bao1x() {
-                log::debug!(
-                    "dropping PC_to_RDR that usb-bao1x answers inline (IccPowerOn/GetSlotStatus); not CcidTx"
-                );
                 return;
             }
-            dispatcher.handle_ccid(pc)
+            let r = dispatcher.handle_ccid(pc);
+            log::info!("handle_ccid -> RDR {} bytes", r.len());
+            r
         }
         Err(CcidError::LengthMismatch)
         | Err(CcidError::TooShort)
@@ -416,10 +456,13 @@ fn ccid_dispatch_one<B: usb_personality::openpgp::OpenPgpBackend>(
 
     let mut data: Vec<u8> = Vec::with_capacity(rdr.len());
     data.extend_from_slice(rdr.as_slice());
+    let tx_len = data.len();
 
     if let Err(e) = ccid_tx(usb_conn, data) {
-        log::warn!("CcidTx: {:?}", e);
+        log::warn!("CcidTx failed ({} bytes): {:?}", tx_len, e);
         dispatcher.on_usb_reset();
+    } else {
+        log::info!("CcidTx OK ({} bytes)", tx_len);
     }
 }
 

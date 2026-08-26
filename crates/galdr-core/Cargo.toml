@@ -8,6 +8,7 @@ description = "Galdr shared types, HAL traits, and security boundaries (Baochip-
 [features]
 default = []
 test-hal = []
+host = ["dep:rand"]
 pq-signatures = []
 profile-openpgp = []
 profile-extended = ["profile-openpgp"]
@@ -15,6 +16,7 @@ profile-pqc = []
 profile-hardened = []
 
 [dependencies]
+rand = { workspace = true, optional = true }
 rand_core.workspace = true
 subtle.workspace = true
 zeroize.workspace = true

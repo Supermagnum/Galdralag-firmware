@@ -110,7 +110,7 @@ signing_key_fingerprint = ""
 
 [[signed_crates]]
 name = "sequoia-openpgp"
-version = "1.22.0"
+version = "2.4.1"
 signing_key_fingerprint = ""
 
 [[signed_crates]]

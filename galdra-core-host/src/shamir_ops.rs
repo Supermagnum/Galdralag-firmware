@@ -4,8 +4,8 @@ use crate::device::Device;
 use crate::GaldraError;
 use chrono::Utc;
 use cipher_profile::CipherProfile;
-use galdr_core::fake_hal::FakeTrng;
 use galdr_vault::shamir::{shamir_recover, shamir_split, ShamirError, ShamirShare};
+use rand::rngs::OsRng;
 use std::fmt::Write as _;
 use zeroize::Zeroize;
 
@@ -181,8 +181,8 @@ pub fn shamir_split_key(
     let mut secret = device.export_signing_key_shamir_material(slot)?;
     let k = sham.threshold;
     let n = sham.total;
-    let mut trng = FakeTrng::from_seed(0x5F4D_414D_4952u64);
-    let share_vec = shamir_split(secret.as_slice(), k, n, &mut trng).map_err(map_shamir_err)?;
+    let share_vec =
+        shamir_split_with_os_rng(secret.as_slice(), k, n).map_err(map_shamir_err)?;
     let fp = device.signing_key_fingerprint_hex(slot)?;
     let created = Utc::now().to_rfc3339();
     let mut out = Vec::new();
@@ -244,9 +244,78 @@ pub fn shamir_recover_key(
     Ok(())
 }
 
+/// Split `secret` using the OS CSPRNG (`OsRng`). Used by production host paths and tests.
+pub(crate) fn shamir_split_with_os_rng(
+    secret: &[u8],
+    k: u8,
+    n: u8,
+) -> Result<heapless::Vec<ShamirShare, 255>, ShamirError> {
+    let mut trng = OsRng;
+    shamir_split(secret, k, n, &mut trng)
+}
+
 #[cfg(test)]
 mod tests {
+    //! Production Shamir split regression tests (`OsRng` path used by `shamir_split_key`).
+    //!
+    //! **`production_split_cross_secret_xor_attack_fails`**: XOR single-share recovery **must fail**
+    //! when splits use independent OS entropy (acceptance check for the fixed production path).
+    //!
+    //! Vulnerability-class test where the attack **succeeds** (`FakeTrng`, fixed seed) lives in
+    //! `galdr-vault::shamir` unit tests only — not reachable from host release binaries.
+
     use super::*;
+
+    fn sample_secret(seed: u8) -> [u8; 32] {
+        let mut s = [0u8; 32];
+        for (i, b) in s.iter_mut().enumerate() {
+            *b = seed.wrapping_add(i as u8);
+        }
+        s
+    }
+
+    #[test]
+    fn production_split_is_non_deterministic() -> Result<(), ShamirError> {
+        let secret = sample_secret(0xA5);
+        let a = shamir_split_with_os_rng(&secret, 2, 3)?;
+        let b = shamir_split_with_os_rng(&secret, 2, 3)?;
+        assert_ne!(
+            a[0].value(),
+            b[0].value(),
+            "same secret split twice must yield different shares when OsRng is used"
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn production_split_cross_secret_xor_attack_fails() -> Result<(), ShamirError> {
+        let secret = sample_secret(0xA5);
+        let dummy = sample_secret(0x5A);
+        let shares_secret = shamir_split_with_os_rng(&secret, 2, 3)?;
+        let shares_dummy = shamir_split_with_os_rng(&dummy, 2, 3)?;
+        let mut recovered = [0u8; 32];
+        for i in 0..32 {
+            recovered[i] = shares_secret[0].value()[i]
+                ^ shares_dummy[0].value()[i]
+                ^ dummy[i];
+        }
+        assert_ne!(
+            recovered, secret,
+            "single-share XOR trick must not recover secret with independent OsRng splits"
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn shamir_split_with_os_rng_roundtrip() -> Result<(), ShamirError> {
+        let secret = sample_secret(0x11);
+        let shares = shamir_split_with_os_rng(&secret, 2, 3)?;
+        let s0 = ShamirShare::try_from_index_value(shares[0].index, shares[0].value())?;
+        let s1 = ShamirShare::try_from_index_value(shares[1].index, shares[1].value())?;
+        let recovered = shamir_recover(&[s0, s1], 2)?;
+        assert_eq!(recovered.as_slice(), secret.as_slice());
+        Ok(())
+    }
 
     #[test]
     fn test_shamir_share_value_zeroised_on_drop() {

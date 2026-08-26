@@ -4,6 +4,16 @@ This document explains which **Rust crates come from upstream** (unchanged third
 
 **Policy:** Cryptographic **primitives** (AES, ChaCha, SHA, ECDH, and similar) are **not** reimplemented in this repository. Firmware and host code call **audited workspace dependencies** from crates.io (mostly RustCrypto). Project crates own **policy, layout, protocols, USB/OpenPGP dispatch, and HAL glue**.
 
+### Three-way classification
+
+| Category | Meaning | Documented in |
+|----------|---------|----------------|
+| **Unchanged upstream** | crates.io dependency used as published (no project fork of source) | [Upstream crates](#upstream-crates-unchanged-third-party) below |
+| **Altered or vendored** | In-tree copy or `[patch.crates-io]` override (same API, pinned for reproducibility) | [Upstream crates](#upstream-crates-unchanged-third-party) — see **`subtle`** exception |
+| **Created by this project** | Crates authored and maintained in this repository | [Project crates](#project-crates-created-by-galdralag) below |
+
+Retired in-tree crates (for example the removed `bp512` BrainpoolP512r1 shim) are noted in [CHANGELOG.md](../CHANGELOG.md), not listed as active dependencies.
+
 ---
 
 ## At a glance
@@ -91,7 +101,7 @@ Used by `galdra`, `galdrad`, `galdra-gtk`, `galdra-core-host`, and `host-tools`:
 |-------|------|
 | `clap` | CLI parsing (`galdra`, `xtask`, host-tools) |
 | `rusqlite` | Local contacts/groups/audit database |
-| `sequoia-openpgp`, `sequoia-net` | OpenPGP packet handling and keyserver fetch |
+| `sequoia-openpgp` **2.4.1**, `sequoia-net` **0.30.1** | OpenPGP packet handling and keyserver/WKD fetch (host); pinned in workspace `Cargo.toml` |
 | `pcsc` | Smart-card reader access (optional feature) |
 | `tokio`, `axum`, `tower`, `tower-http`, `tracing` | `galdrad` REST server |
 | `utoipa`, `utoipa-swagger-ui` | OpenAPI for `galdrad` |
