@@ -93,7 +93,7 @@ fn ed25519_rfc8032_sign_verify_smoke() {
 
 #[test]
 fn hmac_sha256_rfc4231_case_1() {
-    use hmac::{Hmac, Mac};
+    use hmac::{Hmac, KeyInit, Mac};
     use sha2::Sha256;
     type HmacSha256 = Hmac<Sha256>;
     let mut mac = HmacSha256::new_from_slice(

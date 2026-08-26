@@ -1551,7 +1551,9 @@ fn x25519_ecdh_returns_shared_secret() {
     let card_pub_bytes: [u8; 32] = pk_r.data.as_slice().try_into().unwrap();
     let card_pub = X25519PublicKey::from(card_pub_bytes);
     let mut trng = FakeTrng::from_seed(0xE1CD_DA);
-    let peer_sec = StaticSecret::random_from_rng(&mut trng);
+    let mut peer_seed = [0u8; 32];
+    trng.fill_bytes(&mut peer_seed);
+    let peer_sec = StaticSecret::from(peer_seed);
     let peer_pub = X25519PublicKey::from(&peer_sec);
     let expected = peer_sec.diffie_hellman(&card_pub);
     let raw = apdu_hex(

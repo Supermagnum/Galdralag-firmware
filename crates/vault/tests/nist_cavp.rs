@@ -28,13 +28,14 @@ fn nist_cavp_sha256_short_msg() {
 
 #[test]
 fn nist_cavp_sha3_256_empty() {
+    use sha3::Digest as Sha3Digest;
     let v: Value = serde_json::from_str(&rf("sha3_256_short.json")).expect("parse");
     for vec in v["vectors"].as_array().expect("vectors") {
         let msg = hex::decode(vec["msg_hex"].as_str().expect("msg_hex")).expect("hex");
         let exp = hex::decode(vec["digest_hex"].as_str().expect("digest_hex")).expect("hex");
         let mut h = Sha3_256::new();
-        h.update(&msg);
-        let out = h.finalize();
+        Sha3Digest::update(&mut h, &msg);
+        let out = Sha3Digest::finalize(h);
         assert_eq!(out.as_slice(), exp.as_slice());
     }
 }
@@ -47,7 +48,7 @@ fn nist_cavp_hmac_sha256_short() {
         let key = hex::decode(vec["key_hex"].as_str().expect("key_hex")).expect("hex");
         let msg = hex::decode(vec["msg_hex"].as_str().expect("msg_hex")).expect("hex");
         let exp = hex::decode(vec["hmac_hex"].as_str().expect("hmac_hex")).expect("hex");
-        let mut mac = <HmacSha256 as Mac>::new_from_slice(&key).expect("hmac key");
+        let mut mac = <HmacSha256 as hmac::digest::KeyInit>::new_from_slice(&key).expect("hmac key");
         mac.update(&msg);
         let out = mac.finalize().into_bytes();
         assert_eq!(out.as_slice(), exp.as_slice());

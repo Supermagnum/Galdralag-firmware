@@ -86,7 +86,7 @@ fn rfc2104_hmac_sha1() {
     for vec in v["vectors"].as_array().expect("vectors") {
         let key = hex::decode(vec["key"].as_str().expect("key")).expect("hex");
         let data = hex::decode(vec["data"].as_str().expect("data")).expect("hex");
-        let mut mac = <Hmac<Sha1> as Mac>::new_from_slice(&key).expect("hmac");
+        let mut mac = <Hmac<Sha1> as hmac::digest::KeyInit>::new_from_slice(&key).expect("hmac");
         mac.update(&data);
         let out = mac.finalize().into_bytes();
         let exp = hex::decode(vec["hmac_sha1"].as_str().expect("hmac")).expect("hex");

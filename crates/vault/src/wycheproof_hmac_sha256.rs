@@ -27,7 +27,7 @@ fn wycheproof_hmac_sha256_json() {
             let tag = hex::decode(t["tag"].as_str().expect("tag")).expect("tag hex");
             let result = t["result"].as_str().expect("result");
 
-            let mut mac = <HmacSha256 as Mac>::new_from_slice(&key).expect("hmac key");
+            let mut mac = <HmacSha256 as hmac::digest::KeyInit>::new_from_slice(&key).expect("hmac key");
             mac.update(&msg);
             let full = mac.finalize().into_bytes();
             assert!(
