@@ -90,7 +90,7 @@ From the repository root:
 | `cargo run -p xtask -- test-biometric` | Biometric crates with `test-hal` where needed |
 | `cargo run -p xtask -- wycheproof` | Vault Wycheproof-style JSON corpora |
 | `cargo run -p xtask -- timing-test` | Dudect harness (see GALDRALAG_DEV_REFERENCE) |
-| `cargo run -p xtask -- test-all` | Full pipeline (optional `--no-fuzz` to skip `cargo-fuzz`) |
+| `cargo run -p xtask -- test-all` | Full pipeline (optional `--no-fuzz` / `--no-dudect`) |
 | `cargo run -p xtask -- test-openpgp` | Quick host check: reports whether `gpg` is on `PATH` (does not substitute for a CCID reader) |
 | `cargo run -p xtask -- bench-rsa` | Slow ignored RSA baseline in `vault` (`--ignored --nocapture`) |
 
