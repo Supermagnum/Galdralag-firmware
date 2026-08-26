@@ -166,7 +166,7 @@ fn format_dudect_compact_table(dudect: &DudectReport) -> String {
     s
 }
 
-pub fn run(workspace_root: &Path, skip_fuzz: bool) -> i32 {
+pub fn run(workspace_root: &Path, skip_fuzz: bool, skip_dudect: bool) -> i32 {
     let doc_path = workspace_root.join("docs/TEST_RESULTS.md");
     let mut log = TestAllLog::default();
     let date = utc_date_iso8601();
@@ -314,9 +314,17 @@ pub fn run(workspace_root: &Path, skip_fuzz: bool) -> i32 {
         ),
     );
 
-    eprintln!("test-all: 14/16 timing-test (dudect_galdr)");
-    let (timing_ok, dudect_report) = run_dudect_galdr(workspace_root);
-    log.push_step("timing-test", timing_ok);
+    let dudect_report;
+    if skip_dudect {
+        eprintln!("test-all: 14/16 timing-test (dudect_galdr) — skipped (--no-dudect)");
+        dudect_report = DudectReport::empty();
+        log.push_step("timing-test (skipped)", true);
+    } else {
+        eprintln!("test-all: 14/16 timing-test (dudect_galdr)");
+        let (timing_ok, report) = run_dudect_galdr(workspace_root);
+        dudect_report = report;
+        log.push_step("timing-test", timing_ok);
+    }
 
     let mut fuzz_ok = true;
     let mut fuzz_notes: Vec<String> = Vec::new();
@@ -364,6 +372,7 @@ pub fn run(workspace_root: &Path, skip_fuzz: bool) -> i32 {
         &counts,
         &log.steps,
         &dudect_report,
+        skip_dudect,
         fuzz_ok,
         fuzz_skipped,
         &fuzz_notes,
@@ -720,6 +729,7 @@ fn build_markdown(
     counts: &VectorCounts,
     steps: &[(String, bool)],
     dudect: &DudectReport,
+    dudect_skipped: bool,
     fuzz_ok: bool,
     fuzz_skipped: bool,
     fuzz_notes: &[String],
@@ -728,10 +738,13 @@ fn build_markdown(
     let a256 = counts.wyche_aes_gcm_256;
     let chacha = counts.rfc8439_chacha_json;
 
-    let flags = if fuzz_skipped {
-        "`--no-fuzz` (fuzz matrix run separately; see Section 6)"
-    } else {
-        "test-all executed cargo-fuzz (30 s per target)"
+    let flags = match (fuzz_skipped, dudect_skipped) {
+        (true, true) => {
+            "`--no-fuzz --no-dudect` (fuzz and dudect run on schedule / locally without these flags)"
+        }
+        (true, false) => "`--no-fuzz` (fuzz matrix run separately; see Section 6)",
+        (false, true) => "`--no-dudect` (timing suite: `cargo run -p xtask -- timing-test`)",
+        (false, false) => "test-all executed cargo-fuzz (30 s per target) and dudect",
     };
 
     let unit_row = if u_fail == 0 {
@@ -741,7 +754,9 @@ fn build_markdown(
     };
 
     let timing_ok = step_ok(steps, "timing-test");
-    let timing_status = if timing_ok {
+    let timing_status = if dudect_skipped {
+        "SKIPPED (--no-dudect)".to_string()
+    } else if timing_ok {
         if let Some((a, b)) = dudect.summary_ok {
             format!("PASS ({a}/{b})")
         } else {
@@ -921,23 +936,27 @@ fn build_markdown(
 
     s.push_str("## 3. Timing tests (dudect)\n\n");
     s.push_str("**Tool:** `dudect_galdr` — **threshold |t| ≤ 4.5**  \n");
-    let timing_step_ok = step_ok(steps, "timing-test");
-    if let Some((a, b)) = dudect.summary_ok {
-        s.push_str(&format!("**Result:** {a}/{b} harnesses PASS  \n"));
-    } else if timing_step_ok {
-        s.push_str("**Result:** (see harness table)  \n");
+    if dudect_skipped {
+        s.push_str("**Result:** SKIPPED (`--no-dudect`). Run `cargo run -p xtask -- timing-test` or `test-all` without `--no-dudect`.  \n\n");
     } else {
-        s.push_str("**Result:** FAIL  \n");
+        let timing_step_ok = step_ok(steps, "timing-test");
+        if let Some((a, b)) = dudect.summary_ok {
+            s.push_str(&format!("**Result:** {a}/{b} harnesses PASS  \n"));
+        } else if timing_step_ok {
+            s.push_str("**Result:** (see harness table)  \n");
+        } else {
+            s.push_str("**Result:** FAIL  \n");
+        }
+        s.push_str("**Cache:** `crates/security-tests/dudect_results.json`\n\n");
+        s.push_str("| Command | Purpose |\n|---------|---------|\n");
+        s.push_str(
+            "| `cargo run -p xtask -- timing-test` | Incremental (~155 s when 5 remain uncached) |\n",
+        );
+        s.push_str("| `cargo run -p xtask -- timing-test --all` | Full suite (~910 s) |\n");
+        s.push_str("| `cargo run -p xtask -- timing-test --full` | 3× sample multiplier |\n");
+        s.push_str("| `cargo run -p xtask -- timing-test <name>` | Named harnesses only |\n\n");
+        s.push_str(&format_dudect_compact_table(dudect));
     }
-    s.push_str("**Cache:** `crates/security-tests/dudect_results.json`\n\n");
-    s.push_str("| Command | Purpose |\n|---------|---------|\n");
-    s.push_str(
-        "| `cargo run -p xtask -- timing-test` | Incremental (~155 s when 5 remain uncached) |\n",
-    );
-    s.push_str("| `cargo run -p xtask -- timing-test --all` | Full suite (~910 s) |\n");
-    s.push_str("| `cargo run -p xtask -- timing-test --full` | 3× sample multiplier |\n");
-    s.push_str("| `cargo run -p xtask -- timing-test <name>` | Named harnesses only |\n\n");
-    s.push_str(&format_dudect_compact_table(dudect));
 
     s.push_str("---\n\n## 4. Key lifecycle\n\n");
     s.push_str("Runner: `vault/tests/key_lifecycle.rs` — ");

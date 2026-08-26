@@ -1,6 +1,6 @@
 # OpenPGP Card Application
 
-Galdralag implements the OpenPGP card application version 3.4.1. This makes it compatible with GnuPG and any software that uses GnuPG as its crypto backend, without any host-side driver or software changes beyond a standard CCID/USB smart card stack.
+Galdralag implements the OpenPGP card application version 3.4.1. For **operational** slot algorithms (Brainpool/NIST ECDSA, Ed25519, X25519/Brainpool ECDH — default factory configuration is Brainpool P-256), this is intended to work with GnuPG and other software that uses GnuPG as its crypto backend, without a vendor-specific host driver beyond a standard CCID/USB smart card stack. **RSA is not operational on SIG/DEC/AUT** (attributes may be stored; GENERATE and PSO fail). See [Key slots](#key-slots). GnuPG/PC/SC end-to-end on hardware is not automated ([TEST_RESULTS.md](TEST_RESULTS.md) Section 5).
 
 ## Automatic compatibility
 
@@ -55,7 +55,15 @@ Algorithm can be changed per slot via:
 
 `gpg --card-edit` then admin, then `key-attr`.
 
-Supported algorithms: BrainpoolP256r1, BrainpoolP384r1, NIST P-256, NIST P-384, Ed25519/Curve25519, RSA-2048, RSA-3072, RSA-4096.
+**Operational algorithms (GENERATE, PSO:CDS, PSO:DECIPHER):** BrainpoolP256r1, BrainpoolP384r1, NIST P-256, NIST P-384, Ed25519 (SIG/AUT), Curve25519 (DEC). SIG signing is ECDSA (Brainpool/NIST) or Ed25519. DEC is X25519 or Brainpool ECDH.
+
+**RSA-2048, RSA-3072, RSA-4096 — attribute storage only, not operational:**
+
+- **PUT DATA** on DOs `0xC1` (SIG), `0xC2` (DEC), and `0xC3` (AUT) can store RSA algorithm attributes (algorithm byte `0x01`) and GET DATA will read them back.
+- **GENERATE ASYMMETRIC KEY PAIR**, **PSO: COMPUTE DIGITAL SIGNATURE**, and **PSO: DECIPHER** all fail for RSA-attributed slots (`ConditionsNotSatisfied` or `ReferenceDataNotFound`). The card does not generate RSA keys and does not perform RSA sign or decrypt.
+- `gpg --card-edit` against an **RSA-configured** slot will not work with this firmware: key generation, signing, and decryption all fail.
+- Default factory attributes are Brainpool P-256 ECDSA (SIG/AUT) and Brainpool P-256 ECDH (DEC), **not** RSA. The RSA gap does not affect the out-of-box configuration.
+- GnuPG/PC/SC end-to-end testing is not automated ([TEST_RESULTS.md](TEST_RESULTS.md) Section 5). There is no RSA PSO test.
 
 BrainpoolP512r1 was removed from the supported set; see [CHANGELOG.md](../CHANGELOG.md).
 
@@ -119,4 +127,5 @@ This allows non-root users to access the device. `pcscd` and GnuPG's `scdaemon` 
 
 ## What is NOT supported
 
-Website authentication (WebAuthn/FIDO2) is a separate protocol not covered by the OpenPGP card standard. It requires a separate FIDO2 application and is not implemented in this version.
+- **RSA on SIG/DEC/AUT:** Algorithm attributes can be stored; GENERATE, sign, and decipher do not operate. See [Key slots](#key-slots).
+- Website authentication (WebAuthn/FIDO2) is a separate protocol not covered by the OpenPGP card standard. It requires a separate FIDO2 application and is not implemented in this version.
