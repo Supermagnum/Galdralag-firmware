@@ -236,20 +236,27 @@ fn bench_timing_hkdf_derive() -> CtSummary {
     use hkdf::Hkdf;
     use sha2::Sha256;
     let ikm = [0x55u8; 32];
-    let salt_a = [1u8; 16];
-    let salt_b = [2u8; 16];
     let info = b"galdr-dudect/hkdf";
     let n = samples_for_harness("timing_hkdf_derive");
     let mut rng = StdRng::seed_from_u64(0x484B_4446);
-    let mut runner = CtRunner::default();
+    let mut work = Vec::with_capacity(n);
     for _ in 0..n {
-        let left = rng.gen_bool(0.5);
-        let c = if left { Class::Left } else { Class::Right };
-        let salt = if left { salt_a } else { salt_b };
+        let mut salt = [0u8; 16];
+        if rng.gen_bool(0.5) {
+            salt.fill(1);
+            work.push((Class::Left, salt));
+        } else {
+            salt.fill(2);
+            work.push((Class::Right, salt));
+        }
+    }
+    let mut runner = CtRunner::default();
+    for (c, salt) in work {
         runner.run_one(c, move || {
             let mut okm = [0u8; 32];
-            let hk = Hkdf::<Sha256>::new(Some(&salt), &ikm);
-            let _ = hk.expand(info, &mut okm);
+            let hk = Hkdf::<Sha256>::new(Some(black_box(&salt)), black_box(&ikm));
+            let _ = hk.expand(black_box(info), &mut okm);
+            black_box(okm);
         });
     }
     let (l, r) = runner.left_right();

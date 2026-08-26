@@ -361,7 +361,7 @@ If the registrant **no longer controls** the mailbox, replacement under the same
 
 - Armour **must** decode to a parseable **`sequoia_openpgp::Cert`**.
 - At least one User ID with **`UserID::email()`** **must** match the submitted email (case-insensitive).
-- **Algorithm allowlist** (**would** reject others with explicit reason): Ed25519, X25519, Brainpool **P-256r1 / P-384r1 / P-512r1**, NIST **P-256 / P-384**, RSA **≥ 2048** bit keys. Inspect primary key and relevant subkeys per policy written in code (mirror Galdralag device capabilities where practical).
+- **Algorithm allowlist** (**would** reject others with explicit reason): Ed25519, X25519, Brainpool **P-256r1 / P-384r1 / P-512r1**, NIST **P-256 / P-384**, RSA **≥ 2048** bit keys. Inspect primary key and relevant subkeys per policy written in code. Host OpenPGP **certs** may still contain RSA; the Galdralag **card** does not operate RSA on SIG/DEC/AUT ([OPENPGP_CARD.md](OPENPGP_CARD.md)).
 - **Would** reject certs that already carry a verified **self-revocation** affecting the submitted key material.
 - **Exact fingerprint duplicate**: idempotent acceptance (§7a step 5).
 - **Maximum** armoured upload size **128 KiB**; **would** enforce in Axum body limit before parsing.
