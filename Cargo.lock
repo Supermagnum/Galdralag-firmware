@@ -508,7 +508,7 @@ dependencies = [
  "aead",
  "aes-gcm",
  "biometric-api",
- "hkdf 0.12.4",
+ "hkdf 0.13.0",
  "hmac 0.12.1",
  "sha2 0.10.9",
  "subtle",
@@ -966,7 +966,7 @@ dependencies = [
  "galdr-vault",
  "heapless",
  "hex",
- "hkdf 0.12.4",
+ "hkdf 0.13.0",
  "serde_json",
  "sha2 0.10.9",
  "subtle",
@@ -1086,7 +1086,7 @@ dependencies = [
  "galdr-core",
  "galdr-vault",
  "hex",
- "hkdf 0.12.4",
+ "hkdf 0.13.0",
  "pin-policy",
  "sha2 0.10.9",
  "static_assertions",
@@ -1648,7 +1648,7 @@ dependencies = [
  "crypto-bigint 0.7.3",
  "crypto-common 0.2.1",
  "digest 0.11.2",
- "hkdf 0.13.0-rc.5",
+ "hkdf 0.13.0",
  "hybrid-array 0.4.8",
  "pkcs8 0.11.0-rc.11",
  "rand_core 0.10.0",
@@ -1704,7 +1704,7 @@ dependencies = [
  "galdr-vault",
  "heapless",
  "hex",
- "hkdf 0.12.4",
+ "hkdf 0.13.0",
  "hmac 0.12.1",
  "serde_json",
  "sha2 0.10.9",
@@ -2095,7 +2095,7 @@ dependencies = [
  "chacha20poly1305",
  "ed25519-dalek",
  "hex",
- "hkdf 0.12.4",
+ "hkdf 0.13.0",
  "hmac 0.12.1",
  "p256",
  "p384",
@@ -2131,7 +2131,7 @@ dependencies = [
  "galdr-core",
  "heapless",
  "hex",
- "hkdf 0.12.4",
+ "hkdf 0.13.0",
  "hmac 0.12.1",
  "paste",
  "pbkdf2",
@@ -2792,11 +2792,11 @@ dependencies = [
 
 [[package]]
 name = "hkdf"
-version = "0.13.0-rc.5"
+version = "0.13.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "cbb55385998ae66b8d2d5143c05c94b9025ab863966f0c94ce7a5fde30105092"
+checksum = "4aaa26c720c68b866f2c96ef5c1264b3e6f473fe5d4ce61cd44bbe913e553018"
 dependencies = [
- "hmac 0.13.0-rc.6",
+ "hmac 0.13.0",
 ]
 
 [[package]]
@@ -2810,9 +2810,9 @@ dependencies = [
 
 [[package]]
 name = "hmac"
-version = "0.13.0-rc.6"
+version = "0.13.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "60017b071c523c9e5a55dd1253582bff6150c5e96a7e8511e419de1ab5ee97f9"
+checksum = "6303bc9732ae41b04cb554b844a762b4115a61bfaa81e3e83050991eeb56863f"
 dependencies = [
  "digest 0.11.2",
 ]
@@ -4966,7 +4966,7 @@ version = "0.5.0-rc.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "23a3127ee32baec36af75b4107082d9bd823501ec14a4e016be4b6b37faa74ae"
 dependencies = [
- "hmac 0.13.0-rc.6",
+ "hmac 0.13.0",
  "subtle",
 ]
 
@@ -5366,7 +5366,7 @@ dependencies = [
  "galdr-vault",
  "heapless",
  "hex",
- "hkdf 0.12.4",
+ "hkdf 0.13.0",
  "hmac 0.12.1",
  "pbkdf2",
  "pin-policy",
@@ -5964,7 +5964,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "32497e9a4c7b38532efcdebeef879707aa9f794296a4f0244f6f69e9bc8574bd"
 dependencies = [
  "fastrand",
- "getrandom 0.3.4",
+ "getrandom 0.4.2",
  "once_cell",
  "rustix",
  "windows-sys 0.61.2",
