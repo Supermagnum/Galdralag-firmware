@@ -64,8 +64,8 @@ fn ccid_serve_loop(usb_conn: xous::CID) -> ! {
     };
     use usb_personality::openpgp::build_aid;
 
-    // Fixed stub AID (manufacturer 0x20A0, serial 0x00000001).
-    let stub_aid = build_aid(0x20A0, [0x00, 0x00, 0x00, 0x01]);
+    // Fixed stub AID (manufacturer 0x20A0, serial 0x00000001); marker XfrBlock path uses CA FE 90 00.
+    let _stub_aid = build_aid(0x20A0, [0x00, 0x00, 0x00, 0x01]);
     let mut last_link = usb_link_status(usb_conn);
 
     loop {
@@ -83,7 +83,7 @@ fn ccid_serve_loop(usb_conn: xous::CID) -> ! {
             }
         };
 
-        log::info!("PC_to_RDR {} bytes: {:02x?}", frame.len(), &frame[..frame.len().min(16)]);
+        log::info!("CcidRxDeferred got frame, opcode=0x{:02x}", frame.first().copied().unwrap_or(0));
 
         let rdr = match parse_pc_to_rdr(&frame) {
             Ok(PcToRdr::IccPowerOn { slot, seq, .. }) => {
@@ -107,9 +107,11 @@ fn ccid_serve_loop(usb_conn: xous::CID) -> ! {
                 rdr_to_pc_slot_status(slot, seq, CcidStatus::ok_active())
             }
             Ok(PcToRdr::XfrBlock { slot, seq, apdu }) => {
-                log::info!("XfrBlock APDU ({}) {:02x?}", apdu.len(), apdu.as_slice());
-                let apdu_resp = handle_apdu_stub(apdu.as_slice(), &stub_aid);
-                log::info!("APDU response {:02x?}", apdu_resp);
+                log::info!("XfrBlock slot={slot} seq={seq} apdu_len={}", apdu.len());
+                log::info!("XfrBlock apdu {:02x?}", apdu.as_slice());
+                // Bring-up: fixed marker proves stub ran and CcidTx path completed.
+                let apdu_resp = vec![0xCA, 0xFE, 0x90, 0x00];
+                log::info!("XfrBlock stub marker response {:02x?}", apdu_resp);
                 rdr_to_pc_data_block(slot, seq, CcidStatus::ok_active(), &apdu_resp)
             }
             Err(CcidError::LengthMismatch)
@@ -126,14 +128,17 @@ fn ccid_serve_loop(usb_conn: xous::CID) -> ! {
         let mut data: Vec<u8> = Vec::with_capacity(rdr.len());
         data.extend_from_slice(rdr.as_slice());
 
-        if let Err(e) = ccid_tx(usb_conn, data) {
-            log::warn!("CcidTx: {e:?}");
+        log::info!("CcidTx queued ({} bytes)", data.len());
+        match ccid_tx(usb_conn, data) {
+            Ok(()) => log::info!("CcidTx OK"),
+            Err(e) => log::warn!("CcidTx FAIL: {e:?}"),
         }
     }
 }
 
-/// Minimal APDU handler: OpenPGP SELECT -> AID + 9000; else 6D00.
+/// Minimal APDU handler (reserved for non-marker bring-up builds).
 #[cfg(target_os = "xous")]
+#[allow(dead_code)]
 fn handle_apdu_stub(apdu: &[u8], stub_aid: &[u8; 16]) -> Vec<u8> {
     use usb_personality::openpgp::aid_matches_openpgp;
 
