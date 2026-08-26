@@ -1,0 +1,21 @@
+# cargo-audit configuration. CI (`.github/workflows/ci.yml`) fails on any
+# vulnerability not listed here. Every ID must have a matching row in
+# docs/THREAT_MODEL.md section "Tracked dependency advisories".
+#
+# Do not add ignores to make the job green. Do not ignore informational
+# warnings (unmaintained/unsound/yanked) as errors — those stay warnings.
+
+[advisories]
+ignore = [
+    # T15 / no patched 0.9.x. See THREAT_MODEL.md T15.
+    "RUSTSEC-2023-0071",
+    # sequoia-net 0.30.x pins Hickory 0.24; fix is >=0.26.1.
+    "RUSTSEC-2026-0119",
+    # Firmware build-dep (svd2utra), not CCID runtime.
+    "RUSTSEC-2026-0194",
+    "RUSTSEC-2026-0195",
+    # Firmware IPC; separate rkyv 0.8.17 bump.
+    "RUSTSEC-2026-0233",
+    "RUSTSEC-2026-0234",
+    "RUSTSEC-2026-0235",
+]

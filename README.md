@@ -189,6 +189,7 @@ Not every test runs in every command; that is intentional.
 - **`xtask` not in the default workspace test:** The common recipe is `cargo test --workspace --exclude xtask` because `xtask` is a build-orchestration crate. Run `cargo test -p xtask` when you want its tests.
 - **Tests marked `#[ignore]`:** These are skipped unless you pass `--ignored` (and any needed crate filters). Reasons include: coverage that is already exercised in focused unit tests (e.g. post-drop zeroization), **slow** cases (e.g. RSA key generation), and **hardware or token-dependent** flows in host tools such as `galdra` that need a connected device or fixtures.
 - **`test-all --no-fuzz`:** Skips the **cargo-fuzz** step to keep CI or quick runs short and to avoid requiring a nightly toolchain for that step; run `cargo run -p xtask -- test-all` without `--no-fuzz`, or invoke fuzz targets separately (see [`fuzz/README.md`](fuzz/README.md)).
+- **`test-all --no-dudect`:** Skips the **dudect** timing suite (~15–20 minutes). Pull-request CI uses this flag. Run `cargo run -p xtask -- timing-test` or `test-all` without `--no-dudect` for the timing gate. Weekly CI (`test-all-full`) still runs dudect.
 - **Conformance vector suites:** Some groups are not executed (for example certain AES-GCM Wycheproof cases); see [`docs/TEST_RESULTS.md`](docs/TEST_RESULTS.md) for what is in scope.
 
 One can also check integrity of crates with this when the pr is closed:
@@ -521,7 +522,7 @@ The firmware implements the **OpenPGP card application** (documented as version 
 | **Mail and files** | Clients that use GnuPG (e.g. Thunderbird, Evolution, Kleopatra) and standard `gpg` file encryption |
 | **Other tools** | Anything that talks OpenPGP card + CCID the same way GnuPG does |
 
-**Key slots (typical defaults):** **SIG** (signing), **DEC** (decryption / ECDH), **AUT** (authentication, e.g. SSH). Algorithms are selectable per slot (Brainpool curves, NIST P-256/P-384, Ed25519 / X25519, RSA). The full table and `key-attr` behaviour are in [docs/OPENPGP_CARD.md](docs/OPENPGP_CARD.md).
+**Key slots (typical defaults):** **SIG** (signing), **DEC** (decryption / ECDH), **AUT** (authentication, e.g. SSH). Operational algorithms per slot are Brainpool curves, NIST P-256/P-384, and Ed25519 / X25519. RSA algorithm attributes can be stored via PUT DATA but GENERATE, PSO:CDS, and PSO:DECIPHER all fail for RSA-configured slots. The full table and `key-attr` behaviour are in [docs/OPENPGP_CARD.md](docs/OPENPGP_CARD.md).
 
 **Not covered by OpenPGP card / GnuPG here:** **WebAuthn / FIDO2** is a different protocol and is out of scope for this card application (see the same doc).
 
@@ -819,7 +820,7 @@ Policy alignment: the same **BSI** that defines Brainpool-related technical guid
 | Canada | No national chip-based identity card with on-chip signing keys. Digital identity is fragmented across provincial schemes (for example **BC Services Card**), mobile apps (for example **eID-Me**), and an evolving federal digital-credentials framework. No single card comparable to the German, Estonian, or Belgian model. *No equivalent card infrastructure found*—not a viable trust anchor in this sense. |
 | Other countries | Not investigated |
 
-Estonia and Belgium both adopted **NIST P-384** on-chip rather than **Brainpool**, whereas Germany's public-sector **BSI** profile centres on **Brainpool** (see above). Galdralag already supports **Brainpool**, **NIST** P-256/P-384, and **RSA** for OpenPGP-capable use ([Asymmetric / key agreement](#asymmetric--key-agreement)), so the same trust-anchor pattern does not depend on matching Germany's curve preference alone.
+Estonia and Belgium both adopted **NIST P-384** on-chip rather than **Brainpool**, whereas Germany's public-sector **BSI** profile centres on **Brainpool** (see above). Galdralag already supports **Brainpool** and **NIST** P-256/P-384 on the OpenPGP card ([docs/OPENPGP_CARD.md](docs/OPENPGP_CARD.md)); RSA in this repository is a `galdr-vault` library helper, not a working card slot ([Asymmetric / key agreement](#asymmetric--key-agreement)). The same trust-anchor pattern does not depend on matching Germany's curve preference alone.
 
 Outside the **EU**/**EEA**, the card-based trust-anchor pattern is harder to apply: the **USA** has a chip card (**PIV**) but it is restricted to federal personnel and sits in **X.509**/**FPKI**, not integrated with OpenPGP; **Canada** has no national on-chip signing card in the sense used above. That limits the pattern chiefly to jurisdictions with universally issued government chip credentials—the **EU eIDAS** area is where the model is currently strongest.
 
@@ -1140,7 +1141,7 @@ Nothing is implemented in-tree.
 | BrainpoolP384r1 ECDH + ECDSA | RFC 5639, BSI TR-03111 | ~192-bit security |
 | X25519 ECDH | RFC 7748 | |
 | Ed25519 sign / verify | RFC 8032 | |
-| RSA-2048 / 3072 / 4096 OAEP, PSS | RFC 8017 | Minimum 2048-bit enforced |
+| RSA-2048 / 3072 / 4096 OAEP, PSS, PKCS#1 v1.5 sign/verify | RFC 8017 | `galdr-vault` library only (minimum 2048-bit). OAEP-SHA256 encrypt/decrypt; PSS SHA-256/SHA-512 sign/verify; PKCS#1 v1.5 sign/verify behind an in-source `Pkcs1v15` marker (legacy interoperability only, not for new protocol designs). **Not** reachable through the OpenPGP card application — SIG/DEC/AUT do not operate RSA; see [docs/OPENPGP_CARD.md](docs/OPENPGP_CARD.md). |
 | P-256, P-384 | NIST | Via `p256` / `p384` workspace deps |
 
 #### Symmetric / AEAD

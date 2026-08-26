@@ -139,4 +139,4 @@ BrainpoolP512r1 was removed; see [CHANGELOG.md](CHANGELOG.md).
 
 AES and the NIST cipher suite are excluded from built-in cascade profiles as a deliberate design choice for users and organisations requiring cryptographic independence from any single country's standards process. AES-256-GCM is available for custom profiles (`CipherLayer::Aes256Gcm`, wire ID 0x01) where compatibility requirements override this preference.
 
-RSA-OAEP and RSA-PSS are included for OpenPGP interoperability only; they are not used for session key agreement.
+RSA-OAEP and RSA-PSS (and PKCS#1 v1.5 sign/verify) are implemented in the `galdr-vault` library (`crates/vault/src/rsa_keys.rs`) for general cryptographic use (tests, Wycheproof, fuzz, dudect). They are **not** invoked by the OpenPGP card PSO dispatch. Card RSA status: [docs/OPENPGP_CARD.md](docs/OPENPGP_CARD.md). They are not used for session key agreement.
