@@ -200,7 +200,7 @@ admin
 generate
 # Answer prompts:
 #   Make off-card backup? → n (for bring-up; key material stays on device)
-#   Key type: RSA or ECC per firmware capability
+#   Key type: ECC (Brainpool / NIST / Ed25519-X25519). RSA card GENERATE/PSO is not implemented.
 #   Expiry: 0 (no expiry for testing)
 #   Real name, email, comment as desired
 #   Confirm with User PIN and Admin PIN when prompted
