@@ -1,0 +1,22 @@
+version: 2
+# Firmware (`services/galdralag`) is a separate Cargo workspace that path-depends
+# on a sibling `xous-core` checkout not in this git tree. Scanning it makes
+# Dependabot fail with path_dependencies_not_reachable. Update that lockfile locally.
+updates:
+  - package-ecosystem: cargo
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 10
+    ignore:
+      # Transitive via sequoia-net 0.30.x (hickory-client/resolver = "0.24").
+      # Advisory fix is 0.26.1; not resolvable without a sequoia-net bump.
+      - dependency-name: hickory-proto
+      - dependency-name: hickory-client
+      - dependency-name: hickory-resolver
+
+  - package-ecosystem: cargo
+    directory: /fuzz
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
