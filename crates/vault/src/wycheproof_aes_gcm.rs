@@ -3,10 +3,10 @@
 //! **Skipped:** AES-192 keys (`aes-gcm` has no `Aes192Gcm` alias here), empty IV (invalid in GCM),
 //! and 2056-bit (257-byte) IVs (no single `typenum` size in the `aes-gcm` API used below).
 
-use aes_gcm::aead::generic_array::typenum::{
+use aes_gcm::aead::array::Array;
+use aes_gcm::aead::consts::{
     U1, U10, U12, U128, U15, U16, U2, U20, U256, U32, U4, U6, U64, U8,
 };
-use aes_gcm::aead::generic_array::GenericArray;
 use aes_gcm::aead::{Aead, Error as AeadError, KeyInit, Payload};
 use aes_gcm::aes::{Aes128, Aes256};
 use aes_gcm::{AesGcm, Key};
@@ -16,7 +16,7 @@ macro_rules! gcm_decrypt {
         type Ag = AesGcm<$aes, $n>;
         let k = Key::<Ag>::from_slice($key);
         let c = Ag::new(k);
-        c.decrypt(GenericArray::from_slice($iv), $payload)
+        c.decrypt(Array::from_slice($iv), $payload)
     }};
 }
 
