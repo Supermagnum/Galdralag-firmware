@@ -46,9 +46,9 @@ biometric-api = { path = "crates/biometric-api" }
 biometric-vault = { path = "crates/biometric-vault" }
 cbor4ii = { version = "1.2", default-features = false, features = ["serde1", "use_alloc"] }
 
-aes-gcm = { version = "0.10", default-features = false, features = ["aes", "alloc"] }
-chacha20poly1305 = { version = "0.10", default-features = false, features = ["alloc"] }
-aead = { version = "0.5", default-features = false }
+aes-gcm = { version = "0.11", default-features = false, features = ["aes", "alloc"] }
+chacha20poly1305 = { version = "0.11", default-features = false, features = ["alloc"] }
+aead = { version = "0.6", default-features = false }
 bp256 = { version = "0.14.0-rc.8", default-features = false, features = ["arithmetic", "ecdsa", "pkcs8", "sha256"] }
 bp384 = { version = "0.14.0-rc.8", default-features = false, features = ["arithmetic", "ecdsa", "sha384", "pkcs8"] }
 # Enables `elliptic_curve::ecdh` for vault ECDH (must match bp256's elliptic-curve version).
@@ -66,10 +66,10 @@ pbkdf2 = { version = "0.13", default-features = false }
 hmac = { version = "0.13", default-features = false }
 sha1 = { version = "0.11", default-features = false }
 sha2 = { version = "0.11", default-features = false }
-sha3 = { version = "0.10", default-features = false }
+sha3 = { version = "0.11", default-features = false }
 blake2 = { version = "0.10", default-features = false }
 blake3 = { version = "1.5", default-features = false }
-bitflags = { version = "2.11", default-features = false }
+bitflags = { version = "2.13", default-features = false }
 crc32fast = { version = "1.4", default-features = false }
 vsss-rs = { version = "6.0", default-features = false, features = ["zeroize"] }
 zeroize = { version = "1.8", default-features = false, features = ["derive"] }
@@ -98,14 +98,14 @@ serde = { version = "1.0.217", features = ["derive"] }
 toml = "0.8.19"
 uuid = { version = "1.11.0", features = ["v4"] }
 chrono = { version = "0.4.39", features = ["serde"] }
-thiserror = "1.0.69"
+thiserror = "2.0.18"
 tokio = { version = "1.43.0", features = ["rt-multi-thread", "macros", "sync", "time", "fs", "io-util"] }
-axum = "0.7.9"
+axum = "0.8.9"
 tracing = "0.1.41"
 tracing-subscriber = { version = "0.3.19", features = ["env-filter"] }
 anyhow = "1.0.95"
-utoipa = { version = "5.2.0", features = ["axum_extras"] }
-utoipa-swagger-ui = { version = "8.0.3", features = ["axum"] }
+utoipa = { version = "5.4.0", features = ["axum_extras"] }
+utoipa-swagger-ui = { version = "9.0.2", features = ["axum"] }
 tower = "0.5.2"
 tower-http = { version = "0.6.2", features = ["trace"] }
 reqwest = { version = "0.12.12", default-features = false, features = ["rustls-tls"] }
