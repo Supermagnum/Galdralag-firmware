@@ -121,7 +121,7 @@ A GitHub Dependabot UI “closed” state is **not** a fix. As of 2026-08-26, al
 | **RUSTSEC-2023-0071** | `rsa` 0.9.10 | No patched 0.9.x. Marvin targets PKCS#1 v1.5 decrypt (**T15**). Vault `decrypt_oaep` is OAEP; OpenPGP card DEC/SIG/AUT never call `rsa`. PKCS#1 v1.5 is sign/verify only (`Pkcs1v15` marker), unused by APDU dispatch. Dudect RSA harnesses do not measure PKCS#1 v1.5 decrypt. | Evaluate and land `rsa` 0.10 (breaking) or a replacement crate. |
 | **RUSTSEC-2026-0119** | `hickory-proto` 0.24.4 | Transitive via `sequoia-net` 0.30.x (`hickory-client`/`hickory-resolver` = `0.24`). Fix is ≥0.26.1 (semver wall). Network DoS on optional WKD/keyserver, not on-token key material. | `sequoia-net` release that takes Hickory ≥0.26. |
 | **RUSTSEC-2026-0194**, **RUSTSEC-2026-0195** | `quick-xml` 0.28.2 | Firmware **build-time** only (`svd2utra` → `utralib`). Not in the device CCID/APDU runtime path. | Bump `svd2utra`/Xous toolchain so the lockfile gets `quick-xml` ≥0.41. |
-| **RUSTSEC-2026-0233**, **RUSTSEC-2026-0234**, **RUSTSEC-2026-0235** | `rkyv` 0.8.16 | Firmware IPC (`pddb`/`trng`/`galdralag-service`). Tracked as a **separate** lockfile bump to ≥0.8.17 (not bundled with this CI work). | Dedicated `services/galdralag` `rkyv` 0.8.17 bump and Xous IPC retest. |
+| **RUSTSEC-2026-0233**, **RUSTSEC-2026-0234**, **RUSTSEC-2026-0235** | `rkyv` 0.8.16 | Firmware IPC lockfile (`services/galdralag/Cargo.lock`) still resolves `rkyv` **0.8.16**. Root workspace `Cargo.lock` may show a newer host/transitive `rkyv`; that does **not** clear these advisories. | Bump `services/galdralag` (and related Xous IPC crates) to `rkyv` ≥0.8.17 and retest CCID IPC. |
 
 ---
 

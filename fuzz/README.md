@@ -16,6 +16,8 @@ rustup run nightly cargo fuzz run chacha_roundtrip -- -max_total_time=60
 
 See `Cargo.toml` `[[bin]]` entries for the exact target names. `xtask` aliases are in `xtask/src/main.rs` (`fuzz_bin_name`).
 
+**Dependabot:** GitHub Dependabot must not scan this nested workspace (`.github/dependabot.yml`). It path-depends on crates that use `foo.workspace = true`, so a `/fuzz` update would rewrite root workspace pins. After bumping shared crypto crates at the repo root, regenerate this lockfile in the same PR (`cd fuzz && cargo update …`).
+
 ---
 
 ## Corpus material (project-specific)

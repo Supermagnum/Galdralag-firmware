@@ -66,8 +66,8 @@ Every submission **would be** tied to one OpenPGP certificate (public key materi
 | Crate | Minimum version (policy) | Role | Notes |
 |-------|--------------------------|------|-------|
 | `sequoia-openpgp` | `1.x` at implementation time | Parse `Cert`, extract fingerprint, validate User IDs, verify revocation material | Same core as Hagrid and `sq`; pin exact version in `Cargo.lock` |
-| `axum` | `0.7+` | HTTP router and extractors | Replaces Rocket |
-| `axum-server` | `0.7+` | TLS termination (rustls) for Axum | HTTPS listener |
+| `axum` | `0.8+` | HTTP router and extractors | Workspace `galdrad` is on axum 0.8 |
+| `axum-server` | `0.7+` | TLS termination (rustls) for Axum | HTTPS listener (planned keyserver; not required by current `galdrad`) |
 | `tower` | `0.5+` | Composable service stack | Rate limit, timeout layers |
 | `tower-http` | `0.5+` | Trace, compression, redirect | HTTP → HTTPS redirect middleware |
 | `sqlx` | `0.8+` | Async SQL | Features: `sqlite`, `runtime-tokio-rustls`, `chrono`, `uuid` |
