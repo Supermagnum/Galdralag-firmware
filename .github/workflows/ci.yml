@@ -1,7 +1,8 @@
 # GitHub Actions: host test suite + dependency audit.
 #
 # PR/push to main: test-all (--no-fuzz), cargo-audit (three lockfiles),
-# firmware-check (riscv32 + optional galdralag path-dep tree).
+# firmware-check (riscv32 galdr-vault + check-fw). galdralag workspace
+# compile is deferred (no public xous-core branch); lockfile still audited.
 #
 # test-all-full (fuzz included) is weekly, not a PR gate: twelve cargo-fuzz
 # targets at 30s each plus dudect already runs ~15–20 minutes on a quiet
@@ -45,6 +46,8 @@ jobs:
         with:
           targets: riscv32imac-unknown-none-elf
       - uses: Swatinem/rust-cache@v2
+        with:
+          cache-on-failure: true
       - name: Install host libraries
         run: |
           sudo apt-get update
@@ -85,6 +88,8 @@ jobs:
         with:
           targets: riscv32imac-unknown-none-elf
       - uses: Swatinem/rust-cache@v2
+        with:
+          cache-on-failure: true
       - name: cargo check galdr-vault (riscv32imac-unknown-none-elf)
         run: cargo check -p galdr-vault --target riscv32imac-unknown-none-elf
       - name: check-fw (default)
@@ -103,6 +108,8 @@ jobs:
         with:
           targets: riscv32imac-unknown-none-elf
       - uses: Swatinem/rust-cache@v2
+        with:
+          cache-on-failure: true
       - name: Install host libraries
         run: |
           sudo apt-get update
