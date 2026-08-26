@@ -1,9 +1,8 @@
 //! ChaCha20-Poly1305 AEAD with HKDF-derived keys and typed nonces (RFC 8439 via `chacha20poly1305`).
 
 use crate::kdf_policy::KeyPurpose;
-use aead::generic_array::typenum::U12;
-use aead::generic_array::GenericArray;
-use aead::{AeadInPlace, KeyInit};
+use aead::inout::InOutBuf;
+use aead::{AeadInOut, KeyInit};
 use chacha20poly1305::{ChaCha20Poly1305, Key, Nonce, Tag};
 use galdr_core::hal::HardwareTrng;
 use hkdf::Hkdf;
@@ -43,7 +42,7 @@ impl Drop for ChaChaKey {
 /// Constructed only from TRNG output or explicit derivation; never from
 /// a caller-supplied integer that might be reused.
 #[derive(Clone, Eq, PartialEq)]
-pub struct ChaChaNonce(GenericArray<u8, U12>);
+pub struct ChaChaNonce([u8; 12]);
 
 /// An authenticated ciphertext with appended 128-bit Poly1305 tag.
 /// The plaintext length can be recovered as `ciphertext.len() - 16`.
@@ -99,7 +98,7 @@ impl ChaChaKey {
     }
 
     fn chacha_key(&self) -> Key {
-        *Key::from_slice(&self.0)
+        Key::from(self.0)
     }
 
     /// Raw key bytes for Wycheproof / test vectors (not used in production paths).
@@ -127,22 +126,22 @@ impl ChaChaNonce {
         let mut okm = [0u8; 32];
         hk.expand(info, &mut okm)
             .map_err(|_| ChaChaError::KeyDerivation)?;
-        let mut n = GenericArray::<u8, U12>::default();
+        let mut n = [0u8; 12];
         n.copy_from_slice(&okm[..12]);
         Ok(Self(n))
     }
 
     /// First 12 octets of a 32-byte OKM (e.g. HKDF-BLAKE3 expand used for deterministic nonce).
     pub fn from_okm32_prefix(okm: &[u8; 32]) -> Self {
-        let mut n = GenericArray::<u8, U12>::default();
+        let mut n = [0u8; 12];
         n.copy_from_slice(&okm[..12]);
         Self(n)
     }
 
     /// Generate a random nonce from the TRNG. Preferred construction.
     pub fn generate<T: HardwareTrng>(trng: &mut T) -> Result<Self, ChaChaError> {
-        let mut n = GenericArray::<u8, U12>::default();
-        trng.try_fill_bytes(n.as_mut_slice())
+        let mut n = [0u8; 12];
+        trng.try_fill_bytes(&mut n)
             .map_err(|_| ChaChaError::TrngFailure)?;
         Ok(Self(n))
     }
@@ -154,31 +153,29 @@ impl ChaChaNonce {
     /// call site.
     pub fn from_counter(counter: u128) -> Self {
         let c = counter & ((1u128 << 96) - 1);
-        let mut n = GenericArray::<u8, U12>::default();
+        let mut n = [0u8; 12];
         let b = c.to_be_bytes();
         n.copy_from_slice(&b[4..16]);
         Self(n)
     }
 
     fn nonce(&self) -> Nonce {
-        *Nonce::from_slice(self.0.as_slice())
+        Nonce::from(self.0)
     }
 
     /// Copy nonce bytes (the nonce is not secret; exposed for protocol framing).
     pub fn to_bytes(&self) -> [u8; 12] {
-        let mut a = [0u8; 12];
-        a.copy_from_slice(self.0.as_slice());
-        a
+        self.0
     }
 
     /// Reconstruct a nonce from stored framing bytes (nonce is not secret).
     pub fn from_stored_bytes(bytes: [u8; 12]) -> Self {
-        Self(GenericArray::from(bytes))
+        Self(bytes)
     }
 
     #[cfg(test)]
     pub(crate) fn from_bytes_for_test(bytes: [u8; 12]) -> Self {
-        Self(GenericArray::from(bytes))
+        Self(bytes)
     }
 }
 
@@ -245,7 +242,11 @@ pub fn chacha_encrypt(
         buf.push(*b).map_err(|_| ChaChaError::InvalidLength)?;
     }
     let tag: Tag = cipher
-        .encrypt_in_place_detached(&nonce.nonce(), aad, buf.as_mut_slice())
+        .encrypt_inout_detached(
+            &nonce.nonce(),
+            aad,
+            InOutBuf::from(buf.as_mut_slice()),
+        )
         .map_err(|_| ChaChaError::AuthenticationFailed)?;
     for b in tag.as_slice() {
         buf.push(*b).map_err(|_| ChaChaError::InvalidLength)?;
@@ -275,8 +276,13 @@ pub fn chacha_decrypt(
     for b in body {
         buf.push(*b).map_err(|_| ChaChaError::InvalidLength)?;
     }
-    let tag = Tag::clone_from_slice(tag);
-    match cipher.decrypt_in_place_detached(&nonce.nonce(), aad, buf.as_mut_slice(), &tag) {
+    let tag = Tag::try_from(tag).map_err(|_| ChaChaError::AuthenticationFailed)?;
+    match cipher.decrypt_inout_detached(
+        &nonce.nonce(),
+        aad,
+        InOutBuf::from(buf.as_mut_slice()),
+        &tag,
+    ) {
         Ok(()) => Ok(ChaChaPlaintext { buf }),
         Err(_e) => {
             buf.as_mut_slice().zeroize();
