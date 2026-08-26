@@ -76,7 +76,7 @@ These are declared in the root [`Cargo.toml`](../Cargo.toml) under `[workspace.d
 | `p256`, `p384` | NIST curves where OpenPGP compatibility requires them |
 | `bp256`, `bp384` | Brainpool P-256 / P-384 (primary curve family) |
 | `elliptic-curve`, `ecdsa`, `signature`, `ff` | ECDSA and curve arithmetic |
-| `rsa` | RSA OpenPGP key support |
+| `rsa` | Vault library RSA (OAEP/PSS; PKCS#1 v1.5 sign/verify). Not used by OpenPGP card PSO. |
 | `camellia`, `serpent`, `twofish` | Cascade cipher layers in vault profiles |
 | `vsss-rs` | Shamir secret sharing (split/recover) |
 | `zeroize` | Secure zeroisation of sensitive buffers |
