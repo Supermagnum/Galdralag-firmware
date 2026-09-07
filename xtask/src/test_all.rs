@@ -740,7 +740,7 @@ fn build_markdown(
 
     let flags = match (fuzz_skipped, dudect_skipped) {
         (true, true) => {
-            "`--no-fuzz --no-dudect` (fuzz and dudect run on schedule / locally without these flags)"
+            "`--no-fuzz --no-dudect` (CI uses `--no-fuzz`; omit flags locally to run fuzz + dudect)"
         }
         (true, false) => "`--no-fuzz` (fuzz matrix run separately; see Section 6)",
         (false, true) => "`--no-dudect` (timing suite: `cargo run -p xtask -- timing-test`)",

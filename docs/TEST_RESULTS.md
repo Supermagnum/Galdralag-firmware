@@ -20,8 +20,8 @@ MAINTENANCE CONTRACT FOR THIS FILE
 
 | Field | Value |
 |---|---|
-| Date (UTC) | 2026-08-25T23:58:56Z |
-| Commit | `603f05d1bdf305ceefa8f4dc4820eb3669c3f2ee` |
+| Date (UTC) | 2026-09-07T14:18:54Z |
+| Commit | `9b2b61d332742c17b505a6d5b9ad5de728259f71` |
 | xtask version | 0.1.0 |
 | Flags | `--no-fuzz` (fuzz matrix run separately; see Section 6) |
 | Host | x86_64-unknown-linux-gnu |
@@ -134,38 +134,38 @@ Source: `crates/vault/tests/twofish_vectors.json`
 
 | Harness | Samples | t-stat | Status | Notes |
 |---------|---------|--------|--------|-------|
-| `timing_subtle_eq_u256` | 100000 | +1.888 | PASS |  |
-| `timing_chacha_tag_check` | 100000 | +0.894 | PASS |  |
-| `timing_aes_gcm_tag_check` | 100000 | -1.016 | PASS |  |
-| `timing_hmac_verify` | 100000 | -2.132 | PASS |  |
-| `timing_hkdf_derive` | 100000 | +1.955 | PASS |  |
-| `timing_ed25519_verify` | 100000 | +0.711 | PASS |  |
-| `timing_x25519_ecdh` | 100000 | -1.189 | PASS |  |
-| `timing_brainpool256_scalar_mult` | 5000 | -1.396 | PASS |  |
-| `timing_brainpool384_scalar_mult` | 5000 | -1.405 | PASS |  |
-| `timing_ephemeral_ecdh` | 10000 | +1.646 | PASS |  |
-| `timing_signature_verify` | 10000 | +1.790 | PASS |  |
-| `timing_fingerprint_lookup` | 100000 | -2.060 | PASS | Null pairing — same absent fingerprint both classes |
-| `timing_shamir_recover` | 100000 | -2.204 | PASS |  |
-| `timing_camellia_tag_check` | 100000 | +1.698 | PASS |  |
-| `timing_serpent_tag_check` | 100000 | +1.433 | PASS |  |
-| `timing_twofish_tag_check` | 100000 | +1.664 | PASS |  |
-| `timing_cascade_auth_failure` | 100000 | -1.060 | PASS | Null pairing — identical tampered ciphertext per class |
-| `timing_cascade_inner_vs_outer_failure` | 100000 | -2.797 | PASS | Null pairing — identical inner tamper per class |
-| `timing_pin_compare` | 100000 | -1.186 | PASS |  |
-| `timing_rsa_oaep_decrypt` | 100000 | -2.302 | PASS |  |
-| `timing_rsa_pss_verify` | 100000 | -3.079 | PASS |  |
-| `timing_pbkdf2` | 100000 | -2.429 | PASS | PBKDF2-HMAC-SHA256; two 16-byte passwords |
-| `timing_sha256` | 100000 | -2.092 | PASS |  |
-| `timing_sha512` | 100000 | -2.658 | PASS |  |
-| `timing_sha3_256` | 350000 | +1.968 | PASS |  |
-| `timing_sha3_512` | 350000 | -3.819 | PASS |  |
-| `timing_blake2b` | 100000 | -1.905 | PASS |  |
-| `timing_blake2s` | 100000 | -2.008 | PASS |  |
-| `timing_blake3` | 100000 | +1.739 | PASS | Single-chunk 64-byte message |
-| `dudect_session_token_verify_constant_time` | 100000 | -2.242 | PASS | Constant-time compare harness |
-| `dudect_template_decrypt_constant_time` | 100000 | +2.284 | PASS | Null pairing — decrypt good blob both classes |
-| `dudect_signature_verify_constant_time` | 100000 | -1.471 | PASS | Constant-time limb compare harness |
+| `timing_subtle_eq_u256` | 100000 | -1.165 | PASS |  |
+| `timing_chacha_tag_check` | 100000 | +2.780 | PASS |  |
+| `timing_aes_gcm_tag_check` | 100000 | -1.645 | PASS |  |
+| `timing_hmac_verify` | 100000 | -2.211 | PASS |  |
+| `timing_hkdf_derive` | 100000 | -2.388 | PASS |  |
+| `timing_ed25519_verify` | 100000 | +1.268 | PASS |  |
+| `timing_x25519_ecdh` | 100000 | +1.318 | PASS |  |
+| `timing_brainpool256_scalar_mult` | 5000 | +1.142 | PASS |  |
+| `timing_brainpool384_scalar_mult` | 5000 | -1.762 | PASS |  |
+| `timing_ephemeral_ecdh` | 10000 | -1.468 | PASS |  |
+| `timing_signature_verify` | 10000 | +3.505 | PASS |  |
+| `timing_fingerprint_lookup` | 100000 | -1.659 | PASS | Null pairing — same absent fingerprint both classes |
+| `timing_shamir_recover` | 100000 | +2.485 | PASS |  |
+| `timing_camellia_tag_check` | 100000 | +1.837 | PASS |  |
+| `timing_serpent_tag_check` | 100000 | -2.257 | PASS |  |
+| `timing_twofish_tag_check` | 100000 | +1.813 | PASS |  |
+| `timing_cascade_auth_failure` | 100000 | +2.442 | PASS | Null pairing — identical tampered ciphertext per class |
+| `timing_cascade_inner_vs_outer_failure` | 100000 | +2.170 | PASS | Null pairing — identical inner tamper per class |
+| `timing_pin_compare` | 100000 | +1.470 | PASS |  |
+| `timing_rsa_oaep_decrypt` | 100000 | -1.625 | PASS |  |
+| `timing_rsa_pss_verify` | 100000 | -1.897 | PASS |  |
+| `timing_pbkdf2` | 100000 | +3.183 | PASS | PBKDF2-HMAC-SHA256; two 16-byte passwords |
+| `timing_sha256` | 100000 | +1.428 | PASS |  |
+| `timing_sha512` | 100000 | +1.778 | PASS |  |
+| `timing_sha3_256` | 350000 | +1.957 | PASS |  |
+| `timing_sha3_512` | 350000 | -1.508 | PASS |  |
+| `timing_blake2b` | 100000 | +2.219 | PASS |  |
+| `timing_blake2s` | 100000 | -2.442 | PASS |  |
+| `timing_blake3` | 100000 | -1.365 | PASS | Single-chunk 64-byte message |
+| `dudect_session_token_verify_constant_time` | 100000 | +2.533 | PASS | Constant-time compare harness |
+| `dudect_template_decrypt_constant_time` | 100000 | -1.339 | PASS | Null pairing — decrypt good blob both classes |
+| `dudect_signature_verify_constant_time` | 100000 | +1.599 | PASS | Constant-time limb compare harness |
 
 **Not yet wired** (printed `[MISSING]` by `dudect_galdr`):
 challenge-response HMAC, PSRAM tag check, XMSS verify, LMS verify.
