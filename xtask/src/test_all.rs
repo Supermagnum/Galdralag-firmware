@@ -104,10 +104,12 @@ fn parse_dudect_summary_counts(summary_line: &str) -> Option<(u32, u32)> {
 }
 
 fn run_dudect_galdr(workspace_root: &Path) -> (bool, DudectReport) {
+    // Release: debug builds inflate host noise and have false-failed timing_hkdf_derive on CI.
     let out = Command::new("cargo")
         .current_dir(workspace_root)
         .args([
             "run",
+            "--release",
             "-p",
             "security-tests",
             "--features",
@@ -136,6 +138,7 @@ fn dudect_compact_note(name: &str) -> &'static str {
             "Null pairing — identical inner tamper per class"
         }
         "timing_pbkdf2" => "PBKDF2-HMAC-SHA256; two 16-byte passwords",
+        "timing_hkdf_derive" => "HKDF-SHA256; fixed salt, two 32-byte IKM classes",
         "timing_blake3" => "Single-chunk 64-byte message",
         "dudect_template_decrypt_constant_time" => "Null pairing — decrypt good blob both classes",
         "dudect_session_token_verify_constant_time" => "Constant-time compare harness",

@@ -106,6 +106,7 @@ pub fn run(workspace_root: &Path, args: impl Iterator<Item = String>) -> i32 {
     cmd.current_dir(workspace_root)
         .args([
             "run",
+            "--release",
             "-p",
             "security-tests",
             "--features",
