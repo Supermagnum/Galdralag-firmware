@@ -1,12 +1,14 @@
 # GitHub Actions: host test suite + dependency audit.
 #
-# PR/push to main: test-all (--no-fuzz; dudect on), cargo-audit (three
+# PR/push to main: test-all (--no-fuzz --no-dudect), cargo-audit (three
 # lockfiles), firmware-check (riscv32 galdr-vault + check-fw).
 # galdralag workspace compile is deferred (no public xous-core branch);
 # lockfile still audited.
 #
-# Cargo-fuzz is **not** a CI job (needs nightly + long wall time). Run locally:
+# Fuzz and dudect are **not** CI jobs (dudect is noisy on shared runners;
+# fuzz needs nightly). Run them locally:
 #   cargo run -p xtask -- test-all
+#   cargo run -p xtask -- timing-test
 #   cargo run -p xtask -- fuzz <target>
 #
 # cargo audit --file does not need xous-core. services/galdralag Cargo.toml
@@ -37,7 +39,7 @@ jobs:
   test-all:
     name: test-all
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
@@ -54,8 +56,8 @@ jobs:
             libpcsclite-dev \
             libssl-dev \
             libgtk-4-dev
-      - name: test-all --no-fuzz
-        run: cargo run -p xtask -- test-all --no-fuzz
+      - name: test-all --no-fuzz --no-dudect
+        run: cargo run -p xtask -- test-all --no-fuzz --no-dudect
 
   cargo-audit:
     name: cargo-audit

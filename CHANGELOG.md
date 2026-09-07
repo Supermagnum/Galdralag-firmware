@@ -14,7 +14,7 @@ All notable changes to this project are documented in this file.
 
 ### Added
 
-- **GitHub Actions CI** (`.github/workflows/ci.yml`): `test-all --no-fuzz` (dudect on), `cargo-audit` on all three lockfiles, and firmware `riscv32` checks on every PR and push to `main`. Cargo-fuzz is local-only. See [docs/THREAT_MODEL.md](docs/THREAT_MODEL.md) for `cargo-audit` allow-list.
+- **GitHub Actions CI** (`.github/workflows/ci.yml`): `test-all --no-fuzz --no-dudect`, `cargo-audit` on all three lockfiles, and firmware `riscv32` checks on every PR and push to `main`. Fuzz and dudect stay local (`cargo run -p xtask -- test-all` / `timing-test` / `fuzz`). See [docs/THREAT_MODEL.md](docs/THREAT_MODEL.md) for `cargo-audit` allow-list.
 
 ### Changed
 

@@ -20,10 +20,10 @@ MAINTENANCE CONTRACT FOR THIS FILE
 
 | Field | Value |
 |---|---|
-| Date (UTC) | 2026-09-07T14:18:54Z |
-| Commit | `9b2b61d332742c17b505a6d5b9ad5de728259f71` |
+| Date (UTC) | 2026-09-07T15:29:41Z |
+| Commit | `9567ac952b9f01fbe3773a74bd7a5b857f7ba2c9` |
 | xtask version | 0.1.0 |
-| Flags | `--no-fuzz` (fuzz matrix run separately; see Section 6) |
+| Flags | `--no-fuzz --no-dudect` (CI default; omit flags locally to run fuzz + dudect) |
 | Host | x86_64-unknown-linux-gnu |
 | Toolchain | nightly (cargo-fuzz); stable (all others) |
 
@@ -47,7 +47,7 @@ MAINTENANCE CONTRACT FOR THIS FILE
 | OpenPGP / CCID | `cargo test -p usb-personality` | PASS |
 | Biometric crates (mocks) | `cargo test -p biometric-api -p biometric-vault -p biometric-fingervein --features test-hal -p biometric-sweet --features test-hal` | PASS |
 | Zeroisation simulation | (see Section 7) | PASS |
-| Timing (dudect) | `cargo run -p xtask -- timing-test` | PASS (32/32) |
+| Timing (dudect) | `cargo run -p xtask -- timing-test` | SKIPPED (--no-dudect) |
 | Cargo-fuzz (12 targets, 30 s in test-all) | (see Section 6) | PASS |
 
 ---
@@ -122,53 +122,7 @@ Source: `crates/vault/tests/twofish_vectors.json`
 ## 3. Timing tests (dudect)
 
 **Tool:** `dudect_galdr` — **threshold |t| ≤ 4.5**  
-**Result:** 32/32 harnesses PASS  
-**Cache:** `crates/security-tests/dudect_results.json`
-
-| Command | Purpose |
-|---------|---------|
-| `cargo run -p xtask -- timing-test` | Incremental (~155 s when 5 remain uncached) |
-| `cargo run -p xtask -- timing-test --all` | Full suite (~910 s) |
-| `cargo run -p xtask -- timing-test --full` | 3× sample multiplier |
-| `cargo run -p xtask -- timing-test <name>` | Named harnesses only |
-
-| Harness | Samples | t-stat | Status | Notes |
-|---------|---------|--------|--------|-------|
-| `timing_subtle_eq_u256` | 100000 | -1.165 | PASS |  |
-| `timing_chacha_tag_check` | 100000 | +2.780 | PASS |  |
-| `timing_aes_gcm_tag_check` | 100000 | -1.645 | PASS |  |
-| `timing_hmac_verify` | 100000 | -2.211 | PASS |  |
-| `timing_hkdf_derive` | 100000 | -2.388 | PASS |  |
-| `timing_ed25519_verify` | 100000 | +1.268 | PASS |  |
-| `timing_x25519_ecdh` | 100000 | +1.318 | PASS |  |
-| `timing_brainpool256_scalar_mult` | 5000 | +1.142 | PASS |  |
-| `timing_brainpool384_scalar_mult` | 5000 | -1.762 | PASS |  |
-| `timing_ephemeral_ecdh` | 10000 | -1.468 | PASS |  |
-| `timing_signature_verify` | 10000 | +3.505 | PASS |  |
-| `timing_fingerprint_lookup` | 100000 | -1.659 | PASS | Null pairing — same absent fingerprint both classes |
-| `timing_shamir_recover` | 100000 | +2.485 | PASS |  |
-| `timing_camellia_tag_check` | 100000 | +1.837 | PASS |  |
-| `timing_serpent_tag_check` | 100000 | -2.257 | PASS |  |
-| `timing_twofish_tag_check` | 100000 | +1.813 | PASS |  |
-| `timing_cascade_auth_failure` | 100000 | +2.442 | PASS | Null pairing — identical tampered ciphertext per class |
-| `timing_cascade_inner_vs_outer_failure` | 100000 | +2.170 | PASS | Null pairing — identical inner tamper per class |
-| `timing_pin_compare` | 100000 | +1.470 | PASS |  |
-| `timing_rsa_oaep_decrypt` | 100000 | -1.625 | PASS |  |
-| `timing_rsa_pss_verify` | 100000 | -1.897 | PASS |  |
-| `timing_pbkdf2` | 100000 | +3.183 | PASS | PBKDF2-HMAC-SHA256; two 16-byte passwords |
-| `timing_sha256` | 100000 | +1.428 | PASS |  |
-| `timing_sha512` | 100000 | +1.778 | PASS |  |
-| `timing_sha3_256` | 350000 | +1.957 | PASS |  |
-| `timing_sha3_512` | 350000 | -1.508 | PASS |  |
-| `timing_blake2b` | 100000 | +2.219 | PASS |  |
-| `timing_blake2s` | 100000 | -2.442 | PASS |  |
-| `timing_blake3` | 100000 | -1.365 | PASS | Single-chunk 64-byte message |
-| `dudect_session_token_verify_constant_time` | 100000 | +2.533 | PASS | Constant-time compare harness |
-| `dudect_template_decrypt_constant_time` | 100000 | -1.339 | PASS | Null pairing — decrypt good blob both classes |
-| `dudect_signature_verify_constant_time` | 100000 | +1.599 | PASS | Constant-time limb compare harness |
-
-**Not yet wired** (printed `[MISSING]` by `dudect_galdr`):
-challenge-response HMAC, PSRAM tag check, XMSS verify, LMS verify.
+**Result:** SKIPPED (`--no-dudect`). Run `cargo run -p xtask -- timing-test` or `test-all` without `--no-dudect`.  
 
 ---
 
