@@ -14,7 +14,7 @@ All notable changes to this project are documented in this file.
 
 ### Added
 
-- **GitHub Actions CI** (`.github/workflows/ci.yml`): `test-all --no-fuzz --no-dudect`, `cargo-audit` on all three lockfiles, and firmware `riscv32` checks on every PR and push to `main`. Weekly scheduled `test-all` with fuzz **and** dudect (plus `workflow_dispatch`). Dudect is not a PR gate: it is ~15–20 minutes on GitHub-hosted runners. See [docs/THREAT_MODEL.md](docs/THREAT_MODEL.md) for `cargo-audit` allow-list.
+- **GitHub Actions CI** (`.github/workflows/ci.yml`): `test-all --no-fuzz --no-dudect`, `cargo-audit` on all three lockfiles, and firmware `riscv32` checks on every PR and push to `main`. Fuzz and dudect stay local (`cargo run -p xtask -- test-all` / `timing-test` / `fuzz`). See [docs/THREAT_MODEL.md](docs/THREAT_MODEL.md) for `cargo-audit` allow-list.
 
 ### Changed
 
