@@ -1002,7 +1002,7 @@ dependencies = [
  "ephemeral-session",
  "galdr-core",
  "galdr-vault",
- "heapless",
+ "heapless 0.9.3",
  "hex",
  "hkdf 0.13.0",
  "serde_json",
@@ -1751,7 +1751,7 @@ dependencies = [
  "cess",
  "galdr-core",
  "galdr-vault",
- "heapless",
+ "heapless 0.9.3",
  "hex",
  "hkdf 0.13.0",
  "hmac 0.13.0",
@@ -1794,7 +1794,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "39cab71617ae0d63f51a36d69f866391735b51691dbda63cf6f96d042b63efeb"
 dependencies = [
  "libc",
- "windows-sys 0.52.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -2195,7 +2195,7 @@ dependencies = [
  "elliptic-curve 0.14.0-rc.29",
  "ff 0.14.0",
  "galdr-core",
- "heapless",
+ "heapless 0.9.3",
  "hex",
  "hkdf 0.13.0",
  "hmac 0.13.0",
@@ -2257,7 +2257,7 @@ dependencies = [
  "ephemeral-session",
  "galdr-core",
  "galdr-vault",
- "heapless",
+ "heapless 0.9.3",
  "hex",
  "ldap3",
  "pcsc",
@@ -2765,6 +2765,16 @@ name = "heapless"
 version = "0.8.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0bfb9eb618601c89945a70e254898da93b13be0388091d42117462b265bb3fad"
+dependencies = [
+ "hash32",
+ "stable_deref_trait",
+]
+
+[[package]]
+name = "heapless"
+version = "0.9.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "25ba4bd83f9415b58b4ed8dc5714c76e626a105be4646c02630ad730ad3b5aa4"
 dependencies = [
  "hash32",
  "stable_deref_trait",
@@ -3951,7 +3961,7 @@ version = "0.50.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7957b9740744892f114936ab4a57b3f487491bbeafaf8083688b16841a4240e5"
 dependencies = [
- "windows-sys 0.59.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -5297,7 +5307,7 @@ dependencies = [
  "errno",
  "libc",
  "linux-raw-sys",
- "windows-sys 0.52.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -5480,7 +5490,7 @@ dependencies = [
  "ephemeral-session",
  "galdr-core",
  "galdr-vault",
- "heapless",
+ "heapless 0.9.3",
  "hex",
  "hkdf 0.13.0",
  "hmac 0.13.0",
@@ -6094,7 +6104,7 @@ dependencies = [
  "getrandom 0.4.2",
  "once_cell",
  "rustix",
- "windows-sys 0.52.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -6651,7 +6661,7 @@ version = "0.3.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "98816b1accafbb09085168b90f27e93d790b4bfa19d883466b5e53315b5f06a6"
 dependencies = [
- "heapless",
+ "heapless 0.8.0",
  "portable-atomic",
 ]
 
@@ -6664,7 +6674,7 @@ dependencies = [
  "ed25519-dalek",
  "galdr-core",
  "galdr-vault",
- "heapless",
+ "heapless 0.9.3",
  "pin-policy",
  "proptest",
  "rand_core 0.6.4",
@@ -7004,7 +7014,7 @@ version = "0.1.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c2a7b1c03c876122aa43f3020e6c3c3ee5c05081c9a00739faf7503aeba10d22"
 dependencies = [
- "windows-sys 0.52.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
