@@ -5,10 +5,11 @@
 # galdralag workspace compile is deferred (no public xous-core branch);
 # lockfile still audited.
 #
-# Dudect is ~15–20 minutes on GitHub-hosted runners and is **not** a PR
-# gate. Full `test-all` (dudect + twelve cargo-fuzz targets at 30s each)
-# is weekly (Monday 03:00 UTC) plus workflow_dispatch. Local default
-# `cargo run -p xtask -- test-all` still runs dudect.
+# Fuzz and dudect are **not** CI jobs (dudect is noisy on shared runners;
+# fuzz needs nightly). Run them locally:
+#   cargo run -p xtask -- test-all
+#   cargo run -p xtask -- timing-test
+#   cargo run -p xtask -- fuzz <target>
 #
 # cargo audit --file does not need xous-core. services/galdralag Cargo.toml
 # path-depends on ./xous-core. The README branch
@@ -24,8 +25,6 @@ on:
   pull_request:
   push:
     branches: [main]
-  schedule:
-    - cron: "0 3 * * 1"
   workflow_dispatch:
 
 concurrency:
@@ -97,30 +96,3 @@ jobs:
         run: cargo run -p xtask -- check-fw
       - name: check-fw (pq-signatures)
         run: cargo run -p xtask -- check-fw --features pq-signatures
-
-  test-all-full:
-    name: test-all-full
-    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
-    runs-on: ubuntu-latest
-    timeout-minutes: 120
-    steps:
-      - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@nightly
-        with:
-          targets: riscv32imac-unknown-none-elf
-      - uses: Swatinem/rust-cache@v2
-        with:
-          cache-on-failure: true
-      - name: Install host libraries
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends \
-            pkg-config \
-            libpcsclite-dev \
-            libssl-dev \
-            libgtk-4-dev
-      - uses: taiki-e/install-action@v2
-        with:
-          tool: cargo-fuzz
-      - name: test-all (fuzz + dudect)
-        run: cargo run -p xtask -- test-all
