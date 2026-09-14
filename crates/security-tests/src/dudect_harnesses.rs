@@ -219,25 +219,27 @@ fn bench_timing_hmac_verify() -> CtSummary {
 }
 
 fn bench_timing_hkdf_derive() -> CtSummary {
+    // Threat model: no timing difference correlated with secret IKM bytes.
+    // Fixed public salt; two equal-length IKM classes (same pattern as timing_pbkdf2).
     use hkdf::Hkdf;
     use sha2::Sha256;
-    let ikm = [0x55u8; 32];
+    const IKM_A: [u8; 32] = [0x55u8; 32];
+    let salt = [0x3Cu8; 16];
     let info = b"galdr-dudect/hkdf";
     let n = samples_for_harness("timing_hkdf_derive");
     let mut rng = StdRng::seed_from_u64(0x484B_4446);
     let mut work = Vec::with_capacity(n);
     for _ in 0..n {
-        let mut salt = [0u8; 16];
         if rng.gen_bool(0.5) {
-            salt.fill(1);
-            work.push((Class::Left, salt));
+            work.push((Class::Left, IKM_A));
         } else {
-            salt.fill(2);
-            work.push((Class::Right, salt));
+            let mut ikm_b = [0u8; 32];
+            rng.fill_bytes(&mut ikm_b);
+            work.push((Class::Right, ikm_b));
         }
     }
     let mut runner = CtRunner::default();
-    for (c, salt) in work {
+    for (c, ikm) in work {
         runner.run_one(c, move || {
             let mut okm = [0u8; 32];
             let hk = Hkdf::<Sha256>::new(Some(black_box(&salt)), black_box(&ikm));
