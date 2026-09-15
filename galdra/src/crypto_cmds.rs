@@ -242,17 +242,18 @@ fn run_encrypt_age(
             "age encryption requires at least one --age-recipient (age1...)".to_string(),
         ));
     }
-    let mut recipients: Vec<Box<dyn age::Recipient + Send>> = Vec::new();
+    let mut recipients: Vec<age::x25519::Recipient> = Vec::new();
     for s in age_recipient {
         let r: age::x25519::Recipient = s
             .parse()
             .map_err(|e| GaldraError::Config(format!("invalid --age-recipient: {e}")))?;
-        recipients.push(Box::new(r));
+        recipients.push(r);
     }
     let plaintext = std::fs::read(&input).map_err(GaldraError::Io)?;
-    let encryptor = age::Encryptor::with_recipients(recipients).ok_or_else(|| {
-        GaldraError::Config("age encryption requires at least one valid recipient".to_string())
-    })?;
+    let encryptor = age::Encryptor::with_recipients(
+        recipients.iter().map(|r| r as &dyn age::Recipient),
+    )
+    .map_err(|e| GaldraError::Config(format!("{e}")))?;
     let mut ciphertext = Vec::new();
     {
         let mut writer = encryptor
@@ -437,33 +438,25 @@ fn run_decrypt_age(
         )
     })?;
     let ciphertext = std::fs::read(&input).map_err(GaldraError::Io)?;
-    let decryptor = match age::Decryptor::new(&ciphertext[..])
-        .map_err(|e| GaldraError::Config(e.to_string()))?
-    {
-        age::Decryptor::Recipients(d) => d,
-        age::Decryptor::Passphrase(_) => {
-            return Err(GaldraError::Config(
-                "age file uses passphrase encryption; decrypt with the age tool".to_string(),
-            ));
-        }
-    };
+    let decryptor = age::Decryptor::new_buffered(&ciphertext[..])
+        .map_err(|e| GaldraError::Config(e.to_string()))?;
+    if decryptor.is_scrypt() {
+        return Err(GaldraError::Config(
+            "age file uses passphrase encryption; decrypt with the age tool".to_string(),
+        ));
+    }
     let idf =
         age::IdentityFile::from_file(id_path.display().to_string()).map_err(GaldraError::Io)?;
-    let identities: Vec<age::x25519::Identity> = idf
+    let identities = idf
         .into_identities()
-        .into_iter()
-        .map(|e| {
-            let age::IdentityFileEntry::Native(i) = e;
-            i
-        })
-        .collect();
+        .map_err(|e| GaldraError::Config(e.to_string()))?;
     if identities.is_empty() {
         return Err(GaldraError::Config(
             "no native age identities found in identity file".to_string(),
         ));
     }
     let mut r = decryptor
-        .decrypt(identities.iter().map(|i| i as &dyn age::Identity))
+        .decrypt(identities.iter().map(|i| i.as_ref() as &dyn age::Identity))
         .map_err(|e| GaldraError::Config(e.to_string()))?;
     let mut plaintext = Vec::new();
     r.read_to_end(&mut plaintext)
