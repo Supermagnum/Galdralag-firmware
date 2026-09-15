@@ -19,11 +19,13 @@ use biometric_fingervein::MockFingerVeinDevice;
 use biometric_sweet::MockSweetPlatform;
 use ed25519_dalek::SigningKey;
 use rand::rngs::StdRng;
-use rand::SeedableRng;
+use rand::{RngCore, SeedableRng};
 
 fn sk(seed: u64) -> SigningKey {
     let mut rng = StdRng::seed_from_u64(0x706164 ^ seed);
-    SigningKey::generate(&mut rng)
+    let mut bytes = [0u8; 32];
+    rng.fill_bytes(&mut bytes);
+    SigningKey::from_bytes(&bytes)
 }
 
 #[test]
