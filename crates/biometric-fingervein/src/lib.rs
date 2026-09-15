@@ -11,6 +11,7 @@ use biometric_api::{
 };
 use ed25519_dalek::SigningKey;
 use rand::rngs::OsRng;
+use rand::RngCore;
 
 /// USB serial / HID handle to the ESP32-CAM device (stub until hardware transport lands).
 pub struct FingerVeinDevice {
@@ -22,10 +23,11 @@ pub struct FingerVeinDevice {
 
 impl FingerVeinDevice {
     pub fn new() -> Self {
-        let mut rng = OsRng;
+        let mut seed = [0u8; 32];
+        OsRng.fill_bytes(&mut seed);
         Self {
             usb_path: Arc::new(Mutex::new(None)),
-            signing_key: SigningKey::generate(&mut rng),
+            signing_key: SigningKey::from_bytes(&seed),
             device_id: [0u8; 16],
         }
     }
