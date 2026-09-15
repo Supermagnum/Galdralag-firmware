@@ -113,7 +113,7 @@ tower-http = { version = "0.6.2", features = ["trace"] }
 reqwest = { version = "0.12.12", default-features = false, features = ["rustls-tls"] }
 ldap3 = "0.12.1"
 image = "0.25.5"
-rqrr = "0.10.1"
+rqrr = "0.11.0"
 # 0.12.1 on crates.io still pulls ml-kem 0.2 (kem 0.3.0-pre), which cannot coexist with
 # sequoia-openpgp's ml-kem 0.3.2 (kem 0.3.0). Patch to rage main until crates.io ships ml-kem 0.3.
 age = "0.12.1"
