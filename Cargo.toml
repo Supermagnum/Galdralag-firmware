@@ -59,7 +59,7 @@ heapless = { version = "0.9", default-features = false }
 usb-device = { version = "0.3.2", default-features = false }
 signature = { version = "3.0.0-rc.10", default-features = false, features = ["digest"] }
 serde_json = { version = "1", default-features = false, features = ["std"] }
-ed25519-dalek = { version = "2", default-features = false, features = ["rand_core"] }
+ed25519-dalek = { version = "3", default-features = false, features = ["rand_core"] }
 x25519-dalek = { version = "3.0", default-features = false, features = ["static_secrets"] }
 hkdf = { version = "0.13", default-features = false }
 pbkdf2 = { version = "0.13", default-features = false }
