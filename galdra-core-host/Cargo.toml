@@ -11,7 +11,7 @@ pcsc = ["dep:pcsc"]
 
 [dependencies]
 anyhow = { workspace = true }
-base64 = { version = "0.22", default-features = false, features = ["std"] }
+base64 = { version = "0.23", default-features = false, features = ["std"] }
 blake3 = { workspace = true }
 chrono = { workspace = true }
 cipher-profile = { path = "../crates/cipher-profile" }

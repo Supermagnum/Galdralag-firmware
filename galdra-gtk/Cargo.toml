@@ -6,7 +6,7 @@ license = "GPL-3.0"
 description = "GTK4 desktop client for Galdra (Cargo binary name galdra-gtk; talks to galdrad over HTTP)"
 
 [dependencies]
-base64 = { version = "0.22", default-features = false, features = ["std"] }
+base64 = { version = "0.23", default-features = false, features = ["std"] }
 clap = { workspace = true, features = ["derive", "env"] }
 dirs = "6"
 gtk = { workspace = true }
