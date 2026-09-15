@@ -8,11 +8,13 @@ use biometric_vault::{
 };
 use ed25519_dalek::SigningKey;
 use rand::rngs::StdRng;
-use rand::SeedableRng;
+use rand::{RngCore, SeedableRng};
 
 fn rng_sk() -> SigningKey {
     let mut rng = StdRng::seed_from_u64(0x656e);
-    SigningKey::generate(&mut rng)
+    let mut bytes = [0u8; 32];
+    rng.fill_bytes(&mut bytes);
+    SigningKey::from_bytes(&bytes)
 }
 
 #[test]
