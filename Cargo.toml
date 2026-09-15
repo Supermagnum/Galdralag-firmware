@@ -95,7 +95,7 @@ rusb = "0.9.4"
 rpassword = "7.3.1"
 serialport = { version = "4.6.0", default-features = false }
 serde = { version = "1.0.217", features = ["derive"] }
-toml = "0.8.19"
+toml = "0.9.12"
 uuid = { version = "1.11.0", features = ["v4"] }
 chrono = { version = "0.4.39", features = ["serde"] }
 thiserror = "2.0.18"
