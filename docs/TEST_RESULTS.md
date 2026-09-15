@@ -20,8 +20,8 @@ MAINTENANCE CONTRACT FOR THIS FILE
 
 | Field | Value |
 |---|---|
-| Date (UTC) | 2026-09-15T00:36:41Z |
-| Commit | `80ba79d755e36d2513fd999a185485eed16b5e29` |
+| Date (UTC) | 2026-09-15T01:00:46Z |
+| Commit | `87c736046523f86215e1dd6bb352f52dd3c44340` |
 | xtask version | 0.1.0 |
 | Flags | `--no-fuzz --no-dudect` (CI default; omit flags locally to run fuzz + dudect) |
 | Host | x86_64-unknown-linux-gnu |

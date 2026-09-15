@@ -935,7 +935,9 @@ where
                 AlgorithmAttributes::EdDsa { curve_oid }
                     if curve_oid.as_slice() == curve_oids::ED25519 =>
                 {
-                    let signing_key = ed25519_dalek::SigningKey::generate(&mut self.trng);
+                    let mut seed = [0u8; 32];
+                    self.trng.fill_bytes(&mut seed);
+                    let signing_key = ed25519_dalek::SigningKey::from_bytes(&seed);
                     let verifying_key = signing_key.verifying_key();
                     self.persist_private_key(KeyPurpose::OpenPgpSig, signing_key.as_bytes())?;
                     self.sig_key = None;
@@ -971,7 +973,9 @@ where
                 AlgorithmAttributes::EdDsa { curve_oid }
                     if curve_oid.as_slice() == curve_oids::ED25519 =>
                 {
-                    let signing_key = ed25519_dalek::SigningKey::generate(&mut self.trng);
+                    let mut seed = [0u8; 32];
+                    self.trng.fill_bytes(&mut seed);
+                    let signing_key = ed25519_dalek::SigningKey::from_bytes(&seed);
                     let verifying_key = signing_key.verifying_key();
                     self.persist_private_key(KeyPurpose::OpenPgpAut, signing_key.as_bytes())?;
                     self.aut_key = None;
