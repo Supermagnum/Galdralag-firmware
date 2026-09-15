@@ -1,6 +1,6 @@
 use ed25519_dalek::{SigningKey, VerifyingKey};
 use rand::rngs::StdRng;
-use rand::SeedableRng;
+use rand::{RngCore, SeedableRng};
 
 use crate::{
     galdrad_validate_match_result, match_payload_cbor_bytes, sign_match_result,
@@ -23,16 +23,21 @@ fn sample_payload() -> MatchPayload {
     }
 }
 
+fn sk_from_seed(seed: u64) -> SigningKey {
+    let mut rng = StdRng::seed_from_u64(seed);
+    let mut bytes = [0u8; 32];
+    rng.fill_bytes(&mut bytes);
+    SigningKey::from_bytes(&bytes)
+}
+
 fn sample_keypair() -> (SigningKey, VerifyingKey) {
-    let mut rng = StdRng::seed_from_u64(0x62696f);
-    let sk = SigningKey::generate(&mut rng);
+    let sk = sk_from_seed(0x62696f);
     let vk = sk.verifying_key().clone();
     (sk, vk)
 }
 
 fn other_keypair() -> (SigningKey, VerifyingKey) {
-    let mut rng = StdRng::seed_from_u64(0x626974);
-    let sk = SigningKey::generate(&mut rng);
+    let sk = sk_from_seed(0x626974);
     let vk = sk.verifying_key().clone();
     (sk, vk)
 }

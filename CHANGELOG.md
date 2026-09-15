@@ -18,6 +18,8 @@ All notable changes to this project are documented in this file.
 
 ### Changed
 
+- **`ed25519-dalek` 2 → 3:** Keygen uses 32-byte TRNG/`OsRng` fill then `SigningKey::from_bytes` (same approach as X25519), avoiding dalek 3's `rand_core` 0.10 `CryptoRng` vs workspace `HardwareTrng` (`rand_core` 0.6) mismatch. Workspace pin drops the unused `rand_core` feature.
+
 - **`age` 0.10 → 0.12.1 (with git patch):** Host `galdra` age encrypt/decrypt updated for the 0.12 API. Crates.io `age` 0.12.1 still depends on `ml-kem` 0.2 / `kem` 0.3.0-pre, which cannot coexist with `sequoia-openpgp`'s `ml-kem` 0.3.2; `[patch.crates-io]` points `age` / `age-core` at `str4d/rage` rev `b5b68c4f…` (ml-kem 0.3) until crates.io ships a compatible release. Also bumps workspace `ecdsa` 0.17, `elliptic-curve` 0.14, and `bp256`/`bp384` 0.14 (required by age's p256 stack).
 
 - **RSA OpenPGP card operations:** Documents no longer list RSA-2048/3072/4096 as a working card algorithm. Attributes can be stored via PUT DATA; GENERATE, PSO:CDS, and PSO:DECIPHER fail for RSA slots. Vault `rsa_keys` remains OAEP/PSS plus PKCS#1 v1.5 sign/verify. See [docs/OPENPGP_CARD.md](docs/OPENPGP_CARD.md). **T15** description in [docs/THREAT_MODEL.md](docs/THREAT_MODEL.md) narrowed to match (accepted-risk status unchanged).
