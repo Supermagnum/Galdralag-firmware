@@ -694,9 +694,9 @@ dependencies = [
 
 [[package]]
 name = "bp384"
-version = "0.14.0-rc.8"
+version = "0.14.0-rc.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0c7e9e3131ce7188b7281831911bdb74b874fb1dfdb3f51c9315c73b6061033f"
+checksum = "10a37e59136fce966f77d44cb3e674d85d4b59b8557fb44d3597a4cf64f579d5"
 dependencies = [
  "ecdsa 0.17.0-rc.20",
  "elliptic-curve 0.14.0-rc.35",
