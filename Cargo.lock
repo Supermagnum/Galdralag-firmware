@@ -283,7 +283,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3c3610892ee6e0cbce8ae2700349fcf8f98adb0dbfbee85aec3c9179d29cc072"
 dependencies = [
  "base64ct",
- "blake2",
+ "blake2 0.10.6",
  "cpufeatures 0.2.17",
  "password-hash",
 ]
@@ -623,6 +623,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "46502ad458c9a52b69d4d4d32775c788b7a1b85e8bc9d482d92250fc0e3f8efe"
 dependencies = [
  "digest 0.10.7",
+]
+
+[[package]]
+name = "blake2"
+version = "0.11.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5b5d4d889834ee8ecfc0f8426ad30faf7cdcb10f741a8e6d7224d95325479f6f"
+dependencies = [
+ "digest 0.11.2",
 ]
 
 [[package]]
@@ -2149,7 +2158,7 @@ name = "galdr-core"
 version = "0.1.0"
 dependencies = [
  "aes-gcm 0.11.1",
- "blake2",
+ "blake2 0.11.0",
  "blake3",
  "chacha20poly1305",
  "ed25519-dalek 3.0.0",
@@ -5496,7 +5505,7 @@ dependencies = [
  "aes-gcm 0.11.1",
  "biometric-api",
  "biometric-vault",
- "blake2",
+ "blake2 0.11.0",
  "blake3",
  "chacha20poly1305",
  "cipher-profile",
@@ -6097,7 +6106,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "32497e9a4c7b38532efcdebeef879707aa9f794296a4f0244f6f69e9bc8574bd"
 dependencies = [
  "fastrand",
- "getrandom 0.3.4",
+ "getrandom 0.4.2",
  "once_cell",
  "rustix",
  "windows-sys 0.61.2",
