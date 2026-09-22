@@ -78,7 +78,7 @@ zeroize = { version = "1.8", default-features = false, features = ["derive"] }
 subtle = { version = "2.6", default-features = false }
 p256 = { version = "0.13", default-features = false, features = ["ecdsa", "std"] }
 p384 = { version = "0.13", default-features = false, features = ["ecdsa", "std"] }
-rand_core = { version = "0.6", default-features = false }
+rand_core = { version = "0.10", default-features = false }
 rand = { version = "0.8.8", default-features = false, features = ["std_rng", "getrandom"] }
 proptest = "1.5"
 static_assertions = "1.1"
