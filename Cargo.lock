@@ -2206,7 +2206,7 @@ dependencies = [
  "signature 3.0.0",
  "static_assertions",
  "subtle",
- "twofish 0.8.0-rc.1",
+ "twofish 0.8.0",
  "vsss-rs",
  "x25519-dalek 3.0.0",
  "zeroize",
@@ -6503,9 +6503,9 @@ dependencies = [
 
 [[package]]
 name = "twofish"
-version = "0.8.0-rc.1"
+version = "0.8.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2eb06c7a0529b2a35ce9059f43c7342fbcdf430ace410dc10f88083df869a0b2"
+checksum = "0218ef702a91e18ba84dd516edf8df33a9f9fb4431d6ada13e6f9502c3bcb6fc"
 dependencies = [
  "cipher 0.5.1",
 ]
