@@ -109,7 +109,7 @@ anyhow = "1.0.95"
 utoipa = { version = "5.4.0", features = ["axum_extras"] }
 utoipa-swagger-ui = { version = "9.0.2", features = ["axum"] }
 tower = "0.5.2"
-tower-http = { version = "0.6.2", features = ["trace"] }
+tower-http = { version = "0.7.1", features = ["trace"] }
 reqwest = { version = "0.12.12", default-features = false, features = ["rustls-tls"] }
 ldap3 = "0.12.1"
 image = "0.25.5"
